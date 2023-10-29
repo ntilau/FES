@@ -1,5 +1,5 @@
-#ifndef TETGEN_H
-#define TETGEN_H
+#ifndef TETGEN_WR_H
+#define TETGEN_WR_H
 
 #include <tetgen.h>
 #include "Project.h"
@@ -21,4 +21,4 @@ private:
     double scaling;
 };
 
-#endif // TETGEN_H
+#endif // TETGEN_WR_H

@@ -1,24 +1,29 @@
 .SUFFIXES: .cpp .o
 
-CC=g++ -w
-RES=windres
+PLAT=x86_64-w64-mingw32-
+#PLAT= 
+
+CC=$(PLAT)g++ -w 
+RES=$(PLAT)windres
 
 BINDIR= ./bin
 SRCDIR= ./
 OBJDIR= ./obj
 
-CFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -I./ -I./ext/tetgen -I./ext/mumps/include -I./ext/arma/include -I./ext/metis -I./ext/gmm -DTETLIBRARY
-LFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -L./ext -lsmumps -ldmumps -lcmumps -lzmumps -lmumps_common -lmpiseq -lpord -lmetis -ltet -larpack -llapack -lopenblas -lgfortran -lquadmath -lpsapi -liphlpapi
+CFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -I./ -I./ext/tetgen/ -I./ext/mumps/include/ -I./ext/arma/include/ -I./ext/metis/ -I./ext/gmm/ -DTETLIBRARY
+LFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -L./ext/ -lsmumps -ldmumps -lcmumps -lzmumps -lmumps_common -lmpiseq -lpord -lmetis -ltet -larpack -llapack -lopenblas -lgfortran -lquadmath -lpsapi -liphlpapi
 SRCS=$(wildcard  $(SRCDIR)/*.cpp)
 OBJS=$(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCS)) $(OBJDIR)/FE.rc.o
 
 ifdef OS
    RM = del /F /S /Q
    FixPath = $(subst /,\,$1)
+   TEST = FE.exe WR10 1e10 +p 2
 else
    ifeq ($(shell uname), Linux)
       RM = rm -f
       FixPath = $1
+	  TEST = ./FE.exe WR10 1e10 +p 2
    endif
 endif
 
@@ -43,6 +48,6 @@ clean:
 
 .PHONY: test
 test:
-	cd $(BINDIR) && FE.exe WR10 1e10 +p 2
+	cd $(BINDIR) && $(TEST)
 
 
