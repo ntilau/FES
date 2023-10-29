@@ -15,4 +15,4 @@ public:
 };
 
 
-#endif // CONST_H
+#endif

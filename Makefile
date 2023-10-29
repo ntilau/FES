@@ -1,7 +1,7 @@
 .SUFFIXES: .cpp .o
 
-CC=g++
-RES=windres
+CC=x86_64-w64-mingw32-g++ -w
+RES=x86_64-w64-mingw32-windres
 
 BINDIR= ./bin
 SRCDIR= ./
@@ -9,8 +9,8 @@ OBJDIR= ./obj
 
 CFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -I./ -I./ext/tetgen -I./ext/mumps/include -I./ext/arma/include -I./ext/metis -I./ext/gmm -DTETLIBRARY
 LFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -L./ext -lsmumps -ldmumps -lcmumps -lzmumps -lmumps_common -lmpiseq -lpord -lmetis -ltet -larpack -llapack -lopenblas -lgfortran -lquadmath -lpsapi -liphlpapi
-
-OBJS = $(addprefix $(OBJDIR)/, AssElStat.o AssLin.o AssLinDD.o AssLinSchur.o AssNL.o BC.o Coupl.o DoF.o Eigen.o EleMat.o EqSys.o Field.o HFSS.o Main.o Mesh.o Mtrl.o MUMPS.o Option.o Project.o Quad.o Rad.o Shape.o TetGen.o FE.rc.o)
+SRCS=$(wildcard  $(SRCDIR)/*.cpp)
+OBJS=$(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCS)) $(OBJDIR)/FE.rc.o
 
 ifdef OS
    RM = del /F /S /Q
@@ -22,11 +22,17 @@ else
    endif
 endif
 
-all: $(OBJS)
+all: $(BINDIR) $(OBJDIR) $(OBJS)
 	$(CC) -o $(BINDIR)/FE $(OBJS) $(LFLAGS)
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(CC) $(CFLAGS) -c  $< -o $@
+
+$(BINDIR):
+	if [ ! -d "$(BINDIR)" ]; then mkdir $(BINDIR); fi
+
+$(OBJDIR):
+	if [ ! -d "$(OBJDIR)" ]; then mkdir $(OBJDIR); fi
 
 $(OBJDIR)/%.rc.o : $(SRCDIR)/%.rc
 	$(RES) $< -o $@
@@ -34,5 +40,9 @@ $(OBJDIR)/%.rc.o : $(SRCDIR)/%.rc
 .PHONY: clean
 clean:
 	$(RM) $(call FixPath,$(OBJDIR)/*.o)
+
+.PHONY: test
+test:
+	$(BINDIR)/FE.exe $(BINDIR)/WR10 1e10 +p 2
 
 

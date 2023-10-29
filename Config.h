@@ -1,17 +1,16 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#ifdef _WIN32
-#include <winsock2.h>
-#include <windows.h>
-#include <psapi.h>
-#include <iphlpapi.h>
-#endif
 
+#include <winsock2.h>
 #include <string>
 #include <stdlib.h>
+#include <windows.h>
+#include <psapi.h>
 #include <iomanip>
 #include <ostream>
+
+#include <iphlpapi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>

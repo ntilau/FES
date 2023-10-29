@@ -525,4 +525,396 @@ void HFSS::FinalizeMesh()
     std::cout << "\n";
     tetFlag = std::vector<bool>(msh->nTetras, false);
     facFlag = std::vector<bool>(msh->nFaces, false);
-  
+    nodFlag = std::vector<bool>(msh->nNodes, false);
+    size_t idx = 0, nidx = 0, eidx = 0, fidx = 0, tidx = 0;
+    std::map<std::string, std::vector<size_t> > gSolidTets;
+    for(std::vector<HFSSPart>::iterator it = parts.begin(); it != parts.end(); it++)
+    {
+        if(it->solveInside)
+        {
+            Mtrl mtr(it->name, it->material, mtrls[it->material].permittivity,
+                     mtrls[it->material].permeability, mtrls[it->material].conductivity,
+                     mtrls[it->material].dielectric_loss_tangent);
+            for(size_t tid = 0; tid < msh->nTetras; tid++)
+            {
+                if(it->id == hfssid[tid])
+                {
+                    tetFlag[tid] = true;
+                    mtr.label = msh->tetMtrl.size();
+                    gSolidTets[it->name].push_back(tid);
+                }
+            }
+            if(gSolidTets[it->name].size() == 0)
+            {
+                gSolidTets.erase(it->name);
+            }
+            else
+            {
+                mtr.Tetras.resize(gSolidTets[it->name].size());
+                size_t idx = 0;
+                for(std::vector<size_t>::iterator iter = gSolidTets[it->name].begin();
+                        iter != gSolidTets[it->name].end(); iter++)
+                {
+                    mtr.Tetras(idx++) = *iter;
+                    msh->tetLab(*iter) = mtr.label;
+                }
+                std::cout << mtr.sldName << " " << mtr.name << "\n";
+                msh->tetMtrl.push_back(mtr);
+            }
+        }
+    }
+    for(std::vector<HFSSBnd>::iterator it = bnds.begin();  it != bnds.end(); it++)
+    {
+        BC bc;
+        bc.setType(it->type);
+        bc.name = it->name;
+        bc.label = msh->facBC.size();
+        std::cout << bc.name << " " << bc.type;
+        if(bc.type == BC::WavePort)
+        {
+            bc.numModes = it->numModes;
+            std::cout << " " << bc.numModes;
+        }
+        std::cout << "\n";
+        msh->facBC.push_back(bc);
+    }
+    if(debug)
+    {
+        std::cout << "TetMap\n";
+    }
+    std::vector<size_t> tetMap(msh->nTetras,UINT_MAX);
+    tidx = 0;
+    for(size_t tid = 0; tid < msh->nTetras ; tid++)
+    {
+        if(tetFlag[tid])
+        {
+            tetMap[tid] = tidx++;
+        }
+    }
+    if(debug)
+    {
+        std::cout << "newTetNodes newTetFaces newTetLab " << tidx << "\n";
+    }
+    arma::umat newTetNodes(tidx,4);
+    arma::umat newTetFaces(tidx,4);
+    arma::uvec newTetLab(tidx);
+    for(size_t tid = 0; tid < msh->nTetras ; tid++)
+    {
+        if(tetFlag[tid])
+        {
+            newTetNodes.row(tetMap[tid]) = msh->tetNodes.row(tid);
+            newTetFaces.row(tetMap[tid]) = msh->tetFaces.row(tid);
+            newTetLab(tetMap[tid]) = msh->tetLab(tid);
+        }
+    }
+    msh->nTetras = tidx;
+    msh->tetNodes = newTetNodes;
+    msh->tetFaces = newTetFaces;
+    msh->tetLab = newTetLab;
+    if(debug)
+    {
+        std::cout << "tetMtrl newTetras\n";
+    }
+    for(size_t mtrid = 0; mtrid < msh->tetMtrl.size(); mtrid++)
+    {
+        std::vector<size_t> newTetras;
+        for(size_t tid = 0; tid< msh->tetMtrl[mtrid].Tetras.size(); tid++)
+        {
+            if(tetMap[msh->tetMtrl[mtrid].Tetras(tid)] < UINT_MAX)
+            {
+                newTetras.push_back(tetMap[msh->tetMtrl[mtrid].Tetras(tid)]);
+            }
+        }
+        msh->tetMtrl[mtrid].Tetras.clear();
+        msh->tetMtrl[mtrid].Tetras.resize(newTetras.size());
+        for(size_t tid = 0; tid< newTetras.size(); tid++)
+        {
+            msh->tetMtrl[mtrid].Tetras(tid) = newTetras[tid];
+        }
+    }
+    // reorder nodes and faces
+    if(debug)
+    {
+        std::cout << "nodMap " << msh->nNodes << " facMap " << msh->nFaces << "\n";
+    }
+    std::vector<size_t> nodMap(msh->nNodes,UINT_MAX);
+    std::vector<size_t> facMap(msh->nFaces,UINT_MAX);
+    for(size_t tid = 0; tid < msh->nTetras ; tid++)
+    {
+        for(size_t i=0; i<4; i++)
+        {
+            if(nodFlag[msh->tetNodes(tid,i)] == false)
+            {
+                nodFlag[msh->tetNodes(tid,i)] = true;
+                nodMap[msh->tetNodes(tid,i)] = nidx++;
+            }
+            if(facFlag[msh->tetFaces(tid,i)] == false)
+            {
+                facFlag[msh->tetFaces(tid,i)] = true;
+                facMap[msh->tetFaces(tid,i)] = fidx++;
+            }
+        }
+    }
+    // finishing with nodes
+    if(debug)
+    {
+        std::cout << "tetNodes tetFaces\n";
+    }
+    for(size_t tid = 0; tid < msh->nTetras ; tid++)
+    {
+        for(size_t i=0; i<4; i++)
+        {
+            msh->tetNodes(tid,i) = nodMap[msh->tetNodes(tid,i)];
+            msh->tetFaces(tid,i) = facMap[msh->tetFaces(tid,i)];
+        }
+        msh->tetNodes.row(tid) = arma::sort(msh->tetNodes.row(tid));
+    }
+    if(debug)
+    {
+        std::cout << "facNodes\n";
+    }
+    for(size_t fid = 0; fid < msh->nFaces ; fid++)
+    {
+        for(size_t i=0; i<3; i++)
+        {
+            msh->facNodes(fid,i) = nodMap[msh->facNodes(fid,i)];
+        }
+        msh->facNodes.row(fid) = arma::sort(msh->facNodes.row(fid));
+    }
+    if(debug)
+    {
+        std::cout << "newNodPos " << nidx << "\n";
+    }
+    arma::mat newNodPos(nidx,3);
+    for(size_t nid = 0; nid < msh->nNodes; nid++)
+    {
+        if(nodFlag[nid])
+        {
+            newNodPos.row(nodMap[nid]) = msh->nodPos.row(nid);
+        }
+    }
+    if(debug)
+    {
+        std::cout << "newFacNodes " << fidx << "\n";
+    }
+    arma::umat newFacNodes(fidx,3);
+    for(size_t fid = 0; fid < msh->nFaces; fid++)
+    {
+        if(facFlag[fid])
+        {
+            newFacNodes.row(facMap[fid]) = arma::sort(msh->facNodes.row(fid));
+        }
+    }
+    msh->nodPos = newNodPos;
+    msh->facNodes = newFacNodes;
+    msh->nNodes = nidx;
+    msh->nFaces = fidx;
+    // remain to assign face labels
+    // reorder faces in tetrahedron
+    // create edges
+    if(debug)
+    {
+        std::cout << "facLab\n";
+    }
+    msh->facLab.resize(msh->nFaces);
+    msh->facLab.fill(msh->maxLab); // non boundary flag
+    for(size_t fid = 0; fid < facHFSStag.size(); fid++)
+    {
+        for(std::vector<HFSSBnd>::iterator it = bnds.begin(); it != bnds.end(); it++)
+        {
+            if(it->faces.size())
+            {
+                for(std::vector<size_t>::iterator itids = it->faces.begin(); itids != it->faces.end(); itids++)
+                {
+                    if(std::find(facHFSStag[fid].begin(),facHFSStag[fid].end(), *itids) != facHFSStag[fid].end())
+                    {
+                        for(std::vector<BC>::iterator bndit = msh->facBC.begin();
+                                bndit != msh->facBC.end(); bndit++)
+                        {
+                            if(bndit->name == it->name)
+                            {
+                                if(debug)
+                                {
+                                    std::cout << " " << it->name << " " << facMap[fid] << " ";
+                                }
+                                msh->facLab(facMap[fid]) = bndit->label;
+                                arma::uvec nface(1);
+                                nface(0) = facMap[fid];
+                                bndit->Faces = arma::join_cols(bndit->Faces, nface);
+                            }
+                        }
+                    }
+                }
+            }
+            // solid based boundaries
+            if(it->solids.size())
+            {
+                for(std::vector<size_t>::iterator itids = it->solids.begin(); itids != it->solids.end(); itids++)
+                {
+                    std::vector<size_t> cid = bndMap[*itids];
+                    for(size_t idd = 0; idd<cid.size(); idd++)
+                    {
+                        if(std::find(facHFSStag[fid].begin(),facHFSStag[fid].end(), cid[idd]) != facHFSStag[fid].end())
+                        {
+                            for(std::vector<BC>::iterator bndit = msh->facBC.begin();
+                                    bndit != msh->facBC.end(); bndit++)
+                            {
+                                if(bndit->name == it->name)
+                                {
+                                    if(debug)
+                                    {
+                                        std::cout << " " << it->name << " " << facMap[fid] << " ";
+                                    }
+                                    msh->facLab(facMap[fid]) = bndit->label;
+                                    arma::uvec nface(1);
+                                    nface(0) = facMap[fid];
+                                    bndit->Faces = arma::join_cols(bndit->Faces, nface);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    /// reorder faces and create edges
+    if(debug)
+    {
+        std::cout << "tetFaces facAdjTet\n";
+    }
+    std::vector<size_t> nodes(4), faces(4);
+    fidx = 0;
+    for(size_t tit = 0; tit < msh->nTetras; tit++)
+    {
+        nodes[0] = msh->tetNodes(tit,0);
+        nodes[1] = msh->tetNodes(tit,1);
+        nodes[2] = msh->tetNodes(tit,2);
+        nodes[3] = msh->tetNodes(tit,3);
+        faces[0] = msh->tetFaces(tit,0);
+        faces[1] = msh->tetFaces(tit,1);
+        faces[2] = msh->tetFaces(tit,2);
+        faces[3] = msh->tetFaces(tit,3);
+        for(size_t ii = 0; ii<4; ii++)
+        {
+            size_t fid = faces[ii];
+            if(nodes[1] == msh->facNodes(fid,0) &
+                    nodes[2] == msh->facNodes(fid,1) &
+                    nodes[3] == msh->facNodes(fid,2))
+            {
+                msh->tetFaces(tit,0) = fid;
+            }
+            else if(nodes[0] == msh->facNodes(fid,0) &
+                    nodes[2] == msh->facNodes(fid,1) &
+                    nodes[3] == msh->facNodes(fid,2))
+            {
+                msh->tetFaces(tit,1) = fid;
+            }
+            else if(nodes[0] == msh->facNodes(fid,0) &
+                    nodes[1] == msh->facNodes(fid,1) &
+                    nodes[3] == msh->facNodes(fid,2))
+            {
+                msh->tetFaces(tit,2) = fid;
+            }
+            else if(nodes[0] == msh->facNodes(fid,0) &
+                    nodes[1] == msh->facNodes(fid,1) &
+                    nodes[2] == msh->facNodes(fid,2))
+            {
+                msh->tetFaces(tit,3) = fid;
+            }
+            arma::uvec adjTetId(1);
+            adjTetId(0) = tit;
+            msh->facAdjTet(fid) = arma::join_cols(msh->facAdjTet(fid), adjTetId);
+        }
+    }
+    /// create edges
+    if(debug)
+    {
+        std::cout << "edgesMap\n";
+    }
+    idx = 0;
+    size_t n0, n1;
+    std::map<std::pair<size_t,size_t>, size_t> edgesMap;
+    for(size_t tit = 0; tit < msh->nTetras; tit++)
+    {
+        n0 = msh->facNodes(msh->tetFaces(tit,2),1);
+        n1 = msh->facNodes(msh->tetFaces(tit,2),2);
+        if(edgesMap.find(std::make_pair(n0,n1)) == edgesMap.end())
+        {
+            edgesMap[std::make_pair(n0, n1)] = idx++;
+        }
+        n0 = msh->facNodes(msh->tetFaces(tit,1),0);
+        n1 = msh->facNodes(msh->tetFaces(tit,1),2);
+        if(edgesMap.find(std::make_pair(n0,n1)) == edgesMap.end())
+        {
+            edgesMap[std::make_pair(n0, n1)] = idx++;
+        }
+        n0 = msh->facNodes(msh->tetFaces(tit,1),1);
+        n1 = msh->facNodes(msh->tetFaces(tit,1),2);
+        if(edgesMap.find(std::make_pair(n0,n1)) == edgesMap.end())
+        {
+            edgesMap[std::make_pair(n0, n1)] = idx++;
+        }
+        n0 = msh->facNodes(msh->tetFaces(tit,0),0);
+        n1 = msh->facNodes(msh->tetFaces(tit,0),1);
+        if(edgesMap.find(std::make_pair(n0,n1)) == edgesMap.end())
+        {
+            edgesMap[std::make_pair(n0, n1)] = idx++;
+        }
+        n0 = msh->facNodes(msh->tetFaces(tit,1),0);
+        n1 = msh->facNodes(msh->tetFaces(tit,1),1);
+        if(edgesMap.find(std::make_pair(n0,n1)) == edgesMap.end())
+        {
+            edgesMap[std::make_pair(n0, n1)] = idx++;
+        }
+        n0 = msh->facNodes(msh->tetFaces(tit,2),0);
+        n1 = msh->facNodes(msh->tetFaces(tit,2),1);
+        if(edgesMap.find(std::make_pair(n0,n1)) == edgesMap.end())
+        {
+            edgesMap[std::make_pair(n0, n1)] = idx++;
+        }
+    }
+    msh->nEdges = edgesMap.size();
+    if(debug)
+    {
+        std::cout << "edgNodes\n";
+    }
+    std::map<std::pair<size_t,size_t>, size_t>::iterator emIter;
+    msh->edgNodes.resize(msh->nEdges,2);
+    for(emIter = edgesMap.begin(); emIter != edgesMap.end(); emIter++)
+    {
+        msh->edgNodes(emIter->second,0) =  emIter->first.first;
+        msh->edgNodes(emIter->second,1) =  emIter->first.second;
+    }
+    idx=0;
+    if(debug)
+    {
+        std::cout << "facEdges\n";
+    }
+    msh->facEdges.resize(msh->nFaces,3);
+    for(size_t fit = 0; fit < msh->nFaces; fit++)
+    {
+        n0 = msh->facNodes(fit,1);
+        n1 = msh->facNodes(fit,2);
+        msh->facEdges(fit,0) = edgesMap[std::make_pair(n0, n1)];
+        n0 = msh->facNodes(fit,0);
+        n1 = msh->facNodes(fit,2);
+        msh->facEdges(fit,1) = edgesMap[std::make_pair(n0, n1)];
+        n0 = msh->facNodes(fit,0);
+        n1 = msh->facNodes(fit,1);
+        msh->facEdges(fit,2) = edgesMap[std::make_pair(n0, n1)];
+    }
+    if(debug)
+    {
+        std::cout << "facEdges tetEdges\n";
+    }
+    for(size_t tit = 0; tit < msh->nTetras; tit++)
+    {
+        msh->tetEdges(tit,0) = msh->facEdges(msh->tetFaces(tit,2),2);
+        msh->tetEdges(tit,1) = msh->facEdges(msh->tetFaces(tit,1),2);
+        msh->tetEdges(tit,2) = msh->facEdges(msh->tetFaces(tit,1),1);
+        msh->tetEdges(tit,3) = msh->facEdges(msh->tetFaces(tit,0),2);
+        msh->tetEdges(tit,4) = msh->facEdges(msh->tetFaces(tit,0),1);
+        msh->tetEdges(tit,5) = msh->facEdges(msh->tetFaces(tit,0),0);
+    }
+}
+
