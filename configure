@@ -1,3 +1,4 @@
 #!/bin/bash
+# Support for WSL cross-compilation
 # Ubuntu prerequisites installation
-sudo apt install -y gcc g++ gfortran gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 gfortran-mingw-w64-x86-64
+sudo apt install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 gfortran-mingw-w64-x86-64

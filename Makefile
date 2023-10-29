@@ -1,7 +1,6 @@
 .SUFFIXES: .cpp .o
 
 PLAT=x86_64-w64-mingw32-
-#PLAT= 
 
 CC=$(PLAT)g++ -w 
 RES=$(PLAT)windres
@@ -10,8 +9,8 @@ BINDIR= ./bin
 SRCDIR= ./
 OBJDIR= ./obj
 
-CFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -I./ -I./ext/tetgen/ -I./ext/mumps/include/ -I./ext/arma/include/ -I./ext/metis/ -I./ext/gmm/ -DTETLIBRARY
-LFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -L./ext/ -lsmumps -ldmumps -lcmumps -lzmumps -lmumps_common -lmpiseq -lpord -lmetis -ltet -larpack -llapack -lopenblas -lgfortran -lquadmath -lpsapi -liphlpapi
+CFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -I./ -I./ext/tetgen -I./ext/mumps/include -I./ext/arma/include -I./ext/metis -I./ext/gmm -DTETLIBRARY
+LFLAGS = -std=gnu++98 -m64 -fopenmp -static -s -L./ext -lsmumps -ldmumps -lcmumps -lzmumps -lmumps_common -lmpiseq -lpord -lmetis -ltet -larpack -llapack -lopenblas -lgfortran -lquadmath -lpsapi -liphlpapi
 SRCS=$(wildcard  $(SRCDIR)/*.cpp)
 OBJS=$(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRCS)) $(OBJDIR)/FE.rc.o
 

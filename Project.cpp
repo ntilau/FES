@@ -8,7 +8,7 @@
 #include "Project.h"
 #include "Option.h"
 #include "HFSS.h"
-#include "TetGen.h"
+#include "TetGenIO.h"
 #include "Mesh.h"
 
 Project::Project(std::ofstream& logFile, Option& pOpt) : opt(&pOpt), msh(new Mesh())
@@ -33,7 +33,7 @@ Project::Project(std::ofstream& logFile, Option& pOpt) : opt(&pOpt), msh(new Mes
     else if(opt->poly)
     {
         logFile << "Parsing TetGen based project file\n";
-        TetGen(this);
+        TetGenIO(this);
         saveFE();
     }
     else
@@ -53,7 +53,7 @@ Project::Project(std::ofstream& logFile, Option& pOpt) : opt(&pOpt), msh(new Mes
     if(opt->href & !opt->poly)
     {
         logFile << "Performing TetGen based refinement\n";
-        TetGen(this);
+        TetGenIO(this);
         //opt->name +=  "_" + opt->hrefCmd;
         saveFE();
     }

@@ -1,7 +1,7 @@
-#include "TetGen.h"
+#include "TetGenIO.h"
 #include <map>
 
-TetGen::TetGen(Project* cProj): prj(cProj), dbg(cProj->opt->dbg), scaling(1.0)
+TetGenIO::TetGenIO(Project* cProj): prj(cProj), dbg(cProj->opt->dbg), scaling(1.0)
 {
     if(prj->opt->href)
     {
@@ -32,11 +32,11 @@ TetGen::TetGen(Project* cProj): prj(cProj), dbg(cProj->opt->dbg), scaling(1.0)
     }
 }
 
-TetGen::~TetGen()
+TetGenIO::~TetGenIO()
 {
 }
 
-void TetGen::CreateMesh()
+void TetGenIO::CreateMesh()
 {
     size_t n0, n1, n2;
     // Nodes
@@ -228,7 +228,7 @@ void TetGen::CreateMesh()
     }
 }
 
-void TetGen::LoadExtra()
+void TetGenIO::LoadExtra()
 {
     size_t tmpInt;
     double tmpDbl;
@@ -296,7 +296,7 @@ void TetGen::LoadExtra()
 }
 
 
-void TetGen::CopyOldMesh()
+void TetGenIO::CopyOldMesh()
 {
     // Nodes
     in.firstnumber = 0;
@@ -350,7 +350,7 @@ void TetGen::CopyOldMesh()
     }
 }
 
-void TetGen::CopyNewMesh()
+void TetGenIO::CopyNewMesh()
 {
     size_t n0, n1, n2;
     // Nodes

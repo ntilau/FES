@@ -1,15 +1,15 @@
-#ifndef TETGEN_WR_H
-#define TETGEN_WR_H
+#ifndef TETGENIO_H
+#define TETGENIO_H
 
 #include <tetgen.h>
 #include "Project.h"
 
 
-class TetGen
+class TetGenIO
 {
 public:
-    TetGen(Project*);
-    virtual ~TetGen();
+    TetGenIO(Project*);
+    virtual ~TetGenIO();
     void CreateMesh();
     void CopyOldMesh();
     void CopyNewMesh();
@@ -21,4 +21,4 @@ private:
     double scaling;
 };
 
-#endif // TETGEN_WR_H
+#endif // TETGENIO_H

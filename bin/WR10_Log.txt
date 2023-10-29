@@ -198,3 +198,83 @@ Finishing:
 ++ 19.769 s
 # END: Sun Oct 29 18:39:02 2023
 
+# START: Sun Oct 29 18:57:29 2023
+COMPUTERNAME         = LATITUDE
+NUMBER_OF_PROCESSORS = 4
+OMP_NUM_THREADS      = ?
+Running with normal priority...
+Available memory: 1892 MB
+% Loading files:
+Project: WR10
+Homogeneous refinement: p = 2, h = 0
+Parsing FE project files
+Nodes  = 301
+Edges  = 1475
+Faces  = 2116
+Tetras = 941
+++0.34 s
++Memory: 5.12109 MB |5.12109|
+--- Frequency = 1e+10 ---
+% Assembly Symmetric:
+In solids: 9.604 s
++Memory: 19.4336 MB |19.4336|
+On boundaries:
+	PerfE1: 0.006 s
+	1: 4.74 s
+	2: 4.876 s
++Memory: 25.4805 MB |80.1992|
+Finishing:
+	SYS DoF = 6004,  1.489 s
++20.721 s
++Memory: 25.3125 MB |80.1992|
+% Double precision Complex Solver  / Symmetric
+	Commit memory: 12 MB
+	Factor and Solve: 0.433 s
++0.477 s
++Memory: 21.3125 MB |80.1992|
+% Saving data:
+	S parameters: 0.001 s
++0.005 s
+++ 21.562 s
+# END: Sun Oct 29 18:57:50 2023
+
+# START: Sun Oct 29 18:57:55 2023
+COMPUTERNAME         = LATITUDE
+NUMBER_OF_PROCESSORS = 4
+OMP_NUM_THREADS      = ?
+Running with normal priority...
+Available memory: 1910 MB
+% Loading files:
+Project: WR10
+Homogeneous refinement: p = 2, h = 0
+Parsing FE project files
+Nodes  = 301
+Edges  = 1475
+Faces  = 2116
+Tetras = 941
+++0.046 s
++Memory: 5.29297 MB |5.29297|
+--- Frequency = 1e+10 ---
+% Assembly Symmetric:
+In solids: 6.07 s
++Memory: 11.7891 MB |11.7891|
+On boundaries:
+	PerfE1: 0.005 s
+	1: 3.761 s
+	2: 3.752 s
++Memory: 20.4492 MB |73.3789|
+Finishing:
+	SYS DoF = 6004,  0.572 s
++14.165 s
++Memory: 22.332 MB |73.3789|
+% Double precision Complex Solver  / Symmetric
+	Commit memory: 12 MB
+	Factor and Solve: 0.365 s
++0.4 s
++Memory: 17.5781 MB |73.3789|
+% Saving data:
+	S parameters: 0.012 s
++0.014 s
+++ 14.634 s
+# END: Sun Oct 29 18:58:09 2023
+
