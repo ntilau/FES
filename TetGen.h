@@ -1,8 +1,9 @@
 #ifndef TETGEN_H
 #define TETGEN_H
 
-#include "Project.h"
 #include <tetgen.h>
+#include "Project.h"
+
 
 class TetGen
 {

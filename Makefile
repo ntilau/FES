@@ -1,7 +1,7 @@
 .SUFFIXES: .cpp .o
 
-CC=x86_64-w64-mingw32-g++ -w
-RES=x86_64-w64-mingw32-windres
+CC=g++ -w
+RES=windres
 
 BINDIR= ./bin
 SRCDIR= ./
@@ -43,6 +43,6 @@ clean:
 
 .PHONY: test
 test:
-	$(BINDIR)/FE.exe $(BINDIR)/WR10 1e10 +p 2
+	cd $(BINDIR) && FE.exe WR10 1e10 +p 2
 
 

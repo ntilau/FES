@@ -38,3 +38,43 @@ Finishing:
 ++ 13.761 s
 # END: Sun Oct 29 14:46:15 2023
 
+# START: Sun Oct 29 16:29:21 2023
+COMPUTERNAME         = LATITUDE
+NUMBER_OF_PROCESSORS = 4
+OMP_NUM_THREADS      = ?
+Running with normal priority...
+Available memory: 1672 MB
+% Loading files:
+Project: WR10
+Homogeneous refinement: p = 2, h = 0
+Parsing FE project files
+Nodes  = 301
+Edges  = 1475
+Faces  = 2116
+Tetras = 941
+++0.087 s
++Memory: 6.30859 MB |6.30859|
+--- Frequency = 1e+10 ---
+% Assembly Symmetric:
+In solids: 5.89 s
++Memory: 12.8008 MB |12.8008|
+On boundaries:
+	PerfE1: 0.009 s
+	1: 3.809 s
+	2: 3.914 s
++Memory: 20.8555 MB |74.5273|
+Finishing:
+	SYS DoF = 6004,  0.607 s
++14.247 s
++Memory: 22.1914 MB |74.5273|
+% Double precision Complex Solver  / Symmetric
+	Commit memory: 12 MB
+	Factor and Solve: 0.348 s
++0.386 s
++Memory: 18.043 MB |74.5273|
+% Saving data:
+	S parameters: 0.001 s
++0.003 s
+++ 14.733 s
+# END: Sun Oct 29 16:29:36 2023
+
