@@ -6,6 +6,7 @@ Validations of the implementation was done through HFSS v10 mesh extraction and 
 To get started, clone the repository. Then run Maker.bat in windows terminal and type:
 - 'mingw32-make' to start compilation; 
 - 'mingw32-make test' for testing 
+
 Alternatively, you can use WSL (Ubuntu) to cross-compile the windows binary; see the 'configure' file.
 
 # Last Release
