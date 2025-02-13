@@ -10,5 +10,5 @@ To get started, clone the repository. Then run Maker.bat in windows terminal and
 Alternatively, you can use WSL (Ubuntu) to cross-compile the windows binary; see the 'configure' file.
 
 # Last Release
-- Download [x86_64-w64-mingw32](https://github.com/ntilau/uni-phd-fes-cpp/raw/master/bin/FE.exe) build
-- For testing, download [WR10](https://github.com/ntilau/uni-phd-fes-cpp/raw/master/bin/WR10_Prj.txt) project file and run `FE WR10 1e10`
+- Download [x86_64-w64-mingw32](https://github.com/ntilau/FES/raw/master/bin/FE.exe) build
+- For testing, download [WR10](https://github.com/ntilau/FES/raw/master/bin/WR10_Prj.txt) project file and run `FE WR10 1e10`
