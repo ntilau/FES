@@ -164,34 +164,75 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
         for(size_t i=0;i<np;i++) li[pn[i]]=i;
 
         arma::mat St(np,np,arma::fill::zeros), Tt(np,np,arma::fill::zeros);
+        // Gauss-Legendre points on [-1,1] — static table up to 6 points
+        static const double gl_x[6][6] = {
+            {0},
+            {0.5773502691896257, -0.5773502691896257},
+            {0.7745966692414834, 0, -0.7745966692414834},
+            {0.8611363115940526, 0.3399810435848563, -0.3399810435848563, -0.8611363115940526},
+            {0.9061798459386640, 0.5384693101056831, 0, -0.5384693101056831, -0.9061798459386640},
+            {0.9324695142031520, 0.6612093864662645, 0.2386191860831969,
+             -0.2386191860831969, -0.6612093864662645, -0.9324695142031520}
+        };
+        static const double gl_w[6][6] = {
+            {2},
+            {1, 1},
+            {0.5555555555555556, 0.8888888888888888, 0.5555555555555556},
+            {0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538},
+            {0.2369268850561891, 0.4786286704993665, 0.5688888888888889,
+             0.4786286704993665, 0.2369268850561891},
+            {0.1713244923791704, 0.3607615730481386, 0.4679139345726910,
+             0.4679139345726910, 0.3607615730481386, 0.1713244923791704}
+        };
         for(size_t s=0; s<msh->nEdges; s++) {
             if(msh->edgLab(s)!=bc->label) continue;
             size_t n0=msh->edgNodes(s,0), n1=msh->edgNodes(s,1);
             double dx=msh->nodPos(n1,0)-msh->nodPos(n0,0);
             double dy=msh->nodPos(n1,1)-msh->nodPos(n0,1);
-            double L=std::sqrt(dx*dx+dy*dy), iL=1.0/L;
-            size_t i0=li[n0], i1=li[n1];
-            St(i0,i0)+=iL; St(i0,i1)-=iL; St(i1,i0)-=iL; St(i1,i1)+=iL;
-            Tt(i0,i0)+=L/3; Tt(i0,i1)+=L/6; Tt(i1,i0)+=L/6; Tt(i1,i1)+=L/3;
-            if(p1 > 0) {
-                size_t mid = nV + s;
-                auto mi=li.find(mid);
-                if(mi!=li.end()) {
-                    size_t im=mi->second;
-                    static const double gx[3]={-0.7745966692414834,0,0.7745966692414834};
-                    static const double gw[3]={0.5555555555555556,0.8888888888888888,0.5555555555555556};
-                    for(int q=0;q<3;q++) {
-                        double t=gx[q], N0=t*(t-1)/2, N1=t*(t+1)/2, N2=(1-t)*(1+t);
-                        double d0=(2*t-1)/2, d1=(2*t+1)/2, d2=-2*t;
-                        double w=gw[q]*L/2, f=4/(L*L);
-                        St(i0,i0)+=d0*d0*f*w; St(i0,i1)+=d0*d1*f*w; St(i0,im)+=d0*d2*f*w;
-                        St(i1,i0)+=d1*d0*f*w; St(i1,i1)+=d1*d1*f*w; St(i1,im)+=d1*d2*f*w;
-                        St(im,i0)+=d2*d0*f*w; St(im,i1)+=d2*d1*f*w; St(im,im)+=d2*d2*f*w;
-                        Tt(i0,i0)+=N0*N0*w; Tt(i0,i1)+=N0*N1*w; Tt(i0,im)+=N0*N2*w;
-                        Tt(i1,i0)+=N1*N0*w; Tt(i1,i1)+=N1*N1*w; Tt(i1,im)+=N1*N2*w;
-                        Tt(im,i0)+=N2*N0*w; Tt(im,i1)+=N2*N1*w; Tt(im,im)+=N2*N2*w;
+            double L=std::sqrt(dx*dx+dy*dy);
+            // All DOFs on this edge: 2 endpoints + p1 interior levels
+            std::vector<size_t> eDOF = {n0, n1};
+            for(size_t lev = 0; lev < p1; lev++)
+                eDOF.push_back(nV + lev * nE + s);
+            size_t ne = eDOF.size(); // = p_ord + 1
+            std::vector<size_t> le(ne);
+            bool allIn = true;
+            for(size_t i = 0; i < ne; i++) {
+                auto it = li.find(eDOF[i]);
+                if(it == li.end()) { allIn = false; break; }
+                le[i] = it->second;
+            }
+            if(!allIn) continue;
+            int ng = (int)ne;
+            const double* gx = gl_x[ng - 1];
+            const double* gw = gl_w[ng - 1];
+            // Precompute node positions
+            std::vector<double> tNode(ne);
+            for(size_t i = 0; i < ne; i++)
+                tNode[i] = -1.0 + 2.0 * i / (ne - 1);
+            for(int q = 0; q < ng; q++) {
+                double t = gx[q];
+                double w = gw[q] * L / 2.0;
+                std::vector<double> N(ne, 1.0), dN(ne, 0.0);
+                for(size_t i = 0; i < ne; i++) {
+                    for(size_t j = 0; j < ne; j++) {
+                        if(j == i) continue;
+                        N[i] *= (t - tNode[j]) / (tNode[i] - tNode[j]);
+                    }
+                    for(size_t k = 0; k < ne; k++) {
+                        if(k == i) continue;
+                        double term = 1.0 / (tNode[i] - tNode[k]);
+                        for(size_t j = 0; j < ne; j++)
+                            if(j != i && j != k)
+                                term *= (t - tNode[j]) / (tNode[i] - tNode[j]);
+                        dN[i] += term;
                     }
                 }
+                for(size_t i = 0; i < ne; i++)
+                    for(size_t j = 0; j < ne; j++) {
+                        St(le[i], le[j]) += dN[i] * dN[j] * 4.0 / (L * L) * w;
+                        Tt(le[i], le[j]) += N[i] * N[j] * w;
+                    }
             }
         }
 
