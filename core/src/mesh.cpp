@@ -448,12 +448,32 @@ void mesh::Savefield(std::string fieldName)
         for(size_t i = 0; i < nFaces; i++)
             outfield << cellType << "\n";
 
-        // Cell data: boundary (face) labels
+        // Cell data: region labels (per-face marker from mesh)
         outfield << "CELL_DATA " << nFaces << "\n";
-        outfield << "SCALARS boundary_label int 1\n";
+        outfield << "SCALARS region_label int 1\n";
         outfield << "LOOKUP_TABLE default\n";
         for(size_t i = 0; i < nFaces; i++)
             outfield << (int)facLab(i) << "\n";
+
+        // Cell data: boundary labels (max edge marker per face)
+        outfield << "SCALARS boundary_label int 1\n";
+        outfield << "LOOKUP_TABLE default\n";
+        bool haveFacEdges = !facEdges.is_empty() && facEdges.n_rows == nFaces;
+        bool haveEdgLab = edgLab.n_elem > 0;
+        for(size_t i = 0; i < nFaces; i++)
+        {
+            int maxLab = 0;
+            if(haveFacEdges && haveEdgLab) {
+                for(int j = 0; j < 3; j++) {
+                    size_t eid = facEdges(i, j);
+                    if(eid < edgLab.n_elem) {
+                        int lab = (int)edgLab(eid);
+                        if(lab > maxLab) maxLab = lab;
+                    }
+                }
+            }
+            outfield << maxLab << "\n";
+        }
     }
 
     outfield.close();
