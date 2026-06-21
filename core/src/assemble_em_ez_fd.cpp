@@ -7,6 +7,7 @@
 #include "boundary_condition.h"
 #include "quadrature.h"
 #include "shape.h"
+#include "degree_of_freedom.h"
 
 #include <armadillo>
 #include <iostream>
@@ -30,46 +31,22 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
     std::map<size_t, const mtrl*> mtrlMap;
     for(const auto& m : msh->tetmtrl) mtrlMap[m.label] = &m;
 
-    // ── Edge map (all p>1: internal + boundary edges) ──
-    size_t nEdges2D = 0;
-    arma::umat triEdges2D;
-    if(opt->p_ord > 1) {
-        triEdges2D.set_size(msh->nFaces, 3);
-        std::map<std::pair<size_t,size_t>, size_t> eMap;
-        for(size_t t = 0; t < msh->nFaces; t++) {
-            // Edges in i<j order: (0,1), (0,2), (1,2)
-            static const int e0[3] = {0, 0, 1}, e1[3] = {1, 2, 2};
-            for(int ei = 0; ei < 3; ei++) {
-                size_t n0 = msh->facNodes(t, e0[ei]);
-                size_t n1 = msh->facNodes(t, e1[ei]);
-                if(n0 > n1) std::swap(n0, n1);
-                auto key = std::make_pair(n0, n1);
-                auto it = eMap.find(key);
-                if(it == eMap.end()) { eMap[key] = nEdges2D; triEdges2D(t,ei) = nEdges2D++; }
-                else { triEdges2D(t,ei) = it->second; }
-            }
-        }
-    }
+    // ── Build full 2D edge connectivity (used by dofmap) ──
+    // Reset first so the function always rebuilds from scratch.
+    msh->facEdges.reset();
+    msh->build_2d_edge_connectivity();
 
-    // ── DOF numbering ──
-    if(opt->p_ord == 2) {
-        sys.set_dofnum(msh->nNodes + nEdges2D);
-    } else if(opt->p_ord > 2) {
-        size_t p1 = opt->p_ord - 1;
-        size_t fd = p1*(p1-1)/2;
-        sys.set_dofnum(msh->nNodes + p1 * nEdges2D + fd * msh->nFaces);
-    } else {
-        sys.set_dofnum(msh->nNodes);
-    }
-    sys.set_dofreal(sys.get_dofnum());
-    std::cout << "FE dof = " << sys.get_dofnum() << " ";
+    // ── DOF numbering (shared dofmap) ──
+    size_t totalDof = dof(sys.prj).dofnums;
+    sys.set_dofnum(totalDof);
+    sys.set_dofreal(totalDof);
+    std::cout << "FE dof = " << totalDof << " ";
     sys.set_symm_flag(0);
-    sys.B_mat().zeros(sys.get_dofnum(), 1);
+    sys.B_mat().zeros(totalDof, 1);
 
     // ── Assembly (unified: same quadrature + shape for all p) ──
     lt.tic();
     std::map<std::pair<arma::uword, arma::uword>, std::complex<double>> A_map;
-    size_t nV = msh->nNodes;
     quad quadr(opt->p_ord + 1);
     for(size_t t = 0; t < msh->nFaces; t++)
     {
@@ -89,34 +66,9 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
         if(it != mtrlMap.end()) { epsr = it->second->epsr; mur = it->second->mur; }
         double invMur = 1.0 / mur;
 
-        // Local-to-global DOF mapping per polynomial order
-        size_t nld;
-        std::vector<arma::uword> l2g;
-        if(opt->p_ord == 1) {
-            nld = 3;
-            l2g = {msh->facNodes(t,0), msh->facNodes(t,1), msh->facNodes(t,2)};
-        } else if(opt->p_ord == 2) {
-            nld = 6;
-            l2g = {msh->facNodes(t,0), msh->facNodes(t,1), msh->facNodes(t,2),
-                   nV + triEdges2D(t,0), nV + triEdges2D(t,1), nV + triEdges2D(t,2)};
-        } else {
-            nld = (opt->p_ord+1)*(opt->p_ord+2)/2;
-            l2g.resize(nld);
-            l2g[0] = msh->facNodes(t,0);
-            l2g[1] = msh->facNodes(t,1);
-            l2g[2] = msh->facNodes(t,2);
-            size_t p1 = opt->p_ord - 1;
-            size_t eoff = 3;
-            // Edges in i<j order: (0,1), (0,2), (1,2)
-            for(int ei = 0; ei < 3; ei++) {
-                size_t eid = triEdges2D(t, ei);
-                for(size_t lev = 0; lev < p1; lev++)
-                    l2g[eoff++] = nV + p1*eid + lev;
-            }
-            size_t fd = p1*(p1-1)/2;
-            for(size_t fi = 0; fi < fd; fi++)
-                l2g[eoff++] = nV + p1*nEdges2D + fd*t + fi;
-        }
+        // Local-to-global DOF mapping via shared dofmap
+        arma::uvec l2g = dof(sys.prj, 2, t).s;
+        size_t nld = l2g.n_elem;
 
         arma::mat Se(nld,nld,arma::fill::zeros), Te(nld,nld,arma::fill::zeros);
         for(size_t iq = 0; iq < quadr.wq2.n_elem; iq++) {
@@ -127,11 +79,11 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
         }
         for(size_t i = 0; i < nld; i++)
             for(size_t j = 0; j < nld; j++)
-                A_map[{l2g[i], l2g[j]}] += std::complex<double>(Se(i,j) - k0sq * Te(i,j), 0.0);
+                A_map[{l2g(i), l2g(j)}] += std::complex<double>(Se(i,j) - k0sq * Te(i,j), 0.0);
     }
 
     // Build sparse A from map
-    sys.A_mat() = build_sparse(A_map, sys.get_dofnum());
+    sys.A_mat() = build_sparse(A_map, totalDof);
     logFile << "\tAssembly: " << lt.toc() << " s\n";
     mem_stat::print(logFile);
 
@@ -140,6 +92,9 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
     for(const auto& bc : msh->facbc) bcTypeMap[bc.label] = bc.type;
 
     // ── Dirichlet DOFs ──
+    size_t nV = msh->nNodes;
+    size_t p1 = opt->p_ord > 1 ? opt->p_ord - 1 : 0;
+    size_t nE = msh->nEdges; // total edges (after build_2d_edge_connectivity)
     std::set<size_t> dirNodeSet;
     for(size_t s = 0; s < msh->nEdges; s++) {
         size_t mkr = msh->edgLab(s);
@@ -147,15 +102,9 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
         if(bcIt != bcTypeMap.end() && bcIt->second == bc::perfect_e) {
             dirNodeSet.insert(msh->edgNodes(s,0));
             dirNodeSet.insert(msh->edgNodes(s,1));
-            if(opt->p_ord > 1) {
-                size_t a = msh->edgNodes(s,0), b = msh->edgNodes(s,1);
-                if(a > b) std::swap(a,b);
-                for(size_t t=0; t<msh->nFaces && nEdges2D>0; t++) for(int ei=0; ei<3; ei++) {
-                    size_t e0 = msh->facNodes(t,(ei+1)%3), e1 = msh->facNodes(t,(ei+2)%3);
-                    if(e0 > e1) std::swap(e0,e1);
-                    if(e0==a && e1==b) { dirNodeSet.insert(nV + triEdges2D(t,ei)); }
-                }
-            }
+            // All p_ord-1 edge DOF levels (blocked scheme from dofmap)
+            for(size_t lev = 0; lev < p1; lev++)
+                dirNodeSet.insert(nV + lev * nE + s);
         }
     }
     sys.Dirdofs_vec().set_size(dirNodeSet.size());
@@ -202,14 +151,9 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
             if(pns.insert(n1).second) pn.push_back(n1);
             wpNodeSet.insert(n0); wpNodeSet.insert(n1);
             if(opt->p_ord>1) {
-                size_t a=n0,b=n1; if(a>b) std::swap(a,b);
-                for(size_t t=0; t<msh->nFaces && nEdges2D>0; t++) for(int ei=0; ei<3; ei++) {
-                    size_t e0=msh->facNodes(t,(ei+1)%3), e1=msh->facNodes(t,(ei+2)%3);
-                    if(e0>e1) std::swap(e0,e1);
-                    if(e0==a && e1==b) {
-                        size_t mp=nV+triEdges2D(t,ei);
-                        if(pns.insert(mp).second) pn.push_back(mp);
-                    }
+                for(size_t lev = 0; lev < p1; lev++) {
+                    size_t mp = nV + lev * nE + s;
+                    if(pns.insert(mp).second) pn.push_back(mp);
                 }
             }
         }
@@ -229,13 +173,8 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
             size_t i0=li[n0], i1=li[n1];
             St(i0,i0)+=iL; St(i0,i1)-=iL; St(i1,i0)-=iL; St(i1,i1)+=iL;
             Tt(i0,i0)+=L/3; Tt(i0,i1)+=L/6; Tt(i1,i0)+=L/6; Tt(i1,i1)+=L/3;
-            if(opt->p_ord>1) {
-                size_t a=n0,b=n1; if(a>b) std::swap(a,b); size_t mid=nV;
-                for(size_t t=0; t<msh->nFaces && nEdges2D>0; t++) for(int ei=0; ei<3; ei++) {
-                    size_t e0=msh->facNodes(t,(ei+1)%3), e1=msh->facNodes(t,(ei+2)%3);
-                    if(e0>e1) std::swap(e0,e1);
-                    if(e0==a && e1==b) { mid=nV+triEdges2D(t,ei); break; }
-                }
+            if(p1 > 0) {
+                size_t mid = nV + s;
                 auto mi=li.find(mid);
                 if(mi!=li.end()) {
                     size_t im=mi->second;

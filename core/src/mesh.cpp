@@ -257,13 +257,15 @@ void mesh::build_2d_edge_connectivity()
     }
     facEdges.set_size(nFaces, 3);
     for(size_t fi = 0; fi < nFaces; fi++) {
-        size_t n0 = facNodes(fi,0), n1 = facNodes(fi,1), n2 = facNodes(fi,2);
-        if(n0 > n1) std::swap(n0,n1);
-        if(n0 > n2) std::swap(n0,n2);
-        if(n1 > n2) std::swap(n1,n2);
-        facEdges(fi,0) = emap[std::make_pair(n0,n1)];
-        facEdges(fi,1) = emap[std::make_pair(n0,n2)];
-        facEdges(fi,2) = emap[std::make_pair(n1,n2)];
+        // Preserve reference triangle edge order: (0,1), (0,2), (1,2)
+        // Each edge pair is individually sorted for unique emap lookup.
+        auto edge_pair = [&](size_t a, size_t b) {
+            if(a > b) std::swap(a, b);
+            return emap[std::make_pair(a, b)];
+        };
+        facEdges(fi,0) = edge_pair(facNodes(fi,0), facNodes(fi,1));
+        facEdges(fi,1) = edge_pair(facNodes(fi,0), facNodes(fi,2));
+        facEdges(fi,2) = edge_pair(facNodes(fi,1), facNodes(fi,2));
     }
 }
 
