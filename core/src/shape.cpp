@@ -11,16 +11,17 @@ shape::shape(size_t p_ord, size_t cDim, s_type sType, arma::rowvec cPos, jacobia
         case hcurl:
             Ns.resize(1,4);
             dNs.resize(3,4);
-            Ns(0) = 1-cPos(0)-cPos(1)-cPos(2);
-            Ns(1) = cPos(0);
-            Ns(2) = cPos(1);
-            Ns(3) = cPos(2);
-            dNs(0,0) = -1;
-            dNs(1,0) = -1;
-            dNs(2,0) = -1;
-            dNs(0,1) = 1;
-            dNs(1,2) = 1;
-            dNs(2,3) = 1;
+            // Ns in node order 0,1,2,3 (matching tetNodes)
+            Ns(0) = cPos(0);          // λ₀
+            Ns(1) = cPos(1);          // λ₁
+            Ns(2) = cPos(2);          // λ₂
+            Ns(3) = 1-cPos(0)-cPos(1)-cPos(2);  // λ₃
+            dNs(0,0) = 1;
+            dNs(1,1) = 1;
+            dNs(2,2) = 1;
+            dNs(0,3) = -1;
+            dNs(1,3) = -1;
+            dNs(2,3) = -1;
             dNs = cJac->invJ * dNs;
             switch(p_ord)
             {
