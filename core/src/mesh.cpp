@@ -428,6 +428,26 @@ void mesh::Savefield(std::string fieldName)
         outfield << "LOOKUP_TABLE default\n";
         for(size_t i = 0; i < nTetras; i++)
             outfield << (int)tetLab(i) << "\n";
+
+        // Cell data: boundary labels (max face marker per tetra)
+        outfield << "SCALARS boundary_label int 1\n";
+        outfield << "LOOKUP_TABLE default\n";
+        bool haveTetFaces = !tetFaces.is_empty() && tetFaces.n_rows == nTetras;
+        bool haveFacLab = facLab.n_elem > 0;
+        for(size_t i = 0; i < nTetras; i++)
+        {
+            int maxLab = 0;
+            if(haveTetFaces && haveFacLab) {
+                for(int j = 0; j < 4; j++) {
+                    size_t fid = tetFaces(i, j);
+                    if(fid < facLab.n_elem) {
+                        int lab = (int)facLab(fid);
+                        if(lab > maxLab) maxLab = lab;
+                    }
+                }
+            }
+            outfield << maxLab << "\n";
+        }
     }
     else if(nFaces > 0)
     {
