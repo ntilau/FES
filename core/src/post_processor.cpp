@@ -11,46 +11,7 @@
 #include <iomanip>
 #include <map>
 #include <cmath>
-#include <sstream>
-
 post_processor::post_processor(eq_sys& s, std::ofstream& l) : sys(s), log(l) {}
-
-void post_processor::save_system()
-{
-    option* opt = sys.opt;
-    if(sys.doflevel_vec().size() > 0)
-    {
-        log << "% Saving blocks sizes:\n";
-            std::cout << "Blocks, ";
-        std::ofstream BlocksFile(std::string("Blocks.txt").c_str());
-        for(int i=0; i < (int)sys.doflevel_vec().size(); i++)
-        {
-            BlocksFile << sys.doflevel_vec()[i] << "\n";
-        }
-        BlocksFile.close();
-        if(opt->dds)
-        {
-            for(size_t i=0; i < sys.AFF_vec().size(); i++)
-            {
-                    std::cout << "AFF" << i << ".mm, ";
-                std::stringstream tmp;
-                tmp << "AFF" << i << ".mm";
-                sys.AFF_vec()[i].save(std::string(tmp.str()), arma::coord_ascii);
-            }
-        }
-    }
-    log << "% Saving system matrices:\n";
-    if(sys.PR_mat().n_nonzero > 0)
-    {
-            std::cout << "P.mm, ";
-        sys.PR_mat().save("P.mm", arma::coord_ascii);
-    }
-        std::cout << "A.mm, ";
-    sys.A_mat().save("A.mm", arma::coord_ascii);
-        std::cout << "B.mm\n";
-    sys.B_mat().save("B.mm", arma::coord_ascii);
-    log << "+" << tt.toc() << " s\n";
-}
 
 void post_processor::save_data()
 {
@@ -148,38 +109,18 @@ void post_processor::save_data()
         }
         sParams.clear();
     }
-    if(opt->sol)
-    {
-            std::cout << "Saving solution vector\n";
-        lt.tic();
-        std::ofstream solFile(std::string(opt->name + ".sol").c_str());
-        for(int i=0; i< sys.Sol_mat().n_rows; i++)
-        {
-            for(int j=0; j< sys.Sol_mat().n_cols; j++)
-            {
-                solFile << std::setw(23) << std::scientific
-                        << std::right << std::setprecision(15)
-                        << sys.Sol_mat()(i,j).real() << " "
-                        << std::setw(23) << std::scientific
-                        << std::right << std::setprecision(15)
-                        << sys.Sol_mat()(i,j).imag() << " ";
-            }
-            solFile << "\n";
-        }
-        solFile.close();
-    }
     for(size_t i=0; i<sys.port_ampl_vec().size(); i++)
     {
         sys.Sol_mat().col(i) *= sys.port_ampl_vec()[i];
     }
-    if(opt->field && opt->solver != option::matlab)
+    if(opt->field)
     {
             std::cout << "Saving fields\n";
         lt.tic();
         field(sys.prj, sys.Sol_mat(), sys.get_freq());
         log << "\tfields: " << lt.toc() << " s\n";
     }
-    if(opt->rad && opt->solver != option::matlab)
+    if(opt->rad)
     {
             std::cout << "Saving radiation: ";
         lt.tic();

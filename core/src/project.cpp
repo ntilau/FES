@@ -956,7 +956,7 @@ void readFesXml(std::ifstream& in, option& opt,
         "solver", "assembly", "name", "dbg", "dbl", "niter", "toll",
         "h_ord", "p_ord", "freq", "l_freq", "h_freq", "n_freqs",
         "n_harm", "relax",
-        "sol", "einc",
+        "einc",
         "field", "rad", "n_theta", "n_phi",
         "poly", "poly_cmd",
         "href_cmd",
@@ -1105,8 +1105,6 @@ void readFesXml(std::ifstream& in, option& opt,
                     try { opt.n_harm = (size_t)std::stoull(val); } catch(...) {}
                 } else if(key == "relax") {
                     try { opt.relax = std::stod(val); } catch(...) {}
-                } else if(key == "sol") {
-                    opt.sol = (val == "1");
                 } else if(key == "einc") {
                     opt.einc = (val == "1");
                 } else if(key == "field") {

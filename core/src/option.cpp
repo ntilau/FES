@@ -25,7 +25,6 @@ const char* option::solver_type_name(solverType t) {
     switch(t) {
         case direct:  return "direct";
         case gmres:   return "gmres";
-        case matlab:  return "matlab";
         default:      return "UNKNOWN";
     }
 }
@@ -54,7 +53,6 @@ option::assemb_type option::formula_type_from_name(const std::string& s) {
 
 option::solverType option::solver_type_from_name(const std::string& s) {
     if(s == "gmres")   return gmres;
-    if(s == "matlab")  return matlab;
     return direct;
 }
 
@@ -75,7 +73,6 @@ option::option()
     , n_freqs(1)
     , n_harm(0)
     , relax(0)
-    , sol(false)
     , einc(false)
     , field(false)
     , rad(false)
@@ -205,7 +202,6 @@ void option::apply_cli()
 
     if(ov("dbg"))        dbg        = getB("dbg");
     if(ov("dbl"))        dbl        = getB("dbl");
-    if(ov("sol"))        sol        = getB("sol");
     if(ov("einc"))       einc       = getB("einc");
     if(ov("field"))      field      = getB("field");
     if(ov("rad"))        rad        = getB("rad");
@@ -299,7 +295,6 @@ void option::serialize(std::ostream& out) const
     elSize("n_freqs", n_freqs);
     elSize("n_harm", n_harm);
     elDbl("relax", relax);
-    elBool("sol", sol);
     elBool("einc", einc);
     elBool("field", field);
     elBool("rad", rad);
@@ -346,7 +341,6 @@ void option::print_usage(std::ostream& ostr) const
     ostr << "  [+einc <label> = {Ex,Ey,Ez,kx,ky,kz}]  apply incident plane wave\n";
     ostr << "                               and disable +sparam\n";
     ostr << "  [+volt $bnd $pot]            apply voltage [V] to perfect_e boundary\n";
-    ostr << "  [+matlab]                    dump to Matlab in MatrixMarket format\n";
     ostr << "  [+sgl]                       decrease solver precision to single\n";
     ostr << "  [+direct]                    solve direct\n";
     ostr << "  [+gmres $tol $restart]       solve with GMRes\n";
@@ -355,7 +349,6 @@ void option::print_usage(std::ostream& ostr) const
     ostr << "  [+dd $n]                     apply partitioning in $n regions\n";
     ostr << "            [+gs]              Gauss-Seidel precond. (default)\n";
     ostr << "            [+jc]              Jacobi precond.\n";
-    ostr << "  [+sol]                       write solution\n";
     ostr << "  [+solid]                     write VTK solids\n";
     ostr << "  [+field]                     write VTK fields\n";
     ostr << "  [+rad $n_theta $n_phi]         write VTK radiation solids\n";

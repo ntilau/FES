@@ -89,10 +89,7 @@ names, and identifiers use **snake_case** throughout the C++ source.
 | | **Output** | |
 | `+field` | — | Export VTK field data |
 | `+rad Nθ Nφ` | — | Export far-field radiation pattern |
-| `+sol` | — | Write solution vector |
-| `+msh` | — | Export VTK mesh |
 | `+sparam` | on | Write S-parameters (`-sparam` to disable) |
-| `+matlab` | — | Dump system in MatrixMarket format |
 | | **Ports & excitation** | |
 | `+tfe` | on | Transfinite element formulation on waveports (`-tfe` to disable) |
 | `+volt bnd V` | — | Apply voltage V to PEC boundary (electrostatic) |

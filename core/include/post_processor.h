@@ -11,7 +11,6 @@ class post_processor
 public:
     post_processor(eq_sys& sys, std::ofstream& log);
     void save_data();
-    void save_system();
 private:
     eq_sys& sys;
     std::ofstream& log;

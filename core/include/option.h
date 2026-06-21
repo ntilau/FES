@@ -8,7 +8,7 @@ class option
 {
 public:
     enum assemb_type { em_e_fd, em_e_fd_dd, em_e_fd_nl, em_e_qs, em_h_qs, em_ez_fd, em_e_tl_eig };
-    enum solverType { direct, gmres, matlab};
+    enum solverType { direct, gmres };
     option();
     virtual ~option();
     void set(const int argc, char* argv[]);
@@ -31,7 +31,6 @@ public:
     size_t n_freqs;
     size_t n_harm;
     double relax;
-    bool sol;
     double E[3], k[3];
     bool einc;        // true when +einc was specified
     bool field;

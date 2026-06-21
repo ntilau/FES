@@ -145,23 +145,6 @@ eq_sys::eq_sys(std::ofstream& logFile, project* pPrj) : prj(pPrj), msh(pPrj->msh
                         mem_stat::print(std::cout);
                     post_processor(*this, logFile).save_data();
                     break;
-                case option::matlab:
-                    if(opt->dds)
-                    {
-                        PR.set_size(dofreal, dofreal);
-                        {
-                            size_t r0 = doflevel[1], r1 = doflevel[doflevel.size()-1];
-                            size_t c0 = doflevel[0], c1 = doflevel[1];
-                            for(auto it = A.begin(); it != A.end(); ++it) {
-                                size_t r = it.row(), c = it.col();
-                                if(r >= r0 && r < r1 && c >= c0 && c < c1) {
-                                    PR(r, c) += *it;
-                                }
-                            }
-                        }
-                    }
-                    post_processor(*this, logFile).save_system();
-                    break;
                 case option::gmres:
                     if(opt->dds)
                     {
