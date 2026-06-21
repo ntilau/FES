@@ -1,5 +1,7 @@
 # FES — Finite Element Solver
 
+[![build](https://github.com/ntilau/FES/actions/workflows/build.yml/badge.svg)](https://github.com/ntilau/FES/actions/workflows/build.yml)
+
 FES is a 2D/3D finite element solver for computational electromagnetics based on the E-field formulation
 with H(curl) conforming elements. It supports S-parameter extraction, eigenmode analysis,
 electrostatics, and nonlinear Kerr materials.
