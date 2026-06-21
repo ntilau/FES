@@ -1055,25 +1055,25 @@ shape::shape(size_t p_ord, size_t cDim, s_type sType, arma::rowvec cPos, jacobia
             dNv(0,6) = 2*Ns(0)-Ns(1)-Ns(2);
             dNv(0,7) = Ns(0)+Ns(2)-2*Ns(1);
             dNv *= dNs(0,1)*dNs(1,2)-dNs(1,1)*dNs(0,2);
-            // update scalar functions
+            // update scalar functions — edges in i<j order: (0,1), (0,2), (1,2)
             Ns.resize(1,6);
             dNs.resize(2,6);
             dNs.fill(0);
             cPos.resize(3);
             cPos(2) = 1-cPos(0)-cPos(1);
-            Ns(3) = 4*cPos(0)*cPos(1);
-            Ns(4) = 4*cPos(0)*cPos(2);
-            Ns(5) = 4*cPos(2)*cPos(1);
+            // edge (0,1): 4*λ₁*λ₀  (vanishes on λ₂=0)
+            Ns(3) = 4*cPos(0)*cPos(2);
+            dNs(0,3) = 4*(cPos(2)-cPos(0));   dNs(1,3) = -4*cPos(0);
+            // edge (0,2): 4*λ₀*λ₂  (vanishes on λ₁=0)
+            Ns(4) = 4*cPos(2)*cPos(1);
+            dNs(0,4) = -4*cPos(1);             dNs(1,4) = 4*(cPos(2)-cPos(1));
+            // edge (1,2): 4*λ₁*λ₂  (vanishes on λ₀=0)
+            Ns(5) = 4*cPos(0)*cPos(1);
+            dNs(0,5) = 4*cPos(1);              dNs(1,5) = 4*cPos(0);
             dNs(0,0) = -1;
             dNs(1,0) = -1;
             dNs(0,1) = 1;
             dNs(1,2) = 1;
-            dNs(0,3) = 4*cPos(1);
-            dNs(0,4) = 4*(cPos(2)-cPos(0));
-            dNs(0,5) = -4*cPos(1);
-            dNs(1,3) = 4*cPos(0);
-            dNs(1,4) = -4*cPos(0);
-            dNs(1,5) = 4*(cPos(2)-cPos(1));
             dNs = cJac->invJ * dNs;
             break;
         case 3:
@@ -1117,37 +1117,38 @@ shape::shape(size_t p_ord, size_t cDim, s_type sType, arma::rowvec cPos, jacobia
             dNv(0,14) = 4*Ns(0)*(Ns(0)-2*Ns(1)) -
                         4*Ns(1)*(2*Ns(0)-Ns(1));
             dNv *= dNs(0,1)*dNs(1,2)-dNs(1,1)*dNs(0,2);
-            // update scalar functions
+            // update scalar functions — edges in i<j order: (0,1), (0,2), (1,2)
             Ns.resize(1,10);
             dNs.resize(2,10);
             dNs.fill(0);
             cPos.resize(3);
             cPos(2) = 1-cPos(0)-cPos(1);
-            Ns(3) = 4*cPos(0)*cPos(1);
-            Ns(4) = 4*cPos(0)*cPos(2);
-            Ns(5) = 4*cPos(2)*cPos(1);
-            Ns(6) = cPos(0)*cPos(1)*(cPos(0)-cPos(1));
-            Ns(7) = cPos(2)*cPos(0)*(cPos(2)-cPos(0));
-            Ns(8) = cPos(2)*cPos(1)*(cPos(2)-cPos(1));
+            // edge (0,1): 4*λ₁*λ₀  + λ₀*λ₁*(λ₀-λ₁)
+            Ns(3) = 4*cPos(0)*cPos(2);
+            Ns(6) = cPos(2)*cPos(0)*(cPos(2)-cPos(0));
+            dNs(0,3) = 4*(cPos(2)-cPos(0));          dNs(1,3) = -4*cPos(0);
+            dNs(0,6) = cPos(2)*(cPos(2)-cPos(0)) - cPos(2)*cPos(0) - cPos(0)*(cPos(2)-cPos(0)) - cPos(2)*cPos(0);
+            dNs(1,6) = -cPos(0)*(cPos(2)-cPos(0)) - cPos(2)*cPos(0);
+            // edge (0,2): 4*λ₀*λ₂  + λ₀*λ₂*(λ₀-λ₂)
+            Ns(4) = 4*cPos(2)*cPos(1);
+            Ns(7) = cPos(2)*cPos(1)*(cPos(2)-cPos(1));
+            dNs(0,4) = -4*cPos(1);                   dNs(1,4) = 4*(cPos(2)-cPos(1));
+            dNs(0,7) = -cPos(1)*(cPos(2)-cPos(1)) - cPos(2)*cPos(1);
+            dNs(1,7) = cPos(2)*(cPos(2)-cPos(1)) - cPos(2)*cPos(1) - cPos(1)*(cPos(2)-cPos(1)) - cPos(2)*cPos(1);
+            // edge (1,2): 4*λ₁*λ₂  + λ₁*λ₂*(λ₁-λ₂)
+            Ns(5) = 4*cPos(0)*cPos(1);
+            Ns(8) = cPos(0)*cPos(1)*(cPos(0)-cPos(1));
+            dNs(0,5) = 4*cPos(1);                    dNs(1,5) = 4*cPos(0);
+            dNs(0,8) = cPos(1)*(cPos(0)-cPos(1)) + cPos(0)*cPos(1);
+            dNs(1,8) = cPos(0)*(cPos(0)-cPos(1)) - cPos(0)*cPos(1);
+            // interior: λ₀*λ₁*λ₂
             Ns(9) = cPos(2)*cPos(0)*cPos(1);
+            dNs(0,9) = (cPos(2)-cPos(0))*cPos(1);
+            dNs(1,9) = (cPos(2)-cPos(1))*cPos(0);
             dNs(0,0) = -1;
             dNs(1,0) = -1;
             dNs(0,1) = 1;
             dNs(1,2) = 1;
-            dNs(0,3) = 4*cPos(1);
-            dNs(0,4) = 4*(cPos(2)-cPos(0));
-            dNs(0,5) = -4*cPos(1);
-            dNs(1,3) = 4*cPos(0);
-            dNs(1,4) = -4*cPos(0);
-            dNs(1,5) = 4*(cPos(2)-cPos(1));
-            dNs(0,6) = cPos(1)*(cPos(0)-cPos(1)) + cPos(0)*cPos(1);
-            dNs(0,7) = cPos(2)*(cPos(2)-cPos(0)) - cPos(2)*cPos(0) - cPos(0)*(cPos(2)-cPos(0)) - cPos(2)*cPos(0);
-            dNs(0,8) = -cPos(1)*(cPos(2)-cPos(1)) - cPos(2)*cPos(1);
-            dNs(0,9) = (cPos(2) - cPos(0))*cPos(1);
-            dNs(1,6) = cPos(0)*(cPos(0)-cPos(1)) - cPos(0)*cPos(1);
-            dNs(1,7) = -cPos(0)*(cPos(2)-cPos(0)) - cPos(2)*cPos(0);
-            dNs(1,8) = cPos(2)*(cPos(2)-cPos(1)) - cPos(2)*cPos(1) - cPos(1)*(cPos(2)-cPos(1)) - cPos(2)*cPos(1);
-            dNs(1,9) = (cPos(2) - cPos(1))*cPos(0);
             dNs = cJac->invJ * dNs;
             break;
         case 4:
@@ -1215,7 +1216,7 @@ shape::shape(size_t p_ord, size_t cDim, s_type sType, arma::rowvec cPos, jacobia
             dNv(0,22) = 2*Ns(0)*Ns(1) + 2*Ns(1)*Ns(2) - 2*Ns(1)*Ns(1);
             dNv(0,23) = Ns(0)*Ns(2) + Ns(2)*Ns(2) - 3*Ns(1)*Ns(2);
             dNv *= dNs(0,1)*dNs(1,2)-dNs(1,1)*dNs(0,2);
-            // update scalar functions
+            // update scalar functions — edges in i<j order: (0,1), (0,2), (1,2)
             Ns.resize(1,15);
             dNs.resize(2,15);
             dNs.fill(0);
@@ -1225,52 +1226,47 @@ shape::shape(size_t p_ord, size_t cDim, s_type sType, arma::rowvec cPos, jacobia
             Ns(0) = (cPos(2)*(4*cPos(2)-1)*(4*cPos(2)-2)*(4*cPos(2)-3))/6;
             Ns(1) = (cPos(0)*(4*cPos(0)-1)*(4*cPos(0)-2)*(4*cPos(0)-3))/6;
             Ns(2) = (cPos(1)*(4*cPos(1)-1)*(4*cPos(1)-2)*(4*cPos(1)-3))/6;
-            // edge functions level A (p=2: 4*lam_i*lam_j)
-            Ns(3) = 4*cPos(0)*cPos(1);
-            Ns(4) = 4*cPos(0)*cPos(2);
-            Ns(5) = 4*cPos(2)*cPos(1);
-            // edge functions level B (p=3: lam_i*lam_j*(lam_i-lam_j))
-            Ns(6) = cPos(0)*cPos(1)*(cPos(0)-cPos(1));
-            Ns(7) = cPos(2)*cPos(0)*(cPos(2)-cPos(0));
-            Ns(8) = cPos(2)*cPos(1)*(cPos(2)-cPos(1));
-            // edge functions level C (p=4: lam_i*lam_j*(lam_i*lam_i-lam_j*lam_j))
-            Ns(9) = cPos(0)*cPos(1)*(cPos(0)*cPos(0)-cPos(1)*cPos(1));
-            Ns(10) = cPos(0)*cPos(2)*(cPos(0)*cPos(0)-cPos(2)*cPos(2));
-            Ns(11) = cPos(2)*cPos(1)*(cPos(2)*cPos(2)-cPos(1)*cPos(1));
-            // face functions
-            Ns(12) = cPos(2)*cPos(0)*cPos(1);                // p=3 face
-            Ns(13) = cPos(2)*cPos(0)*cPos(1)*(cPos(1)-cPos(0));  // p=4 face A
-            Ns(14) = cPos(2)*cPos(0)*cPos(1)*(cPos(0)+cPos(1)-2*cPos(2));  // p=4 face B
-            // dNs: vertex derivatives
-            { double d = (128*pow(cPos(2),3)-144*pow(cPos(2),2)+44*cPos(2)-3)/3;
-            dNs(0,0) = -d; dNs(1,0) = -d; }
-            dNs(0,1) = (128*pow(cPos(0),3)-144*pow(cPos(0),2)+44*cPos(0)-3)/3;
-            dNs(1,2) = (128*pow(cPos(1),3)-144*pow(cPos(1),2)+44*cPos(1)-3)/3;
-            // dNs: edge level A (4*lam_i*lam_j)
-            dNs(0,3) = 4*cPos(1); dNs(1,3) = 4*cPos(0);
-            dNs(0,4) = 4*(cPos(2)-cPos(0)); dNs(1,4) = -4*cPos(0);
-            dNs(0,5) = -4*cPos(1); dNs(1,5) = 4*(cPos(2)-cPos(1));
-            // dNs: edge level B (lam_i*lam_j*(lam_i-lam_j))
-            dNs(0,6) = cPos(1)*(2*cPos(0)-cPos(1));
-            dNs(1,6) = cPos(0)*(cPos(0)-2*cPos(1));
-            dNs(0,7) = cPos(2)*(cPos(2)-2*cPos(0)) - cPos(0)*(2*cPos(2)-cPos(0));
-            dNs(1,7) = -cPos(0)*(2*cPos(2)-cPos(0));
-            dNs(0,8) = -cPos(1)*(2*cPos(2)-cPos(1));
-            dNs(1,8) = cPos(2)*(cPos(2)-2*cPos(1)) - cPos(1)*(2*cPos(2)-cPos(1));
-            // dNs: edge level C (lam_i*lam_j*(lam_i^2-lam_j^2))
-            dNs(0,9) = cPos(1)*(3*cPos(0)*cPos(0)-cPos(1)*cPos(1));
-            dNs(1,9) = cPos(0)*(cPos(0)*cPos(0)-3*cPos(1)*cPos(1));
-            dNs(0,10) = cPos(2)*(3*cPos(0)*cPos(0)-cPos(2)*cPos(2))-cPos(0)*(cPos(0)*cPos(0)-3*cPos(2)*cPos(2));
-            dNs(1,10) = -cPos(0)*(cPos(0)*cPos(0)-3*cPos(2)*cPos(2));
-            dNs(0,11) = -cPos(1)*(3*cPos(2)*cPos(2)-cPos(1)*cPos(1));
-            dNs(1,11) = cPos(2)*(cPos(2)*cPos(2)-3*cPos(1)*cPos(1))-cPos(1)*(3*cPos(2)*cPos(2)-cPos(1)*cPos(1));
-            // dNs: face functions
-            dNs(0,12) = cPos(1)*(cPos(2)-cPos(0));
-            dNs(1,12) = cPos(0)*(cPos(2)-cPos(1));
+            // ── edge (0,1) — 3 levels ──
+            Ns(3) = 4*cPos(0)*cPos(2);
+            Ns(6) = cPos(2)*cPos(0)*(cPos(2)-cPos(0));
+            Ns(9) = cPos(0)*cPos(2)*(cPos(0)*cPos(0)-cPos(2)*cPos(2));
+            dNs(0,3) = 4*(cPos(2)-cPos(0));                  dNs(1,3) = -4*cPos(0);
+            dNs(0,6) = cPos(2)*(cPos(2)-2*cPos(0)) - cPos(0)*(2*cPos(2)-cPos(0));
+            dNs(1,6) = -cPos(0)*(2*cPos(2)-cPos(0));
+            dNs(0,9) = cPos(2)*(3*cPos(0)*cPos(0)-cPos(2)*cPos(2))-cPos(0)*(cPos(0)*cPos(0)-3*cPos(2)*cPos(2));
+            dNs(1,9) = -cPos(0)*(cPos(0)*cPos(0)-3*cPos(2)*cPos(2));
+            // ── edge (0,2) — 3 levels ──
+            Ns(4) = 4*cPos(2)*cPos(1);
+            Ns(7) = cPos(2)*cPos(1)*(cPos(2)-cPos(1));
+            Ns(10) = cPos(2)*cPos(1)*(cPos(2)*cPos(2)-cPos(1)*cPos(1));
+            dNs(0,4) = -4*cPos(1);                            dNs(1,4) = 4*(cPos(2)-cPos(1));
+            dNs(0,7) = -cPos(1)*(2*cPos(2)-cPos(1));
+            dNs(1,7) = cPos(2)*(cPos(2)-2*cPos(1)) - cPos(1)*(2*cPos(2)-cPos(1));
+            dNs(0,10) = -cPos(1)*(3*cPos(2)*cPos(2)-cPos(1)*cPos(1));
+            dNs(1,10) = cPos(2)*(cPos(2)*cPos(2)-3*cPos(1)*cPos(1))-cPos(1)*(3*cPos(2)*cPos(2)-cPos(1)*cPos(1));
+            // ── edge (1,2) — 3 levels ──
+            Ns(5) = 4*cPos(0)*cPos(1);
+            Ns(8) = cPos(0)*cPos(1)*(cPos(0)-cPos(1));
+            Ns(11) = cPos(0)*cPos(1)*(cPos(0)*cPos(0)-cPos(1)*cPos(1));
+            dNs(0,5) = 4*cPos(1);                             dNs(1,5) = 4*cPos(0);
+            dNs(0,8) = cPos(1)*(2*cPos(0)-cPos(1));
+            dNs(1,8) = cPos(0)*(cPos(0)-2*cPos(1));
+            dNs(0,11) = cPos(1)*(3*cPos(0)*cPos(0)-cPos(1)*cPos(1));
+            dNs(1,11) = cPos(0)*(cPos(0)*cPos(0)-3*cPos(1)*cPos(1));
+            // ── face functions ──
+            Ns(12) = cPos(2)*cPos(0)*cPos(1);
+            Ns(13) = cPos(2)*cPos(0)*cPos(1)*(cPos(1)-cPos(0));
+            Ns(14) = cPos(2)*cPos(0)*cPos(1)*(cPos(0)+cPos(1)-2*cPos(2));
+            dNs(0,12) = cPos(1)*(cPos(2)-cPos(0));            dNs(1,12) = cPos(0)*(cPos(2)-cPos(1));
             dNs(0,13) = cPos(1)*cPos(2)*(cPos(1)-2*cPos(0))-cPos(0)*cPos(1)*(cPos(1)-cPos(0));
             dNs(1,13) = cPos(0)*cPos(2)*(2*cPos(1)-cPos(0))-cPos(0)*cPos(1)*(cPos(1)-cPos(0));
             dNs(0,14) = cPos(1)*cPos(2)*(2*cPos(0)+cPos(1)-2*cPos(2))-cPos(0)*cPos(1)*(cPos(0)+cPos(1)-4*cPos(2));
             dNs(1,14) = cPos(0)*cPos(2)*(cPos(0)+2*cPos(1)-2*cPos(2))-cPos(0)*cPos(1)*(cPos(0)+cPos(1)-4*cPos(2));
+            // vertex derivatives
+            { double d = (128*pow(cPos(2),3)-144*pow(cPos(2),2)+44*cPos(2)-3)/3;
+            dNs(0,0) = -d; dNs(1,0) = -d; }
+            dNs(0,1) = (128*pow(cPos(0),3)-144*pow(cPos(0),2)+44*cPos(0)-3)/3;
+            dNs(1,2) = (128*pow(cPos(1),3)-144*pow(cPos(1),2)+44*cPos(1)-3)/3;
             dNs = cJac->invJ * dNs;
             break;
         default:
