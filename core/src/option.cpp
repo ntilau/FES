@@ -82,7 +82,6 @@ option::option()
     , n_theta(0)
     , n_phi(0)
     , poly(false)
-    , lte(false)
     , dd(false)
     , ddn(false)
     , dds(false)
@@ -210,7 +209,6 @@ void option::apply_cli()
     if(ov("einc"))       einc       = getB("einc");
     if(ov("field"))      field      = getB("field");
     if(ov("rad"))        rad        = getB("rad");
-    if(ov("lte"))        lte        = getB("lte");
     // +poly <cmd>: if value is not "1"/"0", treat as boolean true and capture command
     if(ov("poly")) {
         const std::string& v = cli_override["poly"];
@@ -344,7 +342,6 @@ void option::print_usage(std::ostream& ostr) const
     ostr << "  [+p $n]                      select polynomial order (1-3)\n";
     ostr << "  [+h $n]                      perform homogeneous mesh refinement\n";
     ostr << "  [+poly [q__a__]]              mesh .poly project (auto-detects 2D/3D); TetGen quality switches optional\n";
-    ostr << "  [+hfss]                      extract hfss project data\n";
     ostr << "  [+href q__a__Y]              quality mesh refinement with TetGen\n";
     ostr << "  [+einc <label> = {Ex,Ey,Ez,kx,ky,kz}]  apply incident plane wave\n";
     ostr << "                               and disable +sparam\n";

@@ -37,9 +37,7 @@ public:
     bool field;
     bool rad;
     double n_theta, n_phi;
-    bool hfss;
     bool poly;
-    bool lte;
     std::string poly_cmd;
     std::string href_cmd;
     bool dd;

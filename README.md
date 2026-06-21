@@ -71,8 +71,6 @@ names, and identifiers use **snake_case** throughout the C++ source.
 |------|---------|-------------|
 | | **Model I/O** | |
 | `+poly [CMD]` | — | Import `.poly` file (auto-detects 2D/3D; optional TetGen quality switches) |
-| `+hfss` | — | Import HFSS project |
-| `+unv` | — | Import UNV mesh |
 | | **Formulation** | |
 | `+formula NAME` | — | Select formulation by snake_case name (`em_e_fd`, `em_ez_fd`, etc.) |
 | `+em_e_fd` | — | 3D frequency-domain EM (curl-curl) |
@@ -128,7 +126,7 @@ names, and identifiers use **snake_case** throughout the C++ source.
 import → mesh → assemble → solve → export
 ```
 
-1. `project` reads `.poly`, `.hfss`, or `.fes` — populates mesh, materials, BCs
+1. `project` reads `.poly` or `.fes` — populates mesh, materials, BCs
 2. `pre_processor` auto-detects dimension and reads `#Formula`/`#Regions`/`#Boundaries` from `.poly`
 3. 2D models mesh with Triangle; 3D models mesh with TetGen
 4. `eq_sys` dispatches to `assembler::create(type)->assemble()`
@@ -146,7 +144,7 @@ core/
 │   ├── post_processor.h # S-param / field / radiation export
 │   ├── equation_system.h# eq_sys: frequency loop, wires assembly→solve→postproc
 │   ├── mesh.h           # Mesh data: nodes, edges, faces, tetras
-│   ├── project.h        # Model I/O: .poly/.fes/.hfss → binary .fes
+│   ├── project.h        # Model I/O: .poly/.fes → binary .fes
 │   ├── option.h         # CLI option parsing
 │   ├── eigen_solver.h   # ARPACK eigenvalue solver (waveport modes)
 │   ├── element_matrix.h # Element-level FE matrix computation
@@ -207,7 +205,6 @@ and mesh — in a single file. It uses an XML header followed by binary mesh sec
 |--------|-----------|-------------|
 | Poly | `.poly` | TetGen PLC with `#Formula`/`#Regions`/`#Boundaries` sections |
 | Native | `.fes` | FES project file (XML header + binary mesh) |
-| HFSS | `.hfss` | ANSYS HFSS mesh + boundary/material files |
 | Touchstone | `.sNp` | S-parameter output |
 
 ## Dependencies

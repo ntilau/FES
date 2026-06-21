@@ -15,8 +15,6 @@
 #include "memory.h"
 #include "project.h"
 #include "option.h"
-#include "hfss.h"
-#include "lte.h"
 #include "pre_processor.h"
 #include "mesh.h"
 
@@ -1172,13 +1170,7 @@ project::project(std::ofstream& logFile, option& pOpt) : opt(&pOpt), msh(new mes
     std::cout << "project:   " << opt->name << "\n";
     std::cout << "Main frequency: " << opt->freq << "\n";
     std::cout << "p = " << opt->p_ord << ", h = " << opt->h_ord << "\n";
-    if(opt->lte)
-    {
-        logFile << "Parsing lte_fileset project files\n";
-        lte lte_reader(this);
-        save_fes();
-    }
-    else if(opt->poly)
+    if(opt->poly)
     {
         logFile << "Parsing .poly project file\n";
         preprocessing(this);

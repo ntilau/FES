@@ -9,8 +9,6 @@
 #include <algorithm>
 #include <string>
 
-/// not accurate for more than one mode and complex materials !!! (different from hfss)
-
 eigen::eigen(arma::cx_mat& SS, arma::cx_mat& TT, size_t& numt, size_t& numz, double& kk, int& num_modes)
 {
     int n = SS.n_rows;

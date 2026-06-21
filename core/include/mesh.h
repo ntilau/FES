@@ -67,7 +67,6 @@ public:
     // Populate PLC from external mesh generator input
     void store_plc_from_tetgen(class tetgenio& in);
     void store_plc_from_triangle(struct triangulateio& tri_in);
-    void store_plc_from_hfss();  // from existing mesh (HFSS already provides complete mesh)
 };
 
 #endif // FEMESH_H

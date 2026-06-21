@@ -28,9 +28,9 @@ The pipeline is: **import → mesh → assemble → solve → export VTK/S-param
 
 ```
 core/
-├── include/          # 25 headers (all snake_case)
+├── include/          # 23 headers (all snake_case)
 │   ├── option.h         # CLI option storage
-│   ├── project.h        # Model I/O: reads .poly/.fes/.hfss, writes binary .fes
+│   ├── project.h        # Model I/O: reads .poly/.fes, writes binary .fes
 │   ├── mesh.h           # Mesh data: nodes, edges, faces, tetras
 │   ├── equation_system.h  # eq_sys — frequency loop, wires assembly→solve→postproc
 │   ├── assembler.h      # Abstract base + 6 derived assembly classes
@@ -51,8 +51,6 @@ core/
 │   ├── triangle_wrap.h  # Triangle wrapper (2D meshing)
 │   ├── degree_of_freedom.h  # Local→global DOF numbering
 │   ├── coupling.h       # Kerr nonlinear coupling tensor
-│   ├── hfss.h           # HFSS project parser
-│   ├── lte.h            # LTE spectrum import
 │   ├── memory.h         # Memory reporting
 │   ├── configuration.h  # System config / priority helpers
 │   └── constants.h      # Physical constants
@@ -63,7 +61,7 @@ core/
 ### Solver flow (EM frequency-domain)
 
 1. `main.cpp` → `option::set(argc, argv)` parses CLI flags → `option::apply_cli()` applies them
-2. `project(log_file, &opt)` loads model (`.poly`→TetGen/Triangle, `.hfss`→hfss parser, `.fes`→binary load)
+2. `project(log_file, &opt)` loads model (`.poly`→TetGen/Triangle, `.fes`→binary load)
 3. `eq_sys(log_file, &prj)` — for each frequency:
    - `assembler::create(type)->assemble(log, sys)` — polymorphic assembly
    - `solver::create(*opt)->solve(sys, log)` — mumps_solver direct or gmres_solver iterative
