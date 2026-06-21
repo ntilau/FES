@@ -1,10 +1,8 @@
 name: build
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'   # daily at 06:00 UTC
 
 jobs:
   build:
@@ -12,24 +10,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for recent commits
+        id: check_commits
+        run: |
+          COUNT=$(git rev-list --count --since="24 hours" HEAD)
+          echo "commits_24h=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "no new commits in the last 24h — skipping build"
+          else
+            echo "$COUNT new commit(s) — proceeding with build"
+          fi
+
       - name: Install system dependencies
+        if: steps.check_commits.outputs.commits_24h != '0'
         run: |
           sudo apt-get update
           sudo apt-get install -y make cmake gcc g++ gfortran
 
       - name: Cache dep/
         id: cache-dep
+        if: steps.check_commits.outputs.commits_24h != '0'
         uses: actions/cache@v4
         with:
           path: dep/
           key: dep-${{ runner.os }}-${{ hashFiles('setup') }}
 
       - name: Build dependencies
-        if: steps.cache-dep.outputs.cache-hit != 'true'
+        if: steps.check_commits.outputs.commits_24h != '0' && steps.cache-dep.outputs.cache-hit != 'true'
         run: ./setup
 
       - name: Build FES
+        if: steps.check_commits.outputs.commits_24h != '0'
         run: make build
 
       - name: Test
+        if: steps.check_commits.outputs.commits_24h != '0'
         run: make test
