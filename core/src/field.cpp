@@ -3,6 +3,9 @@
 #include "shape.h"
 #include "constants.h"
 
+#include <sstream>
+#include <fstream>
+
 
 /// need for 2nd order visualization
 

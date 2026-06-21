@@ -78,7 +78,7 @@ void post_processor::save_data()
                         std::vector<std::complex<double>> vals;
                         double mag, ang;
                         while(iss >> mag >> ang) {
-                            vals.push_back(std::polar(mag, ang * M_PI / 180.0));
+                            vals.push_back(std::polar(mag, ang * consts::pi / 180.0));
                         }
                         if(!vals.empty()) freqData[fGHz] = vals;
                     }
@@ -114,7 +114,7 @@ void post_processor::save_data()
             sParamFile << std::setw(10) << std::scientific << std::left << std::setprecision(8) << entry.first;
             for(const auto& val : entry.second) {
                 double mag = std::abs(val);
-                double ang = std::arg(val) * 180.0 / M_PI;
+                double ang = std::arg(val) * 180.0 / consts::pi;
                 sParamFile << " " << std::setw(14) << std::scientific << std::setprecision(8) << mag
                            << " " << std::setw(14) << std::scientific << std::setprecision(8) << ang;
             }

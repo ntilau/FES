@@ -1,5 +1,10 @@
 #include "hfss.h"
 #include <stdexcept>
+#include <cstdlib>
+#include <cctype>
+#include <algorithm>
+#include <fstream>
+#include <sstream>
 
 hfss::hfss(project* prj): name(prj->opt->name), msh(prj->msh), prj(prj), debug(prj->opt->dbg)
 {

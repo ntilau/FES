@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 /// not accurate for more than one mode and complex materials !!! (different from hfss)
 

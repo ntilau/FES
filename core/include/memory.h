@@ -6,6 +6,7 @@
 #include <ostream>
 #include <fstream>
 #include <sstream>
+#include <cstdint>
 
 // Platform detection for memory reporting
 #if defined(__APPLE__)

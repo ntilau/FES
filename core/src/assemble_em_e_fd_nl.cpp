@@ -12,6 +12,7 @@
 #include "option.h"
 
 #include <cfloat> // for DBL_MIN
+#include <iomanip>
 #include <unordered_map>
 #include <complex>
 

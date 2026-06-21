@@ -12,6 +12,7 @@
 #include "option.h"
 
 #include <cfloat> // for DBL_MIN
+#include <unordered_map>
 
 void assembler_em_e_fd_dd::assemble(std::ofstream& logFile, eq_sys& sys)
 {

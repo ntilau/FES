@@ -2,6 +2,7 @@
 
 #include "assembler.h"
 #include <stdexcept>
+#include <algorithm>
 #include "equation_system.h"
 #include "mesh.h"
 #include "option.h"

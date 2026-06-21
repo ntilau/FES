@@ -1,5 +1,6 @@
 #include "solver.h"
 #include <stdexcept>
+#include <type_traits>
 #include "equation_system.h"
 #include "mesh.h"
 #include "boundary_condition.h"
