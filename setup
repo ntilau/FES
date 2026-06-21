@@ -1,0 +1,284 @@
+#!/bin/bash
+set -euo pipefail
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log_info() {
+  echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_error() {
+  echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+log_warn() {
+  echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+clone_or_update_repo() {
+  local repo_url="$1"
+  local target_dir="$2"
+
+  if [[ -d "$target_dir/.git" ]]; then
+    log_info "Updating $(basename "$target_dir")"
+    git -C "$target_dir" fetch --all --prune || log_warn "Could not fetch updates for $target_dir"
+    if ! git -C "$target_dir" pull --ff-only 2>/dev/null; then
+      local branch
+      branch=$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+      if [[ -n "$branch" && "$branch" != "HEAD" ]]; then
+        log_warn "Fast-forward update failed for $(basename "$target_dir"); resetting local branch $branch to origin/$branch"
+        git -C "$target_dir" reset --hard "origin/$branch" || log_warn "Could not reset $target_dir"
+      else
+        log_warn "Fast-forward update failed for $(basename "$target_dir"); trying a rebase"
+        git -C "$target_dir" pull --rebase --autostash || log_warn "Could not update $target_dir"
+      fi
+    fi
+  elif [[ -d "$target_dir" ]]; then
+    log_warn "$target_dir exists and is not a git repo, skipping clone"
+  else
+    log_info "Cloning $(basename "$target_dir")"
+    git clone "$repo_url" "$target_dir"
+  fi
+}
+
+build_cmake_project() {
+  local src_dir="$1"
+  local build_dir="$2"
+  shift 2
+
+  cmake -S "$src_dir" -B "$build_dir" "$@"
+  cmake --build "$build_dir"
+  cmake --install "$build_dir"
+}
+
+install_compiler_dependencies() {
+  local detected_os="$1"
+
+  case "$detected_os" in
+    Darwin)
+      log_info "macOS detected - installing dependencies via Homebrew"
+      brew install make cmake gcc || log_warn "Some Homebrew packages may already be installed"
+      ;;
+    Linux)
+      if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        if [[ "$ID" == "arch" ]]; then
+          log_info "Arch Linux detected - installing dependencies via pacman"
+          sudo pacman -S --noconfirm make cmake gcc || log_warn "Some packages may already be installed"
+        else
+          log_info "Debian/Ubuntu-based Linux detected - installing dependencies via apt"
+          sudo apt update
+          sudo apt install -y make cmake libc6-dev gcc g++ gfortran || log_warn "Some packages may already be installed"
+        fi
+      else
+        log_info "Linux detected - attempting apt installation"
+        sudo apt update
+        sudo apt install -y make cmake libc6-dev gcc g++ gfortran || log_warn "Some packages may already be installed"
+      fi
+      ;;
+    *)
+      log_error "Unsupported OS for package installation: $detected_os"
+      exit 1
+      ;;
+  esac
+}
+
+setup_dependency_sources() {
+  mkdir -p dep/src
+
+  clone_or_update_repo "https://github.com/OpenMathLib/OpenBLAS.git" "dep/src/OpenBLAS"
+  clone_or_update_repo "https://github.com/opencollab/arpack-ng.git" "dep/src/arpack-ng"
+  clone_or_update_repo "https://github.com/scivision/mumps-superbuild.git" "dep/src/mumps-superbuild"
+  clone_or_update_repo "https://github.com/libigl/triangle.git" "dep/src/triangle"
+  clone_or_update_repo "https://github.com/libigl/tetgen.git" "dep/src/tetgen"
+  clone_or_update_repo "https://gitlab.com/conradsnicta/armadillo-code.git" "dep/src/armadillo"
+}
+
+build_dependencies() {
+  log_info "Building third-party dependencies in dep/..."
+  pushd dep >/dev/null
+
+  local root="$PWD"
+  local src="$root/src"
+  local build="$root/build"
+
+  build_cmake_project "$src/OpenBLAS" "$build/OpenBLAS" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_PREFIX_PATH="$root" \
+    -DCMAKE_INSTALL_PREFIX="$root" \
+    -DBUILD_LAPACK_DEPRECATED=ON \
+    -DBUILD_TESTING=OFF \
+    -DCMAKE_VERBOSE_MAKEFILE=OFF
+
+  build_cmake_project "$src/arpack-ng" "$build/arpack-ng" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_PREFIX_PATH="$root" \
+    -DCMAKE_INSTALL_PREFIX="$root" \
+    -DBUILD_TESTING=OFF \
+    -DCMAKE_VERBOSE_MAKEFILE=OFF
+
+  build_cmake_project "$src/mumps-superbuild" "$build/mumps" \
+    -DBUILD_SINGLE=ON \
+    -DBUILD_DOUBLE=ON \
+    -DBUILD_COMPLEX=ON \
+    -DBUILD_COMPLEX16=ON \
+    -DMUMPS_parallel=false \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_PREFIX_PATH="$root" \
+    -DCMAKE_INSTALL_PREFIX="$root" \
+    -DLAPACK_VENDOR=OpenBLAS \
+    -Dgemmt=OFF \
+    -DMUMPS_scalapack=OFF \
+    -DMUMPS_find_SCALAPACK=OFF \
+    -DLAPACK_ROOT="$root/include/openblas" \
+    -DBUILD_TESTING=OFF \
+    -DCMAKE_VERBOSE_MAKEFILE=OFF
+
+  build_cmake_project "$src/triangle" "$build/triangle" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_PREFIX_PATH="$root" \
+    -DCMAKE_INSTALL_PREFIX="$root" \
+    -DBUILD_EXECUTABLE=OFF \
+    -DBUILD_TESTING=OFF \
+    -DCMAKE_VERBOSE_MAKEFILE=OFF
+
+  build_cmake_project "$src/tetgen" "$build/tetgen" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_PREFIX_PATH="$root" \
+    -DCMAKE_INSTALL_PREFIX="$root" \
+    -DBUILD_EXECUTABLE=OFF \
+    -DBUILD_TESTING=OFF \
+    -DCMAKE_VERBOSE_MAKEFILE=OFF
+
+  build_cmake_project "$src/armadillo" "$build/armadillo" \
+    -DSTATIC_LIB=ON \
+    -DCMAKE_PREFIX_PATH="$root" \
+    -DCMAKE_INSTALL_PREFIX="$root" \
+    -DCMAKE_VERBOSE_MAKEFILE=OFF \
+    -DALLOW_OPENBLAS_MACOS=OFF \
+    -DOPENBLAS_PROVIDES_LAPACK=ON \
+    -DBUILD_SMOKE_TEST=OFF
+
+  popd >/dev/null
+}
+
+show_usage() {
+  echo "Usage: $0 [--compiler]"
+  echo "  --compiler   Install compiler and build tool packages"
+}
+
+INSTALL_COMPILER_DEPS=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --compiler)
+      INSTALL_COMPILER_DEPS=true
+      ;;
+    -h|--help)
+      show_usage
+      exit 0
+      ;;
+    *)
+      log_error "Unknown argument: $arg"
+      show_usage
+      exit 1
+      ;;
+  esac
+done
+
+# Detect OS once and reuse
+os=$(uname)
+log_info "Detected OS: $os"
+
+if [[ "$INSTALL_COMPILER_DEPS" == true ]]; then
+  install_compiler_dependencies "$os"
+else
+  log_info "Skipping compiler packages installation (use --compiler to enable)"
+fi
+
+log_info "Updating git dependencies..."
+
+setup_dependency_sources
+
+# Create CMakeLists.txt files
+log_info "Creating CMakeLists.txt files..."
+
+# Create TetGen CMakeLists.txt
+cat > dep/src/tetgen/CMakeLists.txt << 'EOF'
+cmake_minimum_required(VERSION 3.5)
+project(tetgen)
+
+option(BUILD_EXECUTABLE "Build tetgen executable" OFF)
+option(BUILD_LIBRARY    "Build libtetgen library" ON)
+
+if(BUILD_LIBRARY)
+  add_library(tetgen STATIC tetgen.cxx predicates.cxx)
+  target_compile_definitions(tetgen PRIVATE -DTETLIBRARY)
+  # Generate position independent code
+  set_target_properties(tetgen PROPERTIES 
+      POSITION_INDEPENDENT_CODE ON
+      PUBLIC_HEADER tetgen.h
+  )
+  install(TARGETS tetgen
+      PUBLIC_HEADER
+      DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif()
+
+if(BUILD_EXECUTABLE)
+  add_executable(tetgen_exec tetgen.cxx predicates.cxx)
+  set_target_properties(tetgen_exec PROPERTIES OUTPUT_NAME tetgen)
+  install(TARGETS tetgen_exec
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+endif()
+EOF
+log_info "✓ TetGen CMakeLists.txt created"
+
+# Create Triangle CMakeLists.txt
+cat > dep/src/triangle/CMakeLists.txt << 'EOF'
+cmake_minimum_required(VERSION 3.5)
+project(triangle)
+
+option(BUILD_EXECUTABLE "Build triangle executable" OFF)
+option(BUILD_LIBRARY    "Build libtriangle library" ON)
+
+if(BUILD_LIBRARY)
+  add_library(triangle STATIC triangle.cpp)
+  target_compile_definitions(triangle PRIVATE -DTRILIBRARY -DANSI_DECLARATORS)
+  if(WIN32)
+    target_compile_definitions(triangle PRIVATE -DNO_TIMER)
+  endif()
+  # Generate position independent code
+  set_target_properties(triangle PROPERTIES 
+    POSITION_INDEPENDENT_CODE ON
+    PUBLIC_HEADER triangle.h
+  )
+  install(TARGETS triangle
+    PUBLIC_HEADER
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  )
+endif()
+
+if(BUILD_EXECUTABLE)
+  add_executable(triangle_exec triangle.cpp)
+  target_compile_definitions(triangle_exec PRIVATE -DANSI_DECLARATORS)
+  if(WIN32)
+    target_compile_definitions(triangle_exec PRIVATE -DNO_TIMER)
+  endif()
+  set_target_properties(triangle_exec PROPERTIES OUTPUT_NAME triangle)
+  install(TARGETS triangle_exec
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
+  )
+endif()
+EOF
+log_info "✓ Triangle CMakeLists.txt created"
+
+build_dependencies
+
+log_info "${GREEN}Setup completed successfully!${NC}"
