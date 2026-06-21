@@ -392,6 +392,7 @@ void mesh::Savefield(std::string fieldName)
     outfield << "mesh data\n";
     outfield << "ASCII\n";
     outfield << "DATASET UNSTRUCTURED_GRID\n";
+
     outfield << "POINTS " << nNodes << " double \n";
     for(size_t i = 0; i < nNodes; i++)
     {
@@ -399,20 +400,62 @@ void mesh::Savefield(std::string fieldName)
         outfield << std::setprecision(16) << nodPos(i,1) << " ";
         outfield << std::setprecision(16) << nodPos(i,2) << "\n";
     }
-    outfield << "CELLS " << nTetras << " " << VtkTetfieldsPerCell * nTetras << "\n";
-    for(size_t i = 0; i < nTetras; i++)
+
+    // Detect 2D vs 3D: write faces (triangles) for 2D, tetras for 3D
+    if(nTetras > 0)
     {
-        outfield << VtkTetVertsPerCell << " ";
-        outfield << tetNodes(i,0) << " ";
-        outfield << tetNodes(i,1) << " ";
-        outfield << tetNodes(i,2) << " ";
-        outfield << tetNodes(i,3) << "\n";
+        // ── 3D tetrahedral mesh ──
+        constexpr int cellType = 10;          // VTK_TETRA
+        constexpr int vertsPerCell = 4;
+        constexpr int fieldsPerCell = vertsPerCell + 1;
+
+        outfield << "CELLS " << nTetras << " " << fieldsPerCell * nTetras << "\n";
+        for(size_t i = 0; i < nTetras; i++)
+        {
+            outfield << vertsPerCell << " ";
+            outfield << tetNodes(i,0) << " ";
+            outfield << tetNodes(i,1) << " ";
+            outfield << tetNodes(i,2) << " ";
+            outfield << tetNodes(i,3) << "\n";
+        }
+        outfield << "CELL_TYPES " << nTetras << "\n";
+        for(size_t i = 0; i < nTetras; i++)
+            outfield << cellType << "\n";
+
+        // Cell data: region labels
+        outfield << "CELL_DATA " << nTetras << "\n";
+        outfield << "SCALARS region_label int 1\n";
+        outfield << "LOOKUP_TABLE default\n";
+        for(size_t i = 0; i < nTetras; i++)
+            outfield << (int)tetLab(i) << "\n";
     }
-    outfield << "CELL_TYPES " << nTetras << "\n";
-    for(size_t i = 0; i < nTetras; i++)
+    else if(nFaces > 0)
     {
-        outfield << VtkTetCellType << "\n";
+        // ── 2D triangle mesh ──
+        constexpr int cellType = 5;           // VTK_TRIANGLE
+        constexpr int vertsPerCell = 3;
+        constexpr int fieldsPerCell = vertsPerCell + 1;
+
+        outfield << "CELLS " << nFaces << " " << fieldsPerCell * nFaces << "\n";
+        for(size_t i = 0; i < nFaces; i++)
+        {
+            outfield << vertsPerCell << " ";
+            outfield << facNodes(i,0) << " ";
+            outfield << facNodes(i,1) << " ";
+            outfield << facNodes(i,2) << "\n";
+        }
+        outfield << "CELL_TYPES " << nFaces << "\n";
+        for(size_t i = 0; i < nFaces; i++)
+            outfield << cellType << "\n";
+
+        // Cell data: boundary (face) labels
+        outfield << "CELL_DATA " << nFaces << "\n";
+        outfield << "SCALARS boundary_label int 1\n";
+        outfield << "LOOKUP_TABLE default\n";
+        for(size_t i = 0; i < nFaces; i++)
+            outfield << (int)facLab(i) << "\n";
     }
+
     outfield.close();
 }
 
