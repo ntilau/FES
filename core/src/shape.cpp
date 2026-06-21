@@ -627,129 +627,134 @@ shape::shape(size_t p_ord, size_t cDim, s_type sType, arma::rowvec cPos, jacobia
                 dNs = cJac->invJ * dNs;
                 break;
             case 2:
-                // hierarchical basis functions are not appropriate for hgrad space
                 Ns.resize(1,10);
                 dNs.resize(3,10);
                 dNs.fill(0);
                 cPos.resize(4);
                 cPos(3) = 1-cPos(0)-cPos(1)-cPos(2);
-                Ns(0) = cPos(3)*(2*cPos(3) - 1);
-                Ns(1) = cPos(0)*(2*cPos(0) - 1);
-                Ns(2) = cPos(1)*(2*cPos(1) - 1);
-                Ns(3) = cPos(2)*(2*cPos(2) - 1);
-                Ns(4) = cPos(3)*cPos(0)*4;
-                Ns(5) = cPos(3)*cPos(1)*4;
-                Ns(6) = cPos(3)*cPos(2)*4;
-                Ns(7) = cPos(0)*cPos(1)*4;
-                Ns(8) = cPos(0)*cPos(2)*4;
-                Ns(9) = cPos(1)*cPos(2)*4;
-                dNs(0,0) = 4*cPos(0) + 4*cPos(1) + 4*cPos(2) - 3;
-                dNs(1,0) = 4*cPos(0) + 4*cPos(1) + 4*cPos(2) - 3;
-                dNs(2,0) = 4*cPos(0) + 4*cPos(1) + 4*cPos(2) - 3;
-                dNs(0,1) = 4*cPos(0) - 1;
-                dNs(1,2) = 4*cPos(1) - 1;
-                dNs(2,3) = 4*cPos(2) - 1;
-                dNs(0,4) = (cPos(3)-cPos(0))*4;
-                dNs(1,4) = -cPos(0)*4;
-                dNs(2,4) = -cPos(0)*4;
-                dNs(0,5) = -cPos(1)*4;
-                dNs(1,5) = (cPos(3)-cPos(1))*4;
-                dNs(2,5) = -cPos(1)*4;
-                dNs(0,6) = -cPos(2)*4;
-                dNs(1,6) = -cPos(2)*4;
-                dNs(2,6) = (cPos(3)-cPos(2))*4;
-                dNs(0,7) = cPos(1)*4;
-                dNs(1,7) = cPos(0)*4;
-                dNs(0,8) = cPos(2)*4;
-                dNs(2,8) = cPos(0)*4;
-                dNs(1,9) = cPos(2)*4;
-                dNs(2,9) = cPos(1)*4;
+                // Vertices in node order 0,1,2,3 (matching tetNodes/s(0:3))
+                Ns(0) = cPos(0)*(2*cPos(0) - 1);      // λ₀
+                Ns(1) = cPos(1)*(2*cPos(1) - 1);      // λ₁
+                Ns(2) = cPos(2)*(2*cPos(2) - 1);      // λ₂
+                Ns(3) = cPos(3)*(2*cPos(3) - 1);      // λ₃
+                // Edges in i<j order (matching tetEdges/s(4:9))
+                Ns(4) = cPos(0)*cPos(1)*4;             // (0,1)
+                Ns(5) = cPos(0)*cPos(2)*4;             // (0,2)
+                Ns(6) = cPos(3)*cPos(0)*4;             // (0,3)
+                Ns(7) = cPos(1)*cPos(2)*4;             // (1,2)
+                Ns(8) = cPos(3)*cPos(1)*4;             // (1,3)
+                Ns(9) = cPos(3)*cPos(2)*4;             // (2,3)
+                dNs(0,0) = 4*cPos(0) - 1;              // dλ₀/dx
+                dNs(1,1) = 4*cPos(1) - 1;              // dλ₁/dy
+                dNs(2,2) = 4*cPos(2) - 1;              // dλ₂/dz
+                dNs(0,3) = 4*cPos(0) + 4*cPos(1) + 4*cPos(2) - 3;  // dλ₃/dx
+                dNs(1,3) = 4*cPos(0) + 4*cPos(1) + 4*cPos(2) - 3;  // dλ₃/dy
+                dNs(2,3) = 4*cPos(0) + 4*cPos(1) + 4*cPos(2) - 3;  // dλ₃/dz
+                dNs(0,4) = cPos(1)*4;                  // d(λ₀λ₁)/dx
+                dNs(1,4) = cPos(0)*4;                  // d(λ₀λ₁)/dy
+                dNs(0,5) = cPos(2)*4;                  // d(λ₀λ₂)/dx
+                dNs(2,5) = cPos(0)*4;                  // d(λ₀λ₂)/dz
+                dNs(0,6) = (cPos(3)-cPos(0))*4;        // d(λ₀λ₃)/dx
+                dNs(1,6) = -cPos(0)*4;                 // d(λ₀λ₃)/dy
+                dNs(2,6) = -cPos(0)*4;                 // d(λ₀λ₃)/dz
+                dNs(1,7) = cPos(2)*4;                  // d(λ₁λ₂)/dy
+                dNs(2,7) = cPos(1)*4;                  // d(λ₁λ₂)/dz
+                dNs(0,8) = -cPos(1)*4;                 // d(λ₁λ₃)/dx
+                dNs(1,8) = (cPos(3)-cPos(1))*4;        // d(λ₁λ₃)/dy
+                dNs(2,8) = -cPos(1)*4;                 // d(λ₁λ₃)/dz
+                dNs(0,9) = -cPos(2)*4;                 // d(λ₂λ₃)/dx
+                dNs(1,9) = -cPos(2)*4;                 // d(λ₂λ₃)/dy
+                dNs(2,9) = (cPos(3)-cPos(2))*4;        // d(λ₂λ₃)/dz
                 dNs = cJac->invJ * dNs;
                 break;
             case 3:
                 Ns.resize(1,20);
                 dNs.resize(3,20);
-                //dNs.fill(0);
                 cPos.resize(4);
                 cPos(3) = 1-cPos(0)-cPos(1)-cPos(2);
-                Ns(0) = (cPos(3)*(3*cPos(3) - 1)*(3*cPos(3) - 2))/2;
-                Ns(1) = (cPos(0)*(3*cPos(0) - 1)*(3*cPos(0) - 2))/2;
-                Ns(2) = (cPos(1)*(3*cPos(1) - 1)*(3*cPos(1) - 2))/2;
-                Ns(3) = (cPos(2)*(3*cPos(2) - 1)*(3*cPos(2) - 2))/2;
-                Ns(4) = (9*cPos(3)*cPos(0)*(3*cPos(3) - 1))/2;
-                Ns(10) = (9*cPos(3)*cPos(0)*(3*cPos(0) - 1))/2;
-                Ns(5) = (9*cPos(3)*cPos(1)*(3*cPos(3) - 1))/2;
-                Ns(11) = (9*cPos(3)*cPos(1)*(3*cPos(1) - 1))/2;
-                Ns(6) = (9*cPos(3)*cPos(2)*(3*cPos(3) - 1))/2;
-                Ns(12) = (9*cPos(3)*cPos(2)*(3*cPos(2) - 1))/2;
-                Ns(7) = (9*cPos(0)*cPos(1)*(3*cPos(0) - 1))/2;
-                Ns(13) = (9*cPos(0)*cPos(1)*(3*cPos(1) - 1))/2;
-                Ns(8) = (9*cPos(0)*cPos(2)*(3*cPos(0) - 1))/2;
-                Ns(14) = (9*cPos(0)*cPos(2)*(3*cPos(2) - 1))/2;
-                Ns(9) = (9*cPos(1)*cPos(2)*(3*cPos(1) - 1))/2;
-                Ns(15) = (9*cPos(1)*cPos(2)*(3*cPos(2) - 1))/2;
-                Ns(16) = 27*cPos(0)*cPos(1)*cPos(2);
-                Ns(17) = 27*cPos(3)*cPos(1)*cPos(2);
-                Ns(18) = 27*cPos(3)*cPos(0)*cPos(2);
-                Ns(19) = 27*cPos(3)*cPos(0)*cPos(1);
-                dNs(0,0) =  18*cPos(0) + 18*cPos(1) + 18*cPos(2) - 27*cPos(0)*cPos(1) - 27*cPos(0)*cPos(2) - 27*cPos(1)*cPos(2) -
+                // Vertices in node order 0,1,2,3 (matching tetNodes/s(0:3))
+                Ns(0) = (cPos(0)*(3*cPos(0) - 1)*(3*cPos(0) - 2))/2;   // λ₀
+                Ns(1) = (cPos(1)*(3*cPos(1) - 1)*(3*cPos(1) - 2))/2;   // λ₁
+                Ns(2) = (cPos(2)*(3*cPos(2) - 1)*(3*cPos(2) - 2))/2;   // λ₂
+                Ns(3) = (cPos(3)*(3*cPos(3) - 1)*(3*cPos(3) - 2))/2;   // λ₃
+                // Edges level 0 in i<j order (matching tetEdges/s(4:9))
+                Ns(4) = (9*cPos(0)*cPos(1)*(3*cPos(0) - 1))/2;          // (0,1)
+                Ns(5) = (9*cPos(0)*cPos(2)*(3*cPos(0) - 1))/2;          // (0,2)
+                Ns(6) = (9*cPos(3)*cPos(0)*(3*cPos(3) - 1))/2;          // (0,3)
+                Ns(7) = (9*cPos(1)*cPos(2)*(3*cPos(1) - 1))/2;          // (1,2)
+                Ns(8) = (9*cPos(3)*cPos(1)*(3*cPos(3) - 1))/2;          // (1,3)
+                Ns(9) = (9*cPos(3)*cPos(2)*(3*cPos(3) - 1))/2;          // (2,3)
+                // Edges level 1 in i<j order (matching tetEdges/s(10:15))
+                Ns(10) = (9*cPos(0)*cPos(1)*(3*cPos(1) - 1))/2;         // (0,1)
+                Ns(11) = (9*cPos(0)*cPos(2)*(3*cPos(2) - 1))/2;         // (0,2)
+                Ns(12) = (9*cPos(3)*cPos(0)*(3*cPos(0) - 1))/2;         // (0,3)
+                Ns(13) = (9*cPos(1)*cPos(2)*(3*cPos(2) - 1))/2;         // (1,2)
+                Ns(14) = (9*cPos(3)*cPos(1)*(3*cPos(1) - 1))/2;         // (1,3)
+                Ns(15) = (9*cPos(3)*cPos(2)*(3*cPos(2) - 1))/2;         // (2,3)
+                // Faces in opposite-vertex order (matching tetFaces/s(16:19))
+                Ns(16) = 27*cPos(3)*cPos(1)*cPos(2);                    // op vtx 0
+                Ns(17) = 27*cPos(3)*cPos(0)*cPos(2);                    // op vtx 1
+                Ns(18) = 27*cPos(3)*cPos(0)*cPos(1);                    // op vtx 2
+                Ns(19) = 27*cPos(0)*cPos(1)*cPos(2);                    // op vtx 3
+                dNs(0,0) = (27*pow(cPos(0),2))/2 - 9*cPos(0) + 1;       // dλ₀/dx
+                dNs(1,1) = (27*pow(cPos(1),2))/2 - 9*cPos(1) + 1;       // dλ₁/dy
+                dNs(2,2) = (27*pow(cPos(2),2))/2 - 9*cPos(2) + 1;       // dλ₂/dz
+                dNs(0,3) =  18*cPos(0) + 18*cPos(1) + 18*cPos(2) - 27*cPos(0)*cPos(1) - 27*cPos(0)*cPos(2) - 27*cPos(1)*cPos(2) -
                             (27*pow(cPos(0),2))/2 - (27*pow(cPos(1),2))/2 - (27*pow(cPos(2),2))/2 - 11.0/2.0;
-                dNs(1,0) =  18*cPos(0) + 18*cPos(1) + 18*cPos(2) - 27*cPos(0)*cPos(1) - 27*cPos(0)*cPos(2) - 27*cPos(1)*cPos(2) -
+                dNs(1,3) =  18*cPos(0) + 18*cPos(1) + 18*cPos(2) - 27*cPos(0)*cPos(1) - 27*cPos(0)*cPos(2) - 27*cPos(1)*cPos(2) -
                             (27*pow(cPos(0),2))/2 - (27*pow(cPos(1),2))/2 - (27*pow(cPos(2),2))/2 - 11.0/2.0;
-                dNs(2,0) =  18*cPos(0) + 18*cPos(1) + 18*cPos(2) - 27*cPos(0)*cPos(1) - 27*cPos(0)*cPos(2) - 27*cPos(1)*cPos(2) -
+                dNs(2,3) =  18*cPos(0) + 18*cPos(1) + 18*cPos(2) - 27*cPos(0)*cPos(1) - 27*cPos(0)*cPos(2) - 27*cPos(1)*cPos(2) -
                             (27*pow(cPos(0),2))/2 - (27*pow(cPos(1),2))/2 - (27*pow(cPos(2),2))/2 - 11.0/2.0;
-                dNs(0,1) = (27*pow(cPos(0),2))/2 - 9*cPos(0) + 1;
-                dNs(1,2) = (27*pow(cPos(1),2))/2 - 9*cPos(1) + 1;
-                dNs(2,3) = (27*pow(cPos(2),2))/2 - 9*cPos(2) + 1;
-                dNs(0,4) = (81*pow(cPos(0),2))/2 + 54*cPos(0)*cPos(1) + 54*cPos(0)*cPos(2) - 45*cPos(0) + (27*pow(cPos(1),2))/2 +
+                dNs(0,4) = (9*cPos(1)*(6*cPos(0) - 1))/2;              // d(e₀₁)/dx
+                dNs(1,4) = (9*cPos(0)*(3*cPos(0) - 1))/2;              // d(e₀₁)/dy
+                dNs(0,5) = (9*cPos(2)*(6*cPos(0) - 1))/2;              // d(e₀₂)/dx
+                dNs(2,5) = (9*cPos(0)*(3*cPos(0) - 1))/2;              // d(e₀₂)/dz
+                dNs(0,6) = (81*pow(cPos(0),2))/2 + 54*cPos(0)*cPos(1) + 54*cPos(0)*cPos(2) - 45*cPos(0) + (27*pow(cPos(1),2))/2 +
                            27*cPos(1)*cPos(2) - (45*cPos(1))/2 + (27*pow(cPos(2),2))/2 - (45*cPos(2))/2 + 9;
-                dNs(1,4) = (9*cPos(0)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
-                dNs(2,4) = (9*cPos(0)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
-                dNs(0,10) =  36*cPos(0) + (9*cPos(1))/2 + (9*cPos(2))/2 - 27*cPos(0)*cPos(1) - 27*cPos(0)*cPos(2) -
-                             (81*pow(cPos(0),2))/2 - 9.0/2.0;
-                dNs(1,10) = -(9*cPos(0)*(3*cPos(0) - 1))/2;
-                dNs(2,10) = -(9*cPos(0)*(3*cPos(0) - 1))/2;
-                dNs(0,5) = (9*cPos(1)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
-                dNs(1,5) = (27*pow(cPos(0),2))/2 + 54*cPos(0)*cPos(1) + 27*cPos(0)*cPos(2) - (45*cPos(0))/2 + (81*pow(cPos(1),2))/2 +
+                dNs(1,6) = (9*cPos(0)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
+                dNs(2,6) = (9*cPos(0)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
+                dNs(1,7) = (9*cPos(2)*(6*cPos(1) - 1))/2;              // d(e₁₂)/dy
+                dNs(2,7) = (9*cPos(1)*(3*cPos(1) - 1))/2;              // d(e₁₂)/dz
+                dNs(0,8) = (9*cPos(1)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
+                dNs(1,8) = (27*pow(cPos(0),2))/2 + 54*cPos(0)*cPos(1) + 27*cPos(0)*cPos(2) - (45*cPos(0))/2 + (81*pow(cPos(1),2))/2 +
                            54*cPos(1)*cPos(2) - 45*cPos(1) + (27*pow(cPos(2),2))/2 - (45*cPos(2))/2 + 9;
-                dNs(2,5) = (9*cPos(1)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
-                dNs(0,11) = -(9*cPos(1)*(3*cPos(1) - 1))/2;
-                dNs(1,11) = (9*cPos(0))/2 + 36*cPos(1) + (9*cPos(2))/2 - 27*cPos(0)*cPos(1) - 27*cPos(1)*cPos(2) -
-                            (81*pow(cPos(1),2))/2 - 9.0/2.0;
-                dNs(2,11) = -(9*cPos(1)*(3*cPos(1) - 1))/2;
-                dNs(0,6) = (9*cPos(2)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
-                dNs(1,6) = (9*cPos(2)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
-                dNs(2,6) = (27*pow(cPos(0),2))/2 + 27*cPos(0)*cPos(1) + 54*cPos(0)*cPos(2) - (45*cPos(0))/2 + (27*pow(cPos(1),2))/2 +
+                dNs(2,8) = (9*cPos(1)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
+                dNs(0,9) = (9*cPos(2)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
+                dNs(1,9) = (9*cPos(2)*(6*cPos(0) + 6*cPos(1) + 6*cPos(2) - 5))/2;
+                dNs(2,9) = (27*pow(cPos(0),2))/2 + 27*cPos(0)*cPos(1) + 54*cPos(0)*cPos(2) - (45*cPos(0))/2 + (27*pow(cPos(1),2))/2 +
                            54*cPos(1)*cPos(2) - (45*cPos(1))/2 + (81*pow(cPos(2),2))/2 - 45*cPos(2) + 9;
-                dNs(0,12) = -(9*cPos(2)*(3*cPos(2) - 1))/2;
-                dNs(1,12) = -(9*cPos(2)*(3*cPos(2) - 1))/2;
-                dNs(2,12) = (9*cPos(0))/2 + (9*cPos(1))/2 + 36*cPos(2) - 27*cPos(0)*cPos(2) - 27*cPos(1)*cPos(2) -
+                dNs(0,10) = (9*cPos(1)*(3*cPos(1) - 1))/2;             // d(e₀₁ L1)/dx
+                dNs(1,10) = (9*cPos(0)*(6*cPos(1) - 1))/2;
+                dNs(0,11) = (9*cPos(2)*(3*cPos(2) - 1))/2;             // d(e₀₂ L1)/dx
+                dNs(2,11) = (9*cPos(0)*(6*cPos(2) - 1))/2;
+                dNs(0,12) =  36*cPos(0) + (9*cPos(1))/2 + (9*cPos(2))/2 - 27*cPos(0)*cPos(1) - 27*cPos(0)*cPos(2) -
+                             (81*pow(cPos(0),2))/2 - 9.0/2.0;
+                dNs(1,12) = -(9*cPos(0)*(3*cPos(0) - 1))/2;
+                dNs(2,12) = -(9*cPos(0)*(3*cPos(0) - 1))/2;
+                dNs(1,13) = (9*cPos(2)*(3*cPos(2) - 1))/2;             // d(e₁₂ L1)/dy
+                dNs(2,13) = (9*cPos(1)*(6*cPos(2) - 1))/2;
+                dNs(0,14) = -(9*cPos(1)*(3*cPos(1) - 1))/2;
+                dNs(1,14) = (9*cPos(0))/2 + 36*cPos(1) + (9*cPos(2))/2 - 27*cPos(0)*cPos(1) - 27*cPos(1)*cPos(2) -
+                            (81*pow(cPos(1),2))/2 - 9.0/2.0;
+                dNs(2,14) = -(9*cPos(1)*(3*cPos(1) - 1))/2;
+                dNs(0,15) = -(9*cPos(2)*(3*cPos(2) - 1))/2;
+                dNs(1,15) = -(9*cPos(2)*(3*cPos(2) - 1))/2;
+                dNs(2,15) = (9*cPos(0))/2 + (9*cPos(1))/2 + 36*cPos(2) - 27*cPos(0)*cPos(2) - 27*cPos(1)*cPos(2) -
                             (81*pow(cPos(2),2))/2 - 9.0/2.0;
-                dNs(0,7) = (9*cPos(1)*(6*cPos(0) - 1))/2;
-                dNs(1,7) = (9*cPos(0)*(3*cPos(0) - 1))/2;
-                dNs(0,13) = (9*cPos(1)*(3*cPos(1) - 1))/2;
-                dNs(1,13) = (9*cPos(0)*(6*cPos(1) - 1))/2;
-                dNs(0,8) = (9*cPos(2)*(6*cPos(0) - 1))/2;
-                dNs(2,8) = (9*cPos(0)*(3*cPos(0) - 1))/2;
-                dNs(0,14) = (9*cPos(2)*(3*cPos(2) - 1))/2;
-                dNs(2,14) = (9*cPos(0)*(6*cPos(2) - 1))/2;
-                dNs(1,9) = (9*cPos(2)*(6*cPos(1) - 1))/2;
-                dNs(2,9) = (9*cPos(1)*(3*cPos(1) - 1))/2;
-                dNs(1,15) = (9*cPos(2)*(3*cPos(2) - 1))/2;
-                dNs(2,15) = (9*cPos(1)*(6*cPos(2) - 1))/2;
-                dNs(0,16) = 27*cPos(1)*cPos(2);
-                dNs(1,16) = 27*cPos(0)*cPos(2);
-                dNs(2,16) = 27*cPos(0)*cPos(1);
-                dNs(0,17) = -27*cPos(1)*cPos(2);
-                dNs(1,17) = -27*cPos(2)*(cPos(0) + 2*cPos(1) + cPos(2) - 1);
-                dNs(2,17) = -27*cPos(1)*(cPos(0) + cPos(1) + 2*cPos(2) - 1);
-                dNs(0,18) = -27*cPos(2)*(2*cPos(0) + cPos(1) + cPos(2) - 1);
-                dNs(1,18) = -27*cPos(0)*cPos(2);
-                dNs(2,18) = -27*cPos(0)*(cPos(0) + cPos(1) + 2*cPos(2) - 1);
-                dNs(0,19) = -27*cPos(1)*(2*cPos(0) + cPos(1) + cPos(2) - 1);
-                dNs(1,19) = -27*cPos(0)*(cPos(0) + 2*cPos(1) + cPos(2) - 1);
-                dNs(2,19) = -27*cPos(0)*cPos(1);
+                dNs(0,16) = -27*cPos(1)*cPos(2);                       // d(f op vtx0)/dx
+                dNs(1,16) = -27*cPos(2)*(cPos(0) + 2*cPos(1) + cPos(2) - 1);
+                dNs(2,16) = -27*cPos(1)*(cPos(0) + cPos(1) + 2*cPos(2) - 1);
+                dNs(0,17) = -27*cPos(2)*(2*cPos(0) + cPos(1) + cPos(2) - 1);
+                dNs(1,17) = -27*cPos(0)*cPos(2);
+                dNs(2,17) = -27*cPos(0)*(cPos(0) + cPos(1) + 2*cPos(2) - 1);
+                dNs(0,18) = -27*cPos(1)*(2*cPos(0) + cPos(1) + cPos(2) - 1);
+                dNs(1,18) = -27*cPos(0)*(cPos(0) + 2*cPos(1) + cPos(2) - 1);
+                dNs(2,18) = -27*cPos(0)*cPos(1);
+                dNs(0,19) = 27*cPos(1)*cPos(2);
+                dNs(1,19) = 27*cPos(0)*cPos(2);
+                dNs(2,19) = 27*cPos(0)*cPos(1);
                 dNs = cJac->invJ * dNs;
+                break;
                 break;
             case 4:
                 Ns.resize(1,35);
