@@ -96,7 +96,7 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
         } else if(opt->p_ord == 2) {
             nld = 6;
             l2g = {msh->facNodes(t,0), msh->facNodes(t,1), msh->facNodes(t,2),
-                   nV + triEdges2D(t,0), nV + triEdges2D(t,1), nV + triEdges2D(t,2)};
+                   nV + triEdges2D(t,0), nV + triEdges2D(t,2), nV + triEdges2D(t,1)};
         } else {
             nld = (opt->p_ord+1)*(opt->p_ord+2)/2;
             l2g.resize(nld);
@@ -105,8 +105,10 @@ void assembler_em_ez_fd::assemble(std::ofstream& logFile, eq_sys& sys)
             l2g[2] = msh->facNodes(t,2);
             size_t p1 = opt->p_ord - 1;
             size_t eoff = 3;
-            for(int ei = 0; ei < 3; ei++) {
-                size_t eid = triEdges2D(t, ei);
+            // Shape function edge order: φ₃=(1-2), φ₄=(0-1), φ₅=(0-2)
+            static const int emap[3] = {0, 2, 1};
+            for(int ep = 0; ep < 3; ep++) {
+                size_t eid = triEdges2D(t, emap[ep]);
                 for(size_t lev = 0; lev < p1; lev++)
                     l2g[eoff++] = nV + p1*eid + lev;
             }
