@@ -401,99 +401,78 @@ void mesh::Savefield(std::string fieldName)
         outfield << std::setprecision(16) << nodPos(i,2) << "\n";
     }
 
-    // Detect 2D vs 3D: write faces (triangles) for 2D, tetras for 3D
+    // ── Write cells with mixed types ──
+    // 3D: tetras + boundary faces (triangles)
+    // 2D: triangles + boundary edges (lines)
     if(nTetras > 0)
     {
-        // ── 3D tetrahedral mesh ──
-        constexpr int cellType = 10;          // VTK_TETRA
-        constexpr int vertsPerCell = 4;
-        constexpr int fieldsPerCell = vertsPerCell + 1;
+        // ── 3D: tetras + boundary faces ──
+        size_t nBndFaces = nFaces;
+        size_t nTotalCells = nTetras + nBndFaces;
+        size_t totalVerts = nTetras * 5 + nBndFaces * 4;
 
-        outfield << "CELLS " << nTetras << " " << fieldsPerCell * nTetras << "\n";
+        outfield << "CELLS " << nTotalCells << " " << totalVerts << "\n";
+        // Tetras
         for(size_t i = 0; i < nTetras; i++)
-        {
-            outfield << vertsPerCell << " ";
-            outfield << tetNodes(i,0) << " ";
-            outfield << tetNodes(i,1) << " ";
-            outfield << tetNodes(i,2) << " ";
-            outfield << tetNodes(i,3) << "\n";
-        }
-        outfield << "CELL_TYPES " << nTetras << "\n";
-        for(size_t i = 0; i < nTetras; i++)
-            outfield << cellType << "\n";
+            outfield << "4 " << tetNodes(i,0) << " " << tetNodes(i,1)
+                     << " " << tetNodes(i,2) << " " << tetNodes(i,3) << "\n";
+        // Boundary faces (triangles)
+        for(size_t i = 0; i < nBndFaces; i++)
+            outfield << "3 " << facNodes(i,0) << " " << facNodes(i,1)
+                     << " " << facNodes(i,2) << "\n";
 
-        // Cell data: region labels
-        outfield << "CELL_DATA " << nTetras << "\n";
+        outfield << "CELL_TYPES " << nTotalCells << "\n";
+        for(size_t i = 0; i < nTetras; i++)    outfield << "10\n";   // VTK_TETRA
+        for(size_t i = 0; i < nBndFaces; i++)   outfield << "5\n";    // VTK_TRIANGLE
+
+        // Cell data
+        bool haveFacLab = facLab.n_elem > 0;
+        outfield << "CELL_DATA " << nTotalCells << "\n";
+
         outfield << "SCALARS region_label int 1\n";
         outfield << "LOOKUP_TABLE default\n";
-        for(size_t i = 0; i < nTetras; i++)
-            outfield << (int)tetLab(i) << "\n";
+        for(size_t i = 0; i < nTetras; i++)     outfield << (int)tetLab(i) << "\n";
+        for(size_t i = 0; i < nBndFaces; i++)   outfield << "0\n";
 
-        // Cell data: boundary labels (max face marker per tetra)
         outfield << "SCALARS boundary_label int 1\n";
         outfield << "LOOKUP_TABLE default\n";
-        bool haveTetFaces = !tetFaces.is_empty() && tetFaces.n_rows == nTetras;
-        bool haveFacLab = facLab.n_elem > 0;
-        for(size_t i = 0; i < nTetras; i++)
-        {
-            int maxLab = 0;
-            if(haveTetFaces && haveFacLab) {
-                for(int j = 0; j < 4; j++) {
-                    size_t fid = tetFaces(i, j);
-                    if(fid < facLab.n_elem) {
-                        int lab = (int)facLab(fid);
-                        if(lab > maxLab) maxLab = lab;
-                    }
-                }
-            }
-            outfield << maxLab << "\n";
-        }
+        for(size_t i = 0; i < nTetras; i++)     outfield << "0\n";
+        for(size_t i = 0; i < nBndFaces; i++)
+            outfield << (haveFacLab && i < facLab.n_elem ? (int)facLab(i) : 0) << "\n";
     }
     else if(nFaces > 0)
     {
-        // ── 2D triangle mesh ──
-        constexpr int cellType = 5;           // VTK_TRIANGLE
-        constexpr int vertsPerCell = 3;
-        constexpr int fieldsPerCell = vertsPerCell + 1;
+        // ── 2D: triangles + boundary edges ──
+        size_t nTotalCells = nFaces + nEdges;
+        size_t totalVerts = nFaces * 4 + nEdges * 3;
 
-        outfield << "CELLS " << nFaces << " " << fieldsPerCell * nFaces << "\n";
+        outfield << "CELLS " << nTotalCells << " " << totalVerts << "\n";
+        // Triangles
         for(size_t i = 0; i < nFaces; i++)
-        {
-            outfield << vertsPerCell << " ";
-            outfield << facNodes(i,0) << " ";
-            outfield << facNodes(i,1) << " ";
-            outfield << facNodes(i,2) << "\n";
-        }
-        outfield << "CELL_TYPES " << nFaces << "\n";
-        for(size_t i = 0; i < nFaces; i++)
-            outfield << cellType << "\n";
+            outfield << "3 " << facNodes(i,0) << " " << facNodes(i,1)
+                     << " " << facNodes(i,2) << "\n";
+        // Edges (lines)
+        for(size_t i = 0; i < nEdges; i++)
+            outfield << "2 " << edgNodes(i,0) << " " << edgNodes(i,1) << "\n";
 
-        // Cell data: region labels (per-face marker from mesh)
-        outfield << "CELL_DATA " << nFaces << "\n";
+        outfield << "CELL_TYPES " << nTotalCells << "\n";
+        for(size_t i = 0; i < nFaces; i++)    outfield << "5\n";    // VTK_TRIANGLE
+        for(size_t i = 0; i < nEdges; i++)    outfield << "3\n";    // VTK_LINE
+
+        // Cell data
+        bool haveEdgLab = edgLab.n_elem > 0;
+        outfield << "CELL_DATA " << nTotalCells << "\n";
+
         outfield << "SCALARS region_label int 1\n";
         outfield << "LOOKUP_TABLE default\n";
-        for(size_t i = 0; i < nFaces; i++)
-            outfield << (int)facLab(i) << "\n";
+        for(size_t i = 0; i < nFaces; i++)     outfield << (int)facLab(i) << "\n";
+        for(size_t i = 0; i < nEdges; i++)     outfield << "0\n";
 
-        // Cell data: boundary labels (max edge marker per face)
         outfield << "SCALARS boundary_label int 1\n";
         outfield << "LOOKUP_TABLE default\n";
-        bool haveFacEdges = !facEdges.is_empty() && facEdges.n_rows == nFaces;
-        bool haveEdgLab = edgLab.n_elem > 0;
-        for(size_t i = 0; i < nFaces; i++)
-        {
-            int maxLab = 0;
-            if(haveFacEdges && haveEdgLab) {
-                for(int j = 0; j < 3; j++) {
-                    size_t eid = facEdges(i, j);
-                    if(eid < edgLab.n_elem) {
-                        int lab = (int)edgLab(eid);
-                        if(lab > maxLab) maxLab = lab;
-                    }
-                }
-            }
-            outfield << maxLab << "\n";
-        }
+        for(size_t i = 0; i < nFaces; i++)     outfield << "0\n";
+        for(size_t i = 0; i < nEdges; i++)
+            outfield << (haveEdgLab && i < edgLab.n_elem ? (int)edgLab(i) : 0) << "\n";
     }
 
     outfield.close();
