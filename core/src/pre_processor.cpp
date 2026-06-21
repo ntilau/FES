@@ -173,6 +173,49 @@ bool preprocessing::read_poly_for_triangle(const char* polyfile, struct triangul
             if(nsm) { int m; iss >> m; tri_in->segmentmarkerlist[i] = m; }
         }
     }
+
+    // Skip to holes
+    while(std::getline(f, line)) {
+        if(!line.empty() && line[0] != '#') break;
+    }
+    {
+        std::istringstream iss(line);
+        int nh; iss >> nh;
+        tri_in->numberofholes = nh;
+        if(nh > 0) {
+            tri_in->holelist = (double*)malloc(nh * 2 * sizeof(double));
+            for(int i = 0; i < nh; i++) {
+                while(std::getline(f, line)) if(!line.empty() && line[0] != '#') break;
+                std::istringstream iss2(line);
+                double x, y; iss2 >> x >> y;
+                tri_in->holelist[2*i] = x; tri_in->holelist[2*i+1] = y;
+            }
+        }
+    }
+
+    // Skip to regions
+    while(std::getline(f, line)) {
+        if(!line.empty() && line[0] != '#') break;
+    }
+    {
+        std::istringstream iss(line);
+        int nr; iss >> nr;
+        tri_in->numberofregions = nr;
+        if(nr > 0) {
+            tri_in->regionlist = (double*)malloc(nr * 4 * sizeof(double));
+            for(int i = 0; i < nr; i++) {
+                while(std::getline(f, line)) if(!line.empty() && line[0] != '#') break;
+                std::istringstream iss2(line);
+                int idx; double x, y, attr, maxarea;
+                iss2 >> idx >> x >> y >> attr >> maxarea;
+                // Triangle expects: x y attribute maxarea (no idx)
+                tri_in->regionlist[4*i] = x;
+                tri_in->regionlist[4*i+1] = y;
+                tri_in->regionlist[4*i+2] = attr;
+                tri_in->regionlist[4*i+3] = maxarea;
+            }
+        }
+    }
     return true;
 }
 
@@ -319,9 +362,9 @@ bool preprocessing::triangulatemesh2D(const char* name, mesh* mesh, const char* 
 
     std::string cmd;
     if(switches && switches[0])
-        cmd = std::string("p") + switches + "feQ";
+        cmd = std::string("p") + switches + "AfeQ";
     else
-        cmd = "pq34feQ";
+        cmd = "pq34AfeQ";
     ::triangulate((char*)cmd.c_str(), &tri_in, &tri_out, NULL);
     std::cout << "Triangle 2D output: " << tri_out.numberofpoints << " points, "
               << tri_out.numberoftriangles << " triangles, "
@@ -1093,9 +1136,9 @@ bool preprocessing::triangulatemesh2D_from_plc(mesh* msh, const char* switches)
 
     std::string cmd;
     if(switches && switches[0])
-        cmd = std::string("p") + switches + "feQ";
+        cmd = std::string("p") + switches + "AfeQ";
     else
-        cmd = "pq34feQ";
+        cmd = "pq34AfeQ";
     ::triangulate((char*)cmd.c_str(), &tri_in, &tri_out, NULL);
     std::cout << "Triangle 2D output (from PLC): " << tri_out.numberofpoints << " points, "
               << tri_out.numberoftriangles << " triangles, "
