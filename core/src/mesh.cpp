@@ -192,26 +192,26 @@ void mesh::normalize_order()
     // Face: sort nodes, then reorient to maintain positive signed area
     for(size_t i = 0; i < nFaces; i++) {
         arma::urowvec n = arma::sort(facNodes.row(i));
-        if(nTetras == 0) {
-            // 2D: triangles are elements with a consistent orientation
-            arma::vec v0 = safeRowVec(n(0));
-            arma::vec v1 = safeRowVec(n(1));
-            arma::vec v2 = safeRowVec(n(2));
-            double cx = (v1(0)-v0(0))*(v2(1)-v0(1)) - (v1(1)-v0(1))*(v2(0)-v0(0));
-            if(cx < 0) std::swap(n(1), n(2));
-        }
+        // if(nTetras == 0) {
+        //     // 2D: triangles are elements with a consistent orientation
+        //     arma::vec v0 = safeRowVec(n(0));
+        //     arma::vec v1 = safeRowVec(n(1));
+        //     arma::vec v2 = safeRowVec(n(2));
+        //     double cx = (v1(0)-v0(0))*(v2(1)-v0(1)) - (v1(1)-v0(1))*(v2(0)-v0(0));
+        //     if(cx < 0) std::swap(n(1), n(2));
+        // }
         facNodes.row(i) = n;
     }
 
     // Tetrahedron: sort nodes, then reorient to maintain positive signed volume
     for(size_t i = 0; i < nTetras; i++) {
         arma::urowvec n = arma::sort(tetNodes.row(i));
-        arma::vec v0 = safeRowVec(n(0));
-        arma::vec v1 = safeRowVec(n(1));
-        arma::vec v2 = safeRowVec(n(2));
-        arma::vec v3 = safeRowVec(n(3));
-        double vol = arma::dot(arma::cross(v1-v0, v2-v0), v3-v0) / 6.0;
-        if(vol < 0) std::swap(n(2), n(3));
+        // arma::vec v0 = safeRowVec(n(0));
+        // arma::vec v1 = safeRowVec(n(1));
+        // arma::vec v2 = safeRowVec(n(2));
+        // arma::vec v3 = safeRowVec(n(3));
+        // double vol = arma::dot(arma::cross(v1-v0, v2-v0), v3-v0) / 6.0;
+        // if(vol < 0) std::swap(n(2), n(3));
         tetNodes.row(i) = n;
     }
 }
@@ -234,7 +234,7 @@ void mesh::build_2d_edge_connectivity()
         for(int ei = 0; ei < 3; ei++) {
             size_t a = facNodes(fi, (ei+1)%3);
             size_t b = facNodes(fi, (ei+2)%3);
-            if(a > b) std::swap(a,b);
+            // if(a > b) std::swap(a,b);
             auto key = std::make_pair(a,b);
             if(emap.find(key) == emap.end())
                 emap[key] = nextEdge++;
@@ -260,7 +260,7 @@ void mesh::build_2d_edge_connectivity()
         // Preserve reference triangle edge order: (0,1), (0,2), (1,2)
         // Each edge pair is individually sorted for unique emap lookup.
         auto edge_pair = [&](size_t a, size_t b) {
-            if(a > b) std::swap(a, b);
+            // if(a > b) std::swap(a, b);
             return emap[std::make_pair(a, b)];
         };
         facEdges(fi,0) = edge_pair(facNodes(fi,0), facNodes(fi,1));

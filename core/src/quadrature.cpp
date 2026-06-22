@@ -486,7 +486,7 @@ quad::quad(size_t p)
         xq2 = arma::mat(xq2_strang9, 2, 12, false).st();
         wq3 = arma::mat(wq3_keast7, 1, 24, false).st();
         xq3 = arma::mat(xq3_keast7, 3, 24, false).st();
-    case 5:
+        break;
     case 4:
         // GAUSS 64 points for very high accuracy or higher order functions
         wq2.resize(64);
