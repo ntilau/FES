@@ -92,7 +92,7 @@ eq_sys::eq_sys(std::ofstream& logFile, project* pPrj) : prj(pPrj), msh(pPrj->msh
                     std::cout << "Only Electrostatic at this stage\n";
                 assembler::create(assembler::em_e_qs)->assemble(logFile, *this);
                 mem_stat::print(logFile);
-                    mem_stat::print(std::cout);
+                mem_stat::print(std::cout);
                 break;
             case option::em_e_fd_dd:
                 if(opt->dds)
@@ -111,7 +111,7 @@ eq_sys::eq_sys(std::ofstream& logFile, project* pPrj) : prj(pPrj), msh(pPrj->msh
                 std::cout << "2D TMz formulation\n";
                 assembler::create(assembler::em_ez_fd)->assemble(logFile, *this);
                 mem_stat::print(logFile);
-                    mem_stat::print(std::cout);
+                mem_stat::print(std::cout);
                 break;
             case option::em_e_tl_eig:
                 assembler::create(assembler::em_e_tl_eig)->assemble(logFile, *this);
@@ -142,7 +142,7 @@ eq_sys::eq_sys(std::ofstream& logFile, project* pPrj) : prj(pPrj), msh(pPrj->msh
                     }
                     solver::create(*opt)->solve(*this, logFile);
                     mem_stat::print(logFile);
-                        mem_stat::print(std::cout);
+                    mem_stat::print(std::cout);
                     post_processor(*this, logFile).save_data();
                     break;
                 case option::gmres:
@@ -170,7 +170,7 @@ eq_sys::eq_sys(std::ofstream& logFile, project* pPrj) : prj(pPrj), msh(pPrj->msh
                     }
                     solver::create(*opt)->solve(*this, logFile);
                     mem_stat::print(logFile);
-                        mem_stat::print(std::cout);
+                    mem_stat::print(std::cout);
                     post_processor(*this, logFile).save_data();
                     break;
                 default:

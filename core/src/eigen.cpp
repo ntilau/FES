@@ -113,33 +113,6 @@ eigen::eigen(arma::cx_mat& SS, arma::cx_mat& TT, size_t& numt, size_t& numz, dou
             mode_vec(i,j) = Evecs_arma(i, nmodes-1-j);
         }
     }
-    // ── Debug diagnostics ──
-    {
-        // kk = shift ≈ -k₀² (negative! shift = -k₀²·εr·μr from factory.cpp).
-        // ARPACK mode 3 (bmat="I", σ=kk) finds eigenvalues of A⁻¹·(TT/kk) near σ.
-        // The operator does NOT apply the shift, so effective σ=0.
-        // Physical β = sqrt(k₀² − γ) where γ is eigenvalue of (SS − k₀²·TT)·v = γ·B·v.
-        // Expected TE10 at 10 GHz for WR90: β≈158 (propagating), γ = k_c²−k₀² ≈ −24955.
-        double k0sq = -kk;  // kk is negative, k₀² = -kk for vacuum
-        std::cout << "\n[eig dbg] n=" << n << " modes=" << nmodes
-                  << " shift=" << kk << " k0²=" << k0sq
-                  << " |SS|=" << arma::norm(SS, "fro")
-                  << " |TT|=" << arma::norm(TT, "fro") << "\n";
-        for(i=0; i<nmodes; i++) {
-            std::complex<double> d = Evals_arma(i);
-            // For operator A⁻¹·(TT/kk): γ = kk/d (since A⁻¹·(TT/kk)·v = θ·v gives γ·TT·v ≈ γ/d·v)
-            std::complex<double> gamma_est = kk / d;
-            std::complex<double> beta_phys = std::sqrt(std::complex<double>(k0sq,0) - gamma_est);
-            double mode_energy = std::real(arma::as_scalar(mode_vec.col(i).t() * TT * mode_vec.col(i)));
-            std::cout << "[eig dbg] mode" << i
-                      << " θ=(" << d.real() << "," << d.imag() << ")"
-                      << " γ≈(" << gamma_est.real() << "," << gamma_est.imag() << ")"
-                      << " β_solver=(" << mode_beta(i).real() << "," << mode_beta(i).imag() << ")"
-                      << " β_phys=(" << beta_phys.real() << "," << beta_phys.imag() << ")"
-                      << " |mode|²_TT=" << mode_energy
-                      << " (expect TE10 β≈" << std::sqrt(k0sq - 18883.0) << ")\n";
-        }
-    }
 }
 
 
@@ -159,7 +132,7 @@ eigen::~eigen()
 
 void eigen::znaupd(int n, int nev, std::complex<double>* Evals, std::complex<double>* Evecs, double sigma)
 {
-    double gamtol = 0.0; // gamma tolerance
+    double gamtol = 1e-9; // gamma tolerance
     int ido = 0;
     char bmat[2] = "I";
     char which[3] = "LM";

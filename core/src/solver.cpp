@@ -59,7 +59,8 @@ void solver::extract_solution_full(eq_sys& sys, int n, void* rhs, int col, bool 
             for(size_t i = 0; i < sys.Nonwave_portIds_vec().n_rows; i++)
                 if(sys.Nonwave_portIds_vec()(i) < UINT_MAX)
                     sys.Sol_mat()(sys.Nonwave_portIds_vec()(i),col) = read(shift + i + sys.get_wave_ports_num());
-            int idx = 0;
+            // Global mode offset — accumulates across all BCs so Sp_mat() indexing is correct
+            size_t mode_offset = 0;
             if(opt->nl)
             {
                 for(size_t bcid = 0; bcid < msh->facbc.size(); bcid++)
@@ -70,8 +71,16 @@ void solver::extract_solution_full(eq_sys& sys, int n, void* rhs, int col, bool 
                         for(size_t ih = 0; ih < opt->n_harm; ih++)
                             for(size_t i = 0; i < bc->num_modes; i++)
                                 for(size_t j = 0; j < bc->mode_vec.n_rows; j++)
-                                    sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0z0/bc->mode_beta(ih*bc->num_modes+i)) * bc->mode_vec(j,ih*bc->num_modes+i) * sys.Sp_mat()(idx,col);
-                        idx++;
+                                    sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0z0/bc->mode_beta(ih*bc->num_modes+i)) * bc->mode_vec(j,ih*bc->num_modes+i) * sys.Sp_mat()(mode_offset + i,col);
+                        mode_offset += bc->num_modes;
+                    }
+                    else if(bc->type == bc::lumped_port) {
+                        std::complex<double> jk0Zport(0.0, 2.0*consts::pi*sys.get_freq()/consts::c0 * bc->impedance * opt->power);
+                        for(size_t ih = 0; ih < opt->n_harm; ih++)
+                            for(size_t i = 0; i < bc->num_modes; i++)
+                                for(size_t j = 0; j < bc->mode_vec.n_rows; j++)
+                                    sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0Zport/bc->mode_beta(ih*bc->num_modes+i)) * bc->mode_vec(j,ih*bc->num_modes+i) * sys.Sp_mat()(mode_offset + i,col);
+                        mode_offset += bc->num_modes;
                     }
                 }
             }
@@ -83,16 +92,16 @@ void solver::extract_solution_full(eq_sys& sys, int n, void* rhs, int col, bool 
                     if(bc->type == bc::wave_port) {
                         for(size_t i = 0; i < bc->num_modes; i++)
                             for(size_t j = 0; j < bc->mode_vec.n_rows; j++)
-                                sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(i)) * bc->mode_vec(j,i) * sys.Sp_mat()(idx,col);
-                        idx++;
+                                sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(i)) * bc->mode_vec(j,i) * sys.Sp_mat()(mode_offset + i,col);
+                        mode_offset += bc->num_modes;
                     }
                     else if(bc->type == bc::lumped_port) {
                         // Lumped port: use port impedance Zport instead of z0
                         std::complex<double> jk0Zport(0.0, 2.0*consts::pi*sys.get_freq()/consts::c0 * bc->impedance * opt->power);
                         for(size_t i = 0; i < bc->num_modes; i++)
                             for(size_t j = 0; j < bc->mode_vec.n_rows; j++)
-                                sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0Zport/bc->mode_beta(i)) * bc->mode_vec(j,i) * sys.Sp_mat()(idx,col);
-                        idx++;
+                                sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0Zport/bc->mode_beta(i)) * bc->mode_vec(j,i) * sys.Sp_mat()(mode_offset + i,col);
+                        mode_offset += bc->num_modes;
                     }
                 }
             }
@@ -373,7 +382,7 @@ void gmres_solver::solve(eq_sys& sys, std::ofstream& log)
                     std::complex<double> jk0z0(0.0, 2.0*consts::pi*sys.get_freq()/consts::c0*consts::z0*opt->power);
                     for(size_t i=0; i<sys.Nonwave_portIds_vec().n_rows; i++)
                         if(sys.Nonwave_portIds_vec()(i) < UINT_MAX) sys.Sol_mat()(sys.Nonwave_portIds_vec()(i),col) = X[sys.get_wave_ports_num()+i];
-                    size_t idx = 0;
+                    size_t mode_offset = 0;
                     if(opt->nl) {
                         for(size_t bcid=0; bcid<msh->facbc.size(); bcid++) {
                             bc* bc=&(msh->facbc[bcid]);
@@ -381,11 +390,15 @@ void gmres_solver::solve(eq_sys& sys, std::ofstream& log)
                                 for(size_t ih=0; ih<opt->n_harm; ih++)
                                     for(size_t i=0; i<bc->num_modes; i++)
                                         for(size_t j=0; j<bc->mode_vec.n_rows; j++)
-                                            sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0z0/bc->mode_beta(ih*bc->num_modes+i))*bc->mode_vec(j,ih*bc->num_modes+i)*sys.Sp_mat()(idx,col);
-                            else if(bc->type==bc::lumped_port)
-                                for(size_t j=0; j<bc->mode_vec.n_rows; j++)
-                                    sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(0))*bc->mode_vec(j)*sys.Sp_mat()(idx,col);
-                            idx++;
+                                            sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0z0/bc->mode_beta(ih*bc->num_modes+i))*bc->mode_vec(j,ih*bc->num_modes+i)*sys.Sp_mat()(mode_offset + i,col);
+                            else if(bc->type==bc::lumped_port) {
+                                std::complex<double> jk0Zport(0.0, 2.0*consts::pi*sys.get_freq()/consts::c0 * bc->impedance * opt->power);
+                                for(size_t ih=0; ih<opt->n_harm; ih++)
+                                    for(size_t i=0; i<bc->num_modes; i++)
+                                        for(size_t j=0; j<bc->mode_vec.n_rows; j++)
+                                            sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0Zport/bc->mode_beta(ih*bc->num_modes+i))*bc->mode_vec(j,ih*bc->num_modes+i)*sys.Sp_mat()(mode_offset + i,col);
+                            }
+                            mode_offset += bc->num_modes;
                         }
                     } else {
                         for(size_t bcid=0; bcid<msh->facbc.size(); bcid++) {
@@ -393,11 +406,14 @@ void gmres_solver::solve(eq_sys& sys, std::ofstream& log)
                             if(bc->type==bc::wave_port)
                                 for(size_t i=0; i<bc->num_modes; i++)
                                     for(size_t j=0; j<bc->mode_vec.n_rows; j++)
-                                        sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(i))*bc->mode_vec(j,i)*sys.Sp_mat()(idx,col);
-                            else if(bc->type==bc::lumped_port)
-                                for(size_t j=0; j<bc->mode_vec.n_rows; j++)
-                                    sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(0))*bc->mode_vec(j)*sys.Sp_mat()(idx,col);
-                            idx++;
+                                        sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(i))*bc->mode_vec(j,i)*sys.Sp_mat()(mode_offset + i,col);
+                            else if(bc->type==bc::lumped_port) {
+                                std::complex<double> jk0Zport(0.0, 2.0*consts::pi*sys.get_freq()/consts::c0 * bc->impedance * opt->power);
+                                for(size_t i=0; i<bc->num_modes; i++)
+                                    for(size_t j=0; j<bc->mode_vec.n_rows; j++)
+                                        sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0Zport/bc->mode_beta(i))*bc->mode_vec(j,i)*sys.Sp_mat()(mode_offset + i,col);
+                            }
+                            mode_offset += bc->num_modes;
                         }
                     }
                 }
@@ -427,7 +443,7 @@ void gmres_solver::solve(eq_sys& sys, std::ofstream& log)
                         std::complex<double> jk0z0(0.0, 2.0*consts::pi*sys.get_freq()/consts::c0*consts::z0*opt->power);
                         for(size_t i=0; i<sys.Nonwave_portIds_vec().n_rows; i++)
                             if(sys.Nonwave_portIds_vec()(i) < UINT_MAX) sys.Sol_mat()(sys.Nonwave_portIds_vec()(i),col) = X[sys.get_wave_ports_num()+i];
-                        size_t idx = 0;
+                        size_t mode_offset = 0;
                         if(opt->nl) {
                             for(size_t bcid=0; bcid<msh->facbc.size(); bcid++) {
                                 bc* bc=&(msh->facbc[bcid]);
@@ -435,11 +451,15 @@ void gmres_solver::solve(eq_sys& sys, std::ofstream& log)
                                     for(size_t ih=0; ih<opt->n_harm; ih++)
                                         for(size_t i=0; i<bc->num_modes; i++)
                                             for(size_t j=0; j<bc->mode_vec.n_rows; j++)
-                                                sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0z0/bc->mode_beta(ih*bc->num_modes+i))*bc->mode_vec(j,ih*bc->num_modes+i)*sys.Sp_mat()(idx,col);
-                                else if(bc->type==bc::lumped_port)
-                                    for(size_t j=0; j<bc->mode_vec.n_rows; j++)
-                                        sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(0))*bc->mode_vec(j)*sys.Sp_mat()(idx,col);
-                                idx++;
+                                                sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0z0/bc->mode_beta(ih*bc->num_modes+i))*bc->mode_vec(j,ih*bc->num_modes+i)*sys.Sp_mat()(mode_offset + i,col);
+                                else if(bc->type==bc::lumped_port) {
+                                    std::complex<double> jk0Zport(0.0, 2.0*consts::pi*sys.get_freq()/consts::c0 * bc->impedance * opt->power);
+                                    for(size_t ih=0; ih<opt->n_harm; ih++)
+                                        for(size_t i=0; i<bc->num_modes; i++)
+                                            for(size_t j=0; j<bc->mode_vec.n_rows; j++)
+                                                sys.Sol_mat()(bc->mode_vecdof(j,ih),col) += std::sqrt(jk0Zport/bc->mode_beta(ih*bc->num_modes+i))*bc->mode_vec(j,ih*bc->num_modes+i)*sys.Sp_mat()(mode_offset + i,col);
+                                }
+                                mode_offset += bc->num_modes;
                             }
                         } else {
                             for(size_t bcid=0; bcid<msh->facbc.size(); bcid++) {
@@ -447,11 +467,14 @@ void gmres_solver::solve(eq_sys& sys, std::ofstream& log)
                                 if(bc->type==bc::wave_port)
                                     for(size_t i=0; i<bc->num_modes; i++)
                                         for(size_t j=0; j<bc->mode_vec.n_rows; j++)
-                                            sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(i))*bc->mode_vec(j,i)*sys.Sp_mat()(idx,col);
-                                else if(bc->type==bc::lumped_port)
-                                    for(size_t j=0; j<bc->mode_vec.n_rows; j++)
-                                        sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(0))*bc->mode_vec(j)*sys.Sp_mat()(idx,col);
-                                idx++;
+                                            sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0z0/bc->mode_beta(i))*bc->mode_vec(j,i)*sys.Sp_mat()(mode_offset + i,col);
+                                else if(bc->type==bc::lumped_port) {
+                                    std::complex<double> jk0Zport(0.0, 2.0*consts::pi*sys.get_freq()/consts::c0 * bc->impedance * opt->power);
+                                    for(size_t i=0; i<bc->num_modes; i++)
+                                        for(size_t j=0; j<bc->mode_vec.n_rows; j++)
+                                            sys.Sol_mat()(bc->mode_vecdof(j),col) += std::sqrt(jk0Zport/bc->mode_beta(i))*bc->mode_vec(j,i)*sys.Sp_mat()(mode_offset + i,col);
+                                }
+                                mode_offset += bc->num_modes;
                             }
                         }
                     }

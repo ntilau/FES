@@ -196,6 +196,11 @@ void assembler_em_e_fd_dd::assemble(std::ofstream& logFile, eq_sys& sys)
             break;
         case bc::wave_port:
             break;
+        case bc::lumped_port:
+            // Lumped port: handled via TFE modal reduction like a waveport.
+            // The metal connection edges are PEC (already in Dirdofv from perfect_e loop),
+            // and the dielectric gap acts as PMC (natural bc on remaining edges).
+            break;
         case bc::radiation:
             lt.tic();
                 std::cout << bc->name;
@@ -477,6 +482,27 @@ void assembler_em_e_fd_dd::assemble(std::ofstream& logFile, eq_sys& sys)
                         MAcoeff(idx,idx) = std::complex<double>(0.0, k0*consts::z0*opt->power);
                         sys.B_mat()(idx,idx) = std::complex<double>(0.0, 2*k0*consts::z0*opt->power);
                         B_exc(idx,idx) = std::complex<double>(0.0, 2*k0*consts::z0*opt->power);
+                        for(size_t j=0; j< bc->mode_vec.n_rows; j++)
+                        {
+                            Meig(idx,jdx+j) = sqrtBeta * bc->mode_vec(j,i);
+                        }
+                        idx++;
+                    }
+                    jdx += bc->mode_vec.n_rows;
+                    for(size_t i=0; i<bc->mode_vecdof.size(); i++)
+                    {
+                        bc->mode_vecdof(i) = sys.Invdofmapv_vec()(bc->mode_vecdof(i));
+                    }
+                }
+                else if(bc->type == bc::lumped_port)
+                {
+                    // Lumped port: use port impedance instead of free-space impedance
+                    for(size_t i=0; i<bc->num_modes; i++)
+                    {
+                        std::complex<double> sqrtBeta(std::sqrt(std::complex<double>(0.0, k0 * bc->impedance * opt->power)/bc->mode_beta(i)));
+                        MAcoeff(idx,idx) = std::complex<double>(0.0, k0 * bc->impedance * opt->power);
+                        sys.B_mat()(idx,idx) = std::complex<double>(0.0, 2.0 * k0 * bc->impedance * opt->power);
+                        B_exc(idx,idx) = std::complex<double>(0.0, 2.0 * k0 * bc->impedance * opt->power);
                         for(size_t j=0; j< bc->mode_vec.n_rows; j++)
                         {
                             Meig(idx,jdx+j) = sqrtBeta * bc->mode_vec(j,i);
