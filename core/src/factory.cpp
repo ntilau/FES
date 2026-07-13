@@ -23,13 +23,13 @@
 std::unique_ptr<assembler> assembler::create(Type type)
 {
     switch(type) {
-    case em_e_fd:        return std::make_unique<assembler_em_e_fd>();
-    case em_e_fd_dd:     return std::make_unique<assembler_em_e_fd_dd>();
+    case em_e_fd:           return std::make_unique<assembler_em_e_fd>();
+    case em_e_fd_dd:        return std::make_unique<assembler_em_e_fd_dd>();
     case em_e_fd_dd_schur:  return std::make_unique<assembler_em_e_fd_schur>();
-    case em_e_fd_nl:     return std::make_unique<assembler_em_e_fd_nl>();
-    case em_e_qs:        return std::make_unique<assembler_em_e_qs>();
-    case em_ez_fd:       return std::make_unique<assembler_em_ez_fd>();
-    case em_e_tl_eig:    return std::make_unique<assembler_em_e_tl_eig>();
+    case em_e_fd_nl:        return std::make_unique<assembler_em_e_fd_nl>();
+    case em_e_qs:           return std::make_unique<assembler_em_e_qs>();
+    case em_ez_fd:          return std::make_unique<assembler_em_ez_fd>();
+    case em_e_tl_eig:       return std::make_unique<assembler_em_e_tl_eig>();
     }
     return nullptr;
 }
@@ -253,6 +253,7 @@ size_t assembler::compute_waveport_modes(
 
         {
             double shift = -kk * maxepsr * maxmur;
+            std::cout << shift << std::endl;
             eigen ceigen(tmpA, tmpB, numt, numz, shift, bc->num_modes);
             bc->mode_beta = ceigen.mode_beta;
             for(int i=0; i<bc->num_modes; i++)
