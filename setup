@@ -168,16 +168,27 @@ build_dependencies() {
 }
 
 show_usage() {
-  echo "Usage: $0 [--compiler]"
-  echo "  --compiler   Install compiler and build tool packages"
+  echo "Usage: $0 [options]"
+  echo "  --compiler   Install system compiler and build tool packages"
+  echo "  --py         Set up Python backend (venv + pip install)"
+  echo "  --m          Check MATLAB/Octave availability"
+  echo "  -h, --help   Show this help"
 }
 
 INSTALL_COMPILER_DEPS=false
+SETUP_PY=false
+SETUP_M=false
 
 for arg in "$@"; do
   case "$arg" in
     --compiler)
       INSTALL_COMPILER_DEPS=true
+      ;;
+    --py)
+      SETUP_PY=true
+      ;;
+    --m)
+      SETUP_M=true
       ;;
     -h|--help)
       show_usage
@@ -191,24 +202,52 @@ for arg in "$@"; do
   esac
 done
 
-# Detect OS once and reuse
-os=$(uname)
-log_info "Detected OS: $os"
-
-if [[ "$INSTALL_COMPILER_DEPS" == true ]]; then
-  install_compiler_dependencies "$os"
-else
-  log_info "Skipping compiler packages installation (use --compiler to enable)"
+# No flags = do everything
+if [[ "$INSTALL_COMPILER_DEPS" == false && "$SETUP_PY" == false && "$SETUP_M" == false ]]; then
+  INSTALL_COMPILER_DEPS=true
+  SETUP_PY=true
+  SETUP_M=true
 fi
 
-log_info "Updating git dependencies..."
+# ─── Python backend ─────────────────────────────────────────────────────
+if [[ "$SETUP_PY" == true ]]; then
+  log_info "Setting up Python backend (py/)..."
+  PY_DIR="$(cd "$(dirname "$0")" && pwd)/py"
+  if [ -x "$PY_DIR/configure" ]; then
+    "$PY_DIR/configure"
+    log_info "Python backend setup complete."
+  else
+    log_warn "py/configure not found — skipping."
+  fi
+  echo ""
+fi
 
-setup_dependency_sources
+# ─── MATLAB backend ─────────────────────────────────────────────────────
+if [[ "$SETUP_M" == true ]]; then
+  log_info "Checking MATLAB backend (m/)..."
+  M_DIR="$(cd "$(dirname "$0")" && pwd)/m"
+  if [ -x "$M_DIR/configure" ]; then
+    "$M_DIR/configure" || log_warn "MATLAB backend checks failed (non-fatal)."
+    log_info "MATLAB backend check complete."
+  else
+    log_warn "m/configure not found — skipping."
+  fi
+  echo ""
+fi
 
-# Create CMakeLists.txt files
-log_info "Creating CMakeLists.txt files..."
+# ─── C++ backend ────────────────────────────────────────────────────────
+if [[ "$INSTALL_COMPILER_DEPS" == true ]]; then
+  os=$(uname)
+  log_info "Detected OS: $os"
+  install_compiler_dependencies "$os"
 
-# Create TetGen CMakeLists.txt
+  log_info "Updating git dependencies..."
+  setup_dependency_sources
+
+  # Create CMakeLists.txt files
+  log_info "Creating CMakeLists.txt files..."
+
+  # Create TetGen CMakeLists.txt
 cat > dep/src/tetgen/CMakeLists.txt << 'EOF'
 cmake_minimum_required(VERSION 3.5)
 project(tetgen)
@@ -279,6 +318,9 @@ endif()
 EOF
 log_info "✓ Triangle CMakeLists.txt created"
 
-build_dependencies
+  build_dependencies
 
-log_info "${GREEN}Setup completed successfully!${NC}"
+  log_info "${GREEN}Setup completed successfully!${NC}"
+else
+  log_info "Skipping C++ dependency build (use --compiler or no flags to build)."
+fi

@@ -10,3 +10,9 @@
 octave-workspace
 *~
 \#*\#
+
+# Compiled binaries (IOrMesh and Triangle)
+FEpre/IOrMesh
+FEpre/triangle
+FEpre/iormesh-src/IOrMesh
+FEpre/iormesh-src/triangle

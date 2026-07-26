@@ -6,21 +6,27 @@ FES is a 2D/3D finite element solver for computational electromagnetics based on
 with H(curl) conforming elements. It supports S-parameter extraction, eigenmode analysis,
 electrostatics, and nonlinear Kerr materials.
 
-## Prerequisites
+The solver has three language backends sharing the same model files:
 
-- **macOS**: Xcode Command Line Tools (`xcode-select --install`)
-- **Linux**: GCC ≥ 4.9 (for C++14), BLAS, LAPACK
-- ~2 GB disk, ~15 minutes initial setup (builds all dependencies from source)
+| Backend | Dir | Description |
+|---------|-----|-------------|
+| **C++** | `cpp/` | Production 3D solver — curl-curl, MUMPS direct + GMRES iterative, DD, waveports |
+| **Python** | `py/` | 2D solver + DNN-GP surrogate modelling — scalar Helmholtz, HB, ML surrogates |
+| **MATLAB** | `m/` | Reference / legacy implementation — full-featured, research-oriented |
+
+---
 
 ## Quick Start
 
+### C++ backend (primary)
+
 ```bash
-./setup           # install dependencies (OpenBLAS, ARPACK-NG, MUMPS, METIS, Armadillo, TetGen, ...)
-make build        # cmake configure + build (Release)
-make test         # run 2D TMz, 3D EM, and waveport eigenmode tests
+./setup                        # install dependencies (compiled from source)
+make build                     # cmake configure + build (Release)
+make test                      # run all model tests (load & mesh only)
 ```
 
-The binary is at `cpp/build/fes`. Models reside in `mdl/`:
+The binary is at `cpp/build/fes`:
 
 ```bash
 # 3D waveguide — mesh with TetGen, then solve
@@ -36,27 +42,41 @@ cd mdl && ../cpp/build/fes WR90 +poly AafeeQ +f 1e10 +p 2 +formula em_e_tl_eig
 cd mdl && ../cpp/build/fes CapSense +poly +f 0 +volt Elec 1
 ```
 
-### CLI modifies the `.fes` file
-
-When loading an existing `.fes` file, CLI flags are merged into the stored options
-and the file is re-saved automatically. This means options persist across runs:
+### Python backend
 
 ```bash
-# First run: mesh + set options
-./cpp/build/fes model +poly +f 1e10 +p 2 +rad 36 72
-
-# Subsequent runs: just load the .fes — all options are already saved
-./cpp/build/fes model +f 1e10
-
-# Or override: change p_ord in the file permanently
-./cpp/build/fes model +f 1e10 +p 3
+./setup --py                    # or: cd py && ./configure
+make py-test                    # or: py/.venv/bin/python -m pytest py/tests/ -v
 ```
 
-## Formulations
+```bash
+# Run waveguide simulation
+cd py && .venv/bin/python -c "from pyfes.projects import run_waveguide; run_waveguide()"
+
+# Train DNN-GP surrogate model
+cd py && .venv/bin/python -c "from pyfes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"
+```
+
+### MATLAB backend
+
+```bash
+./setup --m                     # or: cd m && ./configure
+make m-build                    # cd m && make all  (builds IOrMesh mesher)
+# make m-test                   # runs MATLAB/Octave tests
+```
+
+```matlab
+% In MATLAB/Octave:
+addpath(genpath('m'));
+ProjectWaveGuide;
+```
+
+---
+
+## Formulations (C++ CLI)
 
 Formulations are auto-detected from the `#Formula` tag in each `.poly` file.
-CLI flags (`+formula em_e_fd`, `+em_e_fd`, etc.) override the file tag. All class names, method
-names, and identifiers use **snake_case** throughout the C++ source.
+CLI flags (`+formula em_e_fd`, `+em_e_fd`, etc.) override the file tag.
 
 | CLI flag | Description |
 |----------|-------------|
@@ -65,7 +85,7 @@ names, and identifiers use **snake_case** throughout the C++ source.
 | `+formula em_e_tl_eig` or `+em_e_tl_eig` | 2D cross-section eigenmode or 3D waveport eigenmodes |
 | `+formula em_e_qs` or `+em_e_qs` | Electrostatic quasistatic (f = 0, use `+volt bnd V`) |
 
-## CLI Options
+## CLI Options (C++)
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -123,36 +143,33 @@ names, and identifiers use **snake_case** throughout the C++ source.
 import → mesh → assemble → solve → export
 ```
 
-1. `project` reads `.poly` or `.fes` — populates mesh, materials, BCs
-2. `pre_processor` auto-detects dimension and reads `#Formula`/`#Regions`/`#Boundaries` from `.poly`
-3. 2D models mesh with Triangle; 3D models mesh with TetGen
-4. `eq_sys` dispatches to `assembler::create(type)->assemble()`
-5. `solver::create(*opt)->solve()` — mumps_solver direct or custom gmres_solver
-6. `post_processor::save_data()` — Touchstone S-params, VTK fields, radiation
+This pipeline is implemented independently in each backend:
+
+**C++ (`cpp/`):** Compiled binary, TetGen/Triangle meshing, H(curl) elements, sparse direct/iterative solvers.
+
+**Python (`py/`):** Triangle meshing via io_poly, scipy sparse assembly, numpy/scipy solve, pyVista field rendering.
+
+**MATLAB (`m/`):** IOrMesh/Triangle meshing, native MATLAB sparse matrices, direct/DD/HB solvers.
 
 ### Source layout
 
 ```
-cpp/
-├── include/          # 25 headers (all snake_case)
-│   ├── pre_processor.h  # Auto-detects 2D/3D, dispatches Triangle or TetGen
-│   ├── assembler.h      # Abstract base + 6 derived assembly classes
-│   ├── solver.h         # Abstract base + mumps_solver / gmres_solver
-│   ├── post_processor.h # S-param / field / radiation export
-│   ├── equation_system.h# eq_sys: frequency loop, wires assembly→solve→postproc
-│   ├── mesh.h           # Mesh data: nodes, edges, faces, tetras
-│   ├── project.h        # Model I/O: .poly/.fes → binary .fes
-│   ├── option.h         # CLI option parsing
-│   ├── eigen_solver.h   # ARPACK eigenvalue solver (waveport modes)
-│   ├── element_matrix.h # Element-level FE matrix computation
-│   ├── shape.h          # Basis functions (hcurl, hgrad)
-│   ├── quadrature.h     # Gauss-Legendre quadrature
-│   ├── gmres.h          # DD-preconditioned GMRES templates
-│   ├── field.h          # VTK field export
-│   ├── radiation.h      # Far-field radiation pattern
-│   └── ...
-├── src/              # 27 implementation files + main.cpp
-└── CMakeLists.txt    # C++14, links dep/lib/*.a and dep/lib/*.dylib
+├── cpp/               # C++ FEM solver (production 3D)
+│   ├── include/       #   25 headers: assembler, solver, mesh, options, ...
+│   ├── src/           #   27 implementation files + main.cpp
+│   └── CMakeLists.txt #   C++14, links dep/lib/*.a
+├── py/                # Python FEM + ML surrogates
+│   ├── pyfes/         #   FEM core: fem/, mesh/, post/, projects/
+│   ├── data/          #   .poly model files + .h1.mat mesh caches
+│   ├── tests/         #   pytest suite
+│   └── setup.py       #   pip-installable package
+├── m/                 # MATLAB reference implementation
+│   ├── FEass/         #   Assembly routines (40+ files)
+│   ├── FEpre/         #   Pre-processing: mesh I/O, geometry writing, IGES
+│   ├── FEpost/        #   VTK output
+│   └── Tests/         #   MATLAB tests and debug scripts
+├── mdl/               # Shared .poly model files (all backends)
+└── dep/               # C++ library dependencies (dep/src, dep/build, dep/lib)
 ```
 
 ### Key features
@@ -165,9 +182,10 @@ cpp/
 - **2D TMz solver** — P2 elements on Triangle triangulations, auto-detected from `#Formula`
 - **2D electrostatic** — P1 triangle assembly for quasistatic analysis
 - **2D cross-section eigenmode** — waveguide TE/TM mode computation on 2D meshes
+- **DNN-GP surrogate modelling** — Deep Kernel Learning surrogates (pyfes, Wilson et al. 2016)
 - **Auto-formulation** — `#Formula` tag in `.poly` selects assembly type automatically
 - **OOP architecture** — polymorphic assembly (`assembler` base), strategy-pattern solvers (`solver` base)
-- **Sparse Armadillo matrices** — `arma::SpMat<complex<double>>` throughout
+- **Sparse matrices** — `arma::SpMat<complex<double>>` (C++), `scipy.sparse.csr` (Python)
 
 ### .poly file format
 
@@ -204,7 +222,7 @@ and mesh — in a single file. It uses an XML header followed by binary mesh sec
 | Native | `.fes` | FES project file (XML header + binary mesh) |
 | Touchstone | `.sNp` | S-parameter output |
 
-## Dependencies
+## Dependencies (C++)
 
 | Library | Role |
 |---------|------|
@@ -216,7 +234,9 @@ and mesh — in a single file. It uses an XML header followed by binary mesh sec
 | [Triangle](https://github.com/libigl/triangle) | 2D Delaunay triangulation |
 | [TetGen](https://github.com/libigl/tetgen) | 3D tetrahedral mesh generation |
 
-All dependencies built via `./setup` into `dep/`.
+All C++ dependencies built via `./setup` into `dep/`.
+
+Python dependencies installed via `pip` under `py/` (see `py/setup.py`).
 
 ## License
 

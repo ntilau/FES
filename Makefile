@@ -11,20 +11,27 @@ export PATH := $(BUILD_DIR):$(PATH)
 # All .fes projects (basenames in mdl/)
 FES_PROJECTS := $(patsubst $(MODEL_DIR)/%.fes,%,$(wildcard $(MODEL_DIR)/*.fes))
 
-.PHONY: all help config build clean $(FES_PROJECTS)
+# ─── Top-level targets ──────────────────────────────────────────────────
+
+.PHONY: all help config build clean help-cpp help-py help-m \
+        py-setup py-test m-build m-test m-projects \
+        $(FES_PROJECTS)
 
 all: build
 
-help:
-	@echo "Usage: make [target]"
-	@echo "Targets:"
-	@echo "  build       Build fes"
-	@echo "  clean       Remove build directory"
-	@echo "  test        Run all .fes models (verify load, mesh only)"
+help: help-cpp help-py help-m
+
+# ─── C++ backend (cpp/) ─────────────────────────────────────────────
+
+help-cpp:
+	@echo "=== C++ backend (cpp/) ==="
+	@echo "  make build       Build fes (cmake configure + compile)"
+	@echo "  make test        Run all .fes models (load & mesh check)"
+	@echo "  make <model>     Run a single model (e.g. WR90)"
+	@echo "  make config      Reconfigure cmake"
+	@echo "  make clean       Remove build directory"
+	@echo "  The fes binary is at $(FES)"
 	@echo ""
-	@echo "The fes binary is at $(FES)"
-	@echo "  export PATH=\$$(pwd)/$(BUILD_DIR):\$$PATH"
-	@echo "  fes <model> <args>"
 
 config:
 	$(CMAKE) -S $(CORE_DIR) -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CMAKE_BUILD_TYPE)
@@ -56,3 +63,40 @@ test: build
 	else \
 		echo "All models passed"; \
 	fi
+
+# ─── Python backend (py/) ───────────────────────────────────────────────
+
+PY_VENV := py/.venv
+
+help-py:
+	@echo "=== Python backend (py/) ==="
+	@echo "  make py-setup    Create .venv and install pyfes package"
+	@echo "  make py-test     Run pytest on pyfes"
+	@echo ""
+
+py-setup:
+	cd py && ./configure
+
+py-test: $(PY_VENV)
+	cd py && $(abspath $(PY_VENV))/bin/python -m pytest tests/ -v
+
+$(PY_VENV):
+	cd py && ./configure
+
+# ─── MATLAB backend (m/) ────────────────────────────────────────────────
+
+help-m:
+	@echo "=== MATLAB backend (m/) ==="
+	@echo "  make m-build     Build IOrMesh and Triangle (mesh tools)"
+	@echo "  make m-test      Run MATLAB/Octave tests"
+	@echo "  make m-projects  Run all project scripts"
+	@echo ""
+
+m-build:
+	$(MAKE) -C m all
+
+m-test:
+	$(MAKE) -C m test
+
+m-projects:
+	$(MAKE) -C m projects
