@@ -1,0 +1,22 @@
+%% PlotIMPConv - Display intermodulation product convergence data
+clear all; clc;
+format short e
+
+%% P2f1-f2 values for different harmonic counts
+P2f1f2(1) = 4.6019208832802786e-003;
+P2f2f1(1) = 2.0990113237348956e-001;
+
+P2f1f2(2) = 4.2081879187164540e-003;
+P2f2f1(2) = 2.3964219351516958e-001;
+
+P2f1f2(3) = 4.2246080252011696e-003;
+P2f2f1(3) = 2.1951062965912888e-001;
+
+P2f1f2(4) = 4.2246080364610793e-003;
+P2f2f1(4) = 2.1951064195906572e-001;
+
+P2f1f2(5) = 4.2185543289477165e-003;
+P2f2f1(5) = 2.1990761642435300e-001;
+
+disp(P2f1f2)
+disp(P2f2f1)

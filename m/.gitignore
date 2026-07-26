@@ -1,0 +1,12 @@
+.DS_Store
+*.asv
+*.o
+*.mat
+*.fig
+*.png
+*.pdf
+*.eps
+*.log
+octave-workspace
+*~
+\#*\#

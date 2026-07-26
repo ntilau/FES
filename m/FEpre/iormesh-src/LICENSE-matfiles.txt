@@ -1,0 +1,14 @@
+Portable ANSI C MATLAB File Exporter
+Version 2.0
+
+Author: Malcolm McLean
+
+Original source obtained from the MathWorks File Exchange:
+https://www.mathworks.com/matlabcentral/fileexchange/26731-portable-matfile-exporter-in-c
+
+This code exports data from C/C++ programs into MATLAB .mat format.
+
+The File Exchange submission does not specify an explicit open-source
+license.  The code is provided here as part of the mFES project in
+accordance with its original distribution terms on the File Exchange,
+which permit free use, modification, and redistribution.

@@ -20,20 +20,20 @@ make build        # cmake configure + build (Release)
 make test         # run 2D TMz, 3D EM, and waveport eigenmode tests
 ```
 
-The binary is at `core/build/fes`. Models reside in `mdl/`:
+The binary is at `cpp/build/fes`. Models reside in `mdl/`:
 
 ```bash
 # 3D waveguide — mesh with TetGen, then solve
-cd mdl && ../core/build/fes WR90 +poly AafeeQ +f 1e10 +p 2
+cd mdl && ../cpp/build/fes WR90 +poly AafeeQ +f 1e10 +p 2
 
 # 2D TMz filter — mesh with Triangle, then solve
-cd mdl && ../core/build/fes BilatFilter +poly q34a +f 150e9 +p 2
+cd mdl && ../cpp/build/fes BilatFilter +poly q34a +f 150e9 +p 2
 
 # Waveport eigenmodes
-cd mdl && ../core/build/fes WR90 +poly AafeeQ +f 1e10 +p 2 +formula em_e_tl_eig
+cd mdl && ../cpp/build/fes WR90 +poly AafeeQ +f 1e10 +p 2 +formula em_e_tl_eig
 
 # Electrostatic (requires voltage assignment)
-cd mdl && ../core/build/fes CapSense +poly +f 0 +volt Elec 1
+cd mdl && ../cpp/build/fes CapSense +poly +f 0 +volt Elec 1
 ```
 
 ### CLI modifies the `.fes` file
@@ -43,13 +43,13 @@ and the file is re-saved automatically. This means options persist across runs:
 
 ```bash
 # First run: mesh + set options
-./core/build/fes model +poly +f 1e10 +p 2 +rad 36 72
+./cpp/build/fes model +poly +f 1e10 +p 2 +rad 36 72
 
 # Subsequent runs: just load the .fes — all options are already saved
-./core/build/fes model +f 1e10
+./cpp/build/fes model +f 1e10
 
 # Or override: change p_ord in the file permanently
-./core/build/fes model +f 1e10 +p 3
+./cpp/build/fes model +f 1e10 +p 3
 ```
 
 ## Formulations
@@ -133,7 +133,7 @@ import → mesh → assemble → solve → export
 ### Source layout
 
 ```
-core/
+cpp/
 ├── include/          # 25 headers (all snake_case)
 │   ├── pre_processor.h  # Auto-detects 2D/3D, dispatches Triangle or TetGen
 │   ├── assembler.h      # Abstract base + 6 derived assembly classes

@@ -7,15 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 make build          # cmake configure + build (Release)
 make test           # build + run all .fes models in mdl/ (load & mesh check)
-make clean          # remove core/build
+make clean          # remove cpp/build
 ```
 
-Binary is at `core/build/fes`. Run directly:
+Binary is at `cpp/build/fes`. Run directly:
 
 ```bash
-./core/build/fes mdl/WR90 1e10 +poly AafeeQ +p 2       # 3D EM (default)
-./core/build/fes mdl/WR90 1e10 +poly AafeeQ +p 2 +formula em_e_tl_eig  # waveport eigenmodes
-./core/build/fes mdl/BilatFilter 150e9 +poly +p 2 +formula em_ez_fd   # 2D TMz
+./cpp/build/fes mdl/WR90 1e10 +poly AafeeQ +p 2       # 3D EM (default)
+./cpp/build/fes mdl/WR90 1e10 +poly AafeeQ +p 2 +formula em_e_tl_eig  # waveport eigenmodes
+./cpp/build/fes mdl/BilatFilter 150e9 +poly +p 2 +formula em_ez_fd   # 2D TMz
 ```
 
 Dependencies live in `dep/` — built via `./setup` (installs OpenBLAS, ARPACK-NG, MUMPS, Armadillo, Triangle, TetGen). If already built, `make build` suffices.
@@ -27,7 +27,7 @@ The pipeline is: **import → mesh → assemble → solve → export VTK/S-param
 ### Source layout
 
 ```
-core/
+cpp/
 ├── include/          # 23 headers (all snake_case)
 │   ├── option.h         # CLI option storage
 │   ├── project.h        # Model I/O: reads .poly/.fes, writes binary .fes

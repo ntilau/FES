@@ -1,0 +1,80 @@
+#!/bin/sh
+# mFES configure script
+# Checks that build dependencies are available.
+
+set -e
+
+echo "mFES configure"
+echo "=============="
+echo ""
+
+# ─── Compilers ──────────────────────────────────────────────────────────
+CC=${CC:-gcc}
+CXX=${CXX:-g++}
+
+missing=""
+
+check_compiler() {
+    var=$1
+    name=$2
+    path=$(eval echo \$$var)
+    if command -v "$path" >/dev/null 2>&1; then
+        echo "  $name : $path ($(command -v "$path"))"
+    else
+        echo "  $name : $path [NOT FOUND]"
+        missing="$missing $var"
+    fi
+}
+
+check_cmd() {
+    cmd=$1
+    label=$2
+    if command -v "$cmd" >/dev/null 2>&1; then
+        echo "  $label: $cmd ($(command -v "$cmd"))"
+    else
+        echo "  $label: $cmd [NOT FOUND]"
+        missing="$missing $cmd"
+    fi
+}
+
+echo "--- Build tools ---"
+check_compiler CC  "C compiler"
+check_compiler CXX "C++ compiler"
+check_cmd make "make"
+echo ""
+
+# ─── Triangle (bundled) ────────────────────────────────────────────────
+echo "--- Mesh generator ---"
+echo "  Triangle : bundled (FEpre/iormesh-src/triangle.c)"
+echo ""
+
+# ─── MATLAB / Octave ────────────────────────────────────────────────────
+echo "--- Runtime ---"
+if command -v matlab >/dev/null 2>&1; then
+    matlab_bin=$(command -v matlab)
+    echo "  MATLAB   : $matlab_bin"
+elif command -v octave >/dev/null 2>&1; then
+    echo "  Octave   : $(command -v octave)"
+    echo "  [note] Octave is slower than MATLAB for large meshes."
+else
+    echo "  MATLAB   : [NOT FOUND]"
+    echo "  Octave   : [NOT FOUND]"
+    echo "  [warn] No MATLAB or Octave found. The m-Files need one to run."
+    echo "         Set MATLAB=<path> or OCTAVE=<path> and re-run configure."
+fi
+echo ""
+
+# ─── Result ─────────────────────────────────────────────────────────────
+echo "--- Result ---"
+if [ -z "$missing" ]; then
+    echo "  All build dependencies found."
+    echo ""
+    echo "  Run 'make' to build IOrMesh and Triangle."
+    exit 0
+else
+    echo "  Missing:$missing"
+    echo ""
+    echo "  Install the missing tools and re-run configure,"
+    echo "  or set CC=/path/to/gcc CXX=/path/to/g++ and re-run."
+    exit 1
+fi

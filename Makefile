@@ -1,4 +1,4 @@
-CORE_DIR := core
+CORE_DIR := cpp
 BUILD_DIR := $(CORE_DIR)/build
 CMAKE := cmake
 CMAKE_BUILD_TYPE ?= Release

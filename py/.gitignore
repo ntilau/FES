@@ -1,0 +1,24 @@
+### Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+### Generated output files
+*.png
+*.vtk
+*.bmp
+
+### Generated data / model files
+*.npz
+*.pt
+*.mat
+!data/*.mat
+
+### Environment
+.env
+.DS_Store
+
+### IOrMesh build artifacts
+iormesh/*.o
+iormesh/IOrMesh
