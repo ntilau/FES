@@ -50,7 +50,7 @@ clean:
 define fes_target
 $(1): build
 	@echo "--- $(1) ---"
-	cd $(MODEL_DIR) && $(abspath $(FES)) $(1) $(FREQ) +poly +p 1
+	cd $(MODEL_DIR) && $(abspath $(FES)) $(1) $(FREQ) +p 1
 endef
 $(foreach p,$(FES_PROJECTS),$(eval $(call fes_target,$(p))))
 
@@ -59,7 +59,7 @@ test: build
 	@failed=""; FES_BIN="$(abspath $(FES))"; \
 	for p in $(FES_PROJECTS); do \
 		echo "--- $$p ---"; \
-		cd $(MODEL_DIR) && $$FES_BIN $$p $(FREQ) +poly +p 1 || failed="$$failed $$p"; \
+		cd $(MODEL_DIR) && $$FES_BIN $$p $(FREQ) +p 1 || failed="$$failed $$p"; \
 		cd ..; \
 	done; \
 	if [ -n "$$failed" ]; then \

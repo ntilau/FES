@@ -44,7 +44,7 @@ void assembler_em_e_tl_eig::assemble(std::ofstream& logFile, eq_sys& sys)
 
     // Build full 2D edge connectivity (interior edges for hcurl DOFs)
     // Clear facEdges first so build_2d_edge_connectivity always runs,
-    // even when loading from a .fes file that already has facEdges populated.
+    // facEdges may already be populated from mesh generation.
     msh->facEdges.reset();
     msh->build_2d_edge_connectivity();
 

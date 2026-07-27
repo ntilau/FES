@@ -78,7 +78,7 @@ option::option()
     , rad(false)
     , n_theta(0)
     , n_phi(0)
-    , poly(false)
+    , poly(true)
     , dd(false)
     , ddn(false)
     , dds(false)
@@ -100,16 +100,15 @@ option::~option() {}
 //   +f <freq>         frequency in Hz (+f is the most common interactive arg)
 //
 // Everything else is stored as generic key→value pairs in cli_override and
-// applied after loading .fes XML, then re-saved.
+// applied via apply_cli() after option parsing.
 //
-// Known XML option keys (from serialize() / readXmlHeader()):
+// Known option keys:
 //   solver, assembly, dbg, dbl, niter, toll,
 //   h_ord, p_ord, freq, l_freq, h_freq, n_freqs,
 //   n_harm, nl_mtrl_name, kerr, relax, n_dd,
 //   sweep_freq, sparam, sol, tfe, einc,
 //   field, rad, n_theta, n_phi,
-//   hfss, poly, unv, poly_cmd,
-//   href, href_cmd, verbose, msh,
+//   poly_cmd, href, href_cmd, verbose, msh,
 //   dd, ddn, dds, n_jor_gs, nl, high_p, power,
 //   stat, estat, mstat, tmz,
 //   Ex, Ey, Ez, kx, ky, kz
@@ -165,8 +164,7 @@ void option::set(const int argc, char* argv[])
 
 // ── Apply cli_override entries to member fields ──
 // Mirrors the key→field mapping in readXmlHeader() in project.cpp.
-// Used both pre-load (to set +poly/+hfss flags before project constructor)
-// and post-load (to override values read from .fes XML).
+// Used to apply CLI flag overrides to member fields after option parsing.
 void option::apply_cli()
 {
     if(cli_override.empty()) return;
@@ -205,12 +203,6 @@ void option::apply_cli()
     if(ov("einc"))       einc       = getB("einc");
     if(ov("field"))      field      = getB("field");
     if(ov("rad"))        rad        = getB("rad");
-    // +poly <cmd>: if value is not "1"/"0", treat as boolean true and capture command
-    if(ov("poly")) {
-        const std::string& v = cli_override["poly"];
-        if(v == "1" || v == "0") { poly = (v == "1"); }
-        else { poly = true; poly_cmd = v; }
-    }
     if(ov("dd"))         dd         = getB("dd");
     if(ov("ddn"))        ddn        = getB("ddn");
     if(ov("dds"))        dds        = getB("dds");
@@ -251,79 +243,7 @@ void option::apply_cli()
     }
 }
 
-// ── XML Serialize ──
-// Emits XML element lines (no indentation — caller wraps <options>)
-
-void option::serialize(std::ostream& out) const
-{
-    auto esc = [&](const std::string& s) {
-        for(char c : s) {
-            switch(c) {
-                case '&':  out << "&amp;";  break;
-                case '<':  out << "&lt;";   break;
-                case '>':  out << "&gt;";   break;
-                case '"':  out << "&quot;"; break;
-                case '\'': out << "&apos;"; break;
-                default:   out << c;         break;
-            }
-        }
-    };
-
-    auto el = [&](const std::string& name, const std::string& val) {
-        out << "  <" << name << ">"; esc(val); out << "</" << name << ">\n";
-    };
-    auto elBool = [&](const std::string& name, bool v) {
-        out << "  <" << name << ">" << (v ? "1" : "0") << "</" << name << ">\n";
-    };
-    auto elSize  = [&](const std::string& name, size_t v) { out << "  <" << name << ">" << v << "</" << name << ">\n"; };
-    auto elDbl   = [&](const std::string& name, double v) {
-        out << "  <" << name << ">" << std::setprecision(17) << v << "</" << name << ">\n";
-    };
-
-    el("solver", solver_type_name(solver));
-    el("assembly", assemb_type_name(assembly));
-    el("name", name);
-    elBool("dbg", dbg);
-    elBool("dbl", dbl);
-    elSize("niter", niter);
-    elDbl("toll", toll);
-    elSize("h_ord", h_ord);
-    elSize("p_ord", p_ord);
-    elDbl("freq", freq);
-    elDbl("l_freq", l_freq);
-    elDbl("h_freq", h_freq);
-    elSize("n_freqs", n_freqs);
-    elSize("n_harm", n_harm);
-    elDbl("relax", relax);
-    elBool("einc", einc);
-    elBool("field", field);
-    elBool("rad", rad);
-    elDbl("n_theta", n_theta);
-    elDbl("n_phi", n_phi);
-    el("href_cmd", href_cmd);
-    elBool("dd", dd);
-    elBool("ddn", ddn);
-    elBool("dds", dds);
-    elBool("nl", nl);
-    elBool("n_jor_gs", n_jor_gs);
-    elSize("n_dd", n_dd);
-    elDbl("power", power);
-    // Arrays E and k
-    elDbl("Ex", E[0]); elDbl("Ey", E[1]); elDbl("Ez", E[2]);
-    elDbl("kx", k[0]); elDbl("ky", k[1]); elDbl("kz", k[2]);
-    // Vbnd map
-    for(const auto& kv : Vbnd) {
-        out << "  <Vbnd:" << kv.first << ">" << std::setprecision(17) << kv.second
-            << "</Vbnd:" << kv.first << ">\n";
-    }
-}
-
-// ── Deserialize ──  (no-op — XML parsing is done in project.cpp)
-void option::deserialize(std::istream& /*in*/)
-{
-    // XML header parsing is handled by readXmlHeader() in project.cpp,
-    // which populates both option fields and mesh regions/boundaries.
-}
+// .fes serialization removed — .poly is the only input format
 
 void option::print_usage(std::ostream& ostr) const
 {
@@ -343,7 +263,7 @@ void option::print_usage(std::ostream& ostr) const
     ostr << "  [+pow $p]                    port power scaling (default = 1[W])\n";
     ostr << "  [+p $n]                      polynomial order (1-3)\n";
     ostr << "  [+h $n]                      homogeneous mesh refinement\n";
-    ostr << "  [+poly [q__a__]]              mesh .poly project; TetGen quality switches optional\n";
+    ostr << "  [+poly_cmd <switches>]        TetGen/Triangle quality switches (default: qAfeeQ)\n";
     ostr << "  [+href q__a__Y]              quality mesh refinement with TetGen\n";
     ostr << "  [+einc Ex,Ey,Ez,kx,ky,kz]    incident plane wave (disables +sparam)\n";
     ostr << "  [+volt $bnd $pot]            apply voltage [V] to perfect_e boundary\n";

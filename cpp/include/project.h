@@ -8,8 +8,6 @@ class project
 {
 public:
     project(std::ofstream&, option&);
-    void save_fes();
-    void load_fes();
     virtual ~project();
     mesh* msh;
     option* opt;

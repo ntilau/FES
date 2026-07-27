@@ -74,7 +74,7 @@ The pipeline shared across all backends is: **import → mesh → assemble → s
 cpp/
 ├── include/          # 23 headers (all snake_case)
 │   ├── option.h         # CLI option storage
-│   ├── project.h        # Model I/O: reads .poly/.fes, writes binary .fes
+│   ├── project.h        # Model I/O: .poly mesh + preprocessing
 │   ├── mesh.h           # Mesh data: nodes, edges, faces, tetras
 │   ├── equation_system.h  # eq_sys — frequency loop, wires assembly→solve→postproc
 │   ├── assembler.h      # Abstract base + 6 derived assembly classes
@@ -105,7 +105,7 @@ cpp/
 #### Solver flow (EM frequency-domain)
 
 1. `main.cpp` → `option::set(argc, argv)` parses CLI flags → `option::apply_cli()` applies them
-2. `project(log_file, &opt)` loads model (`.poly`→TetGen/Triangle, `.fes`→binary load)
+2. `project(log_file, &opt)` meshes `.poly` via TetGen/Triangle
 3. `eq_sys(log_file, &prj)` — for each frequency:
    - `assembler::create(type)->assemble(log, sys)` — polymorphic assembly
    - `solver::create(*opt)->solve(sys, log)` — mumps_solver direct or gmres_solver iterative

@@ -60,7 +60,7 @@ preprocessing::preprocessing(project* cProj): prj(cProj), dbg(cProj->opt->dbg), 
         detectFormula(prj->opt);
     if(prj->msh->plc_valid)
     {
-        // Mesh regeneration from stored PLC data (loaded from .fes)
+        // Mesh regeneration from stored PLC data
         if(!prj->msh->plc_2d_points.empty() || prj->msh->mesh_dim == 2) {
             std::cout << "Re-meshing 2D from stored PLC geometry\n";
             const char* triSwitches = prj->opt->poly_cmd.empty() ? nullptr : prj->opt->poly_cmd.c_str();

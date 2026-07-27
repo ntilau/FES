@@ -48,7 +48,7 @@ public:
     int mesh_dim;           // 2 or 3 (0 = unset)
     arma::uvec edgLab;       // E×1 edge boundary markers (2D TMz)
 
-    // PLC geometry (for mesh regeneration from .fes)
+    // PLC geometry (for mesh regeneration)
     bool plc_valid;
     // 3D TetGen PLC
     std::vector<double> plc_points;         // x,y,z triplets

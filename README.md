@@ -211,17 +211,11 @@ Boundary types: `PerfectE`, `PerfectH`, `Radiation`, `WavePort`.
 
 `#Formula` values: `EM_E_FD` (3D), `EM_EZ_FD` (2D TMz), `EM_E_TL_EIG` (eigenmode), `EM_E_QS` (electrostatic).
 
-### .fes file format
-
-The `.fes` file stores the complete simulation state — options, materials, boundary conditions,
-and mesh — in a single file. It uses an XML header followed by binary mesh sections.
-
 ### File formats
 
 | Format | Extension | Description |
 |--------|-----------|-------------|
-| Poly | `.poly` | TetGen PLC with `#Formula`/`#Regions`/`#Boundaries` sections |
-| Native | `.fes` | FES project file (XML header + binary mesh) |
+| Poly | `.poly` | TetGen/Triangle PLC with `#Formula`/`#Solids`/`#Boundaries` sections |
 | Touchstone | `.sNp` | S-parameter output |
 
 ## Dependencies (C++)

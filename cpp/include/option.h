@@ -14,8 +14,7 @@ public:
     void set(const int argc, char* argv[]);
     void apply_cli();  // apply cli_override entries to member fields
     void print_usage(std::ostream& ostr) const;
-    void serialize(std::ostream& out) const;
-    void deserialize(std::istream& in);
+    // .fes serialization removed — .poly is the only input format
 
     solverType solver;
     assemb_type assembly;
@@ -36,7 +35,7 @@ public:
     bool field;
     bool rad;
     double n_theta, n_phi;
-    bool poly;
+    bool poly;       // always true; kept for backward compat during transition
     std::string poly_cmd;
     std::string href_cmd;
     bool dd;
@@ -49,8 +48,7 @@ public:
     std::map<std::string, double> Vbnd;
 
     // Thin CLI override storage: key → value strings parsed from +flag <val> pairs.
-    // After loading .fes XML, these are applied by name and the file is re-saved.
-    // Use the XML element names (same as serialized in option.cpp / project.cpp).
+    // Applied via apply_cli() after option parsing.
     std::map<std::string, std::string> cli_override;
 
     static const char* assemb_type_name(assemb_type t);
