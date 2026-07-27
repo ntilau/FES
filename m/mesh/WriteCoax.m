@@ -9,7 +9,7 @@ nt2 = floor(2*pi*r2 / acc);
 th1 = linspace(0, 2*pi*(nt1-1)/nt1, nt1);
 th2 = linspace(0, 2*pi*(nt2-1)/nt2, nt2);
 
-polyID = fopen('FEpre/coax.poly', 'w');
+polyID = fopen('mesh/coax.poly', 'w');
 fprintf(polyID, '%d 2 1 1\n', nt1+nt2);
 
 % Inner conductor nodes

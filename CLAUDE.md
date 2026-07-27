@@ -194,27 +194,28 @@ py/
 
 ```
 m/
-├── FEass/              # Assembly routines (40+ files)
+├── fem/                # Assembly routines (40+ files)
 │   ├── AssembLin.m         Linear assembly
 │   ├── AssembHB.m          Harmonic balance assembly
 │   ├── AssembDD.m          Domain decomposition assembly
 │   ├── AssembNL.m          Nonlinear assembly
 │   └── ...                 (CalcShapeFunctions, GetCoupl*, Solv*, etc.)
-├── FEpre/              # Pre-processing
+├── mesh/               # Pre-processing / mesh I/O
 │   ├── WriteWaveGuide.m    Geometry writers
 │   ├── IOrPoly.m           .poly file I/O
 │   ├── IOwPoly.m           .poly file output
 │   ├── ...
 │   ├── IGES/               IGES CAD file import toolbox
 │   └── iormesh-src/        C source for IOrMesh mesher
-├── FEpost/             # Post-processing
+├── post/               # Post-processing
 │   ├── IOwVTK.m            VTK field export
 │   └── IOwVTKH.m           VTK H-field export
-├── Tests/              # Test and debug scripts
+├── tests/              # Test and debug scripts
 │   ├── DD/                 Domain decomposition tests
 │   ├── NL/                 Nonlinear tests
 │   └── _Matlab/            Internal debug scripts
-└── Project*.m          # 27 top-level project drivers
+├── projects/           # 27 project drivers (was m/ root)
+└── Config.m            # Path setup (addpath(genpath('.')))
 ```
 
 ---

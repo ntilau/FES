@@ -486,6 +486,8 @@ def assemble_linear(sys, mesh):
         for ibc, val in enumerate(np.atleast_1d(mesh["BC"]["Dir"])):
             ids_dir_list.append(np.where(mesh["slab"] == val)[0] + 1)
 
+        sys["Dir"] = []
+
         for ibc, ids_dir in enumerate(ids_dir_list):
             if len(ids_dir) == 0:
                 continue
@@ -522,7 +524,7 @@ def assemble_linear(sys, mesh):
                             ii_dir.append(gIs_0[j])
                         sys["fs"][gIs_0] += frBC
 
-            sys[f"Dir_{ibc}"] = np.unique(np.array(ii_dir, dtype=int))
+            sys["Dir"].append(np.unique(np.array(ii_dir, dtype=int)))
 
     # Neumann boundary condition
     if flag_neu:
@@ -635,10 +637,9 @@ def assemble_linear(sys, mesh):
             wp_dofs = np.unique(ii_wp_s)
 
             # Remove Dirichlet DOFs from waveguide port
-            for key in list(sys.keys()):
-                if key.startswith("Dir_") and isinstance(sys[key], np.ndarray):
-                    mask = np.isin(wp_dofs, sys[key])
-                    wp_dofs = wp_dofs[~mask]
+            for arr in sys.get("Dir", []):
+                mask = np.isin(wp_dofs, arr)
+                wp_dofs = wp_dofs[~mask]
 
             SspWP = SspWP[wp_dofs, :][:, wp_dofs]
             TspWP = TspWP[wp_dofs, :][:, wp_dofs]
@@ -736,9 +737,8 @@ def assemble_waveguide_port(sys, freq):
     if "nnWP" not in sys:
         nn_wp = np.arange(ndofs)
         rem_id = []
-        for key in list(sys.keys()):
-            if key.startswith("Dir_") and isinstance(sys[key], np.ndarray):
-                rem_id.extend(sys[key].tolist())
+        for arr in sys.get("Dir", []):
+            rem_id.extend(arr.tolist())
         for ip in range(n_wp):
             rem_id.extend(sys["WP"][ip])
         nn_wp = np.setdiff1d(nn_wp, rem_id)
@@ -919,16 +919,18 @@ def solve_direct(sys):
     b = sys.get("b", sys["fs"])
 
     if "Dir" in sys:
+        A = A.tolil()
         for ibc, dir_dofs in enumerate(sys["Dir"]):
             V = sys.get("V", [None] * (ibc + 1))[ibc]
             if V is not None:
                 b = b - A[:, dir_dofs].dot(np.ones(len(dir_dofs)) * V)
-            A = A.copy()
             A[dir_dofs, :] = 0
             A[:, dir_dofs] = 0
-            A[dir_dofs, dir_dofs] = np.eye(len(dir_dofs))
+            for d in dir_dofs:
+                A[d, d] = 1.0
             if V is not None:
                 b[dir_dofs] = V
+        A = A.tocsr()
 
     u = sparse.linalg.spsolve(A, b)
     return u

@@ -15,8 +15,8 @@ CC       ?= gcc
 CFLAGS   ?= -Wall -O3 -ffast-math -march=native -Wno-deprecated
 LDFLAGS  ?=
 
-IORMESH_DIR = FEpre/iormesh-src
-IORMESH_BIN = FEpre/iormesh-src/IOrMesh
+IORMESH_DIR = mesh/iormesh-src
+IORMESH_BIN = mesh/iormesh-src/IOrMesh
 
 # ─── IOrMesh (mesh generator) ─────────────────────────────────────────
 # Note: macOS APFS is case-insensitive; avoid name collision between
@@ -44,9 +44,9 @@ all: IOrMesh triangle
 
 # ─── Install ────────────────────────────────────────────────────────────
 install: IOrMesh triangle
-	cp $(IORMESH_BIN) FEpre/IOrMesh
-	cp $(IORMESH_DIR)/triangle FEpre/
-	@echo 'Installed: FEpre/IOrMesh  FEpre/triangle'
+	cp $(IORMESH_BIN) mesh/IOrMesh
+	cp $(IORMESH_DIR)/triangle mesh/
+	@echo 'Installed: mesh/IOrMesh  mesh/triangle'
 
 # ─── MATLAB / Octave helpers ──────────────────────────────────────────
 MATLAB   ?= matlab
@@ -88,24 +88,24 @@ DD_TESTS  = Accuracy Convergence ConvergenceDD ConvergenceDDref \
 
 test: $(TESTS:%=test-%)
 
-test-%: Tests/%.m
+test-%: tests/%.m
 	$(call run_m, $*)
 
 test-all: test test-dd
 
 test-dd: $(DD_TESTS:%=test-dd-%)
 
-test-dd-%: Tests/DD/%.m
-	$(call run_m, cd Tests/DD; $*)
+test-dd-%: tests/DD/%.m
+	$(call run_m, cd tests/DD; $*)
 
 test-nl: test-nl-FerriteTensor
 
-test-nl-%: Tests/NL/%.m
-	$(call run_m, cd Tests/NL; $*)
+test-nl-%: tests/NL/%.m
+	$(call run_m, cd tests/NL; $*)
 
 projects: $(PROJECTS:%=project-%)
 
-project-%: %.m
+project-%: projects/%.m
 	$(call run_m, $*)
 
 # ─── Run arbitrary MATLAB file ─────────────────────────────────────────
@@ -118,11 +118,11 @@ endif
 # ─── Clean ──────────────────────────────────────────────────────────────
 clean:
 	rm -f $(IORMESH_BIN) $(IORMESH_DIR)/triangle
-	rm -f FEpre/IOrMesh FEpre/triangle
+	rm -f mesh/IOrMesh mesh/triangle
 	rm -f $(IORMESH_DIR)/*.o $(IORMESH_DIR)/obj/*.o
 	rm -f *.asv *~ *.log *.mat
-	rm -f FEass/*.asv FEpre/*.asv FEpost/*.asv
-	rm -f Tests/*.asv Tests/DD/*.asv Tests/NL/*.asv
+	rm -f fem/*.asv mesh/*.asv post/*.asv
+	rm -f tests/*.asv tests/DD/*.asv tests/NL/*.asv
 
 distclean: clean
 	rm -f octave-workspace

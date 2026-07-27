@@ -3,7 +3,7 @@ function WriteWaveGuide(a, L)
 %   a : waveguide height
 %   L : waveguide length
 
-polyID = fopen('FEpre/WaveGuide.poly', 'w');
+polyID = fopen('mesh/WaveGuide.poly', 'w');
 fprintf(polyID, '%d 2 1 1\n', 4);
 
 % Nodes (four corners)

@@ -25,8 +25,8 @@ def _build_scattering_system(sys, mesh):
 def _apply_scattering_bcs(A, B_mat, sys):
     """Apply Dirichlet BCs for the scattered field formulation."""
     rhs = np.zeros(sys["NDOFs"], dtype=complex)
-    if "Dir_0" in sys:
-        dir_dofs = sys["Dir_0"]
+    if "Dir" in sys and len(sys["Dir"]) > 0:
+        dir_dofs = sys["Dir"][0]
         rhs = B_mat[:, dir_dofs].dot(sys["fsEinc"][dir_dofs])
         rhs[dir_dofs] = -sys["fsEinc"][dir_dofs]
         A = A.tolil()
@@ -70,7 +70,7 @@ def scattering_dd(theta=0, p_ord=4, plot=False):
 
     A, B_mat = _build_scattering_system(sys, mesh)
 
-    if "Dir_0" in sys:
+    if "Dir" in sys:
         A, rhs = _apply_scattering_bcs(A, B_mat, sys)
         sys["u"] = sys["fsEinc"] + spsolve(A, rhs)[:sys["NDOFs"]]
     else:
@@ -126,8 +126,8 @@ def scattering_dd_iterative(theta=0, p_ord=4, toll=0.001, max_iter=1000, plot=Fa
     sys1, mesh1 = assemble_linear(sys1, mesh1)
 
     A1, B1 = _build_scattering_system(sys1, mesh1)
-    if "Dir_0" in sys1:
-        dir_dofs = sys1["Dir_0"]
+    if "Dir" in sys1 and len(sys1["Dir"]) > 0:
+        dir_dofs = sys1["Dir"][0]
         rhs1 = B1[:, dir_dofs].toarray().ravel() * sys1["fsEinc"][dir_dofs]
         rhs1[dir_dofs] = -sys1["fsEinc"][dir_dofs]
         A1 = A1.tolil()
@@ -143,8 +143,8 @@ def scattering_dd_iterative(theta=0, p_ord=4, toll=0.001, max_iter=1000, plot=Fa
     sys2, mesh2 = assemble_linear(sys2, mesh2)
 
     A2, B2 = _build_scattering_system(sys2, mesh2)
-    if "Dir_0" in sys2:
-        dir_dofs = sys2["Dir_0"]
+    if "Dir" in sys2 and len(sys2["Dir"]) > 0:
+        dir_dofs = sys2["Dir"][0]
         rhs2 = B2[:, dir_dofs].toarray().ravel() * sys2["fsEinc"][dir_dofs]
         rhs2[dir_dofs] = -sys2["fsEinc"][dir_dofs]
         A2 = A2.tolil()
@@ -248,8 +248,8 @@ def scattering_full_field(theta=0, p_ord=3, plot=False):
 
     A, B_mat = _build_scattering_system(sys, mesh)
 
-    if "Dir_0" in sys:
-        dir_dofs = sys["Dir_0"]
+    if "Dir" in sys and len(sys["Dir"]) > 0:
+        dir_dofs = sys["Dir"][0]
         A = A.tolil()
         A[dir_dofs, :] = 0
         A[:, dir_dofs] = 0

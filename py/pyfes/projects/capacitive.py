@@ -43,8 +43,8 @@ def coaxial_capacitance(plot=False):
     A = sys["S"]
     b = np.zeros(sys["NDOFs"], dtype=complex)
 
-    A, b = apply_dirichlet_bc(A, b, sys["Dir_0"], 1.0)
-    A, b = apply_dirichlet_bc(A, b, sys["Dir_1"], 0.0)
+    A, b = apply_dirichlet_bc(A, b, sys["Dir"][0], 1.0)
+    A, b = apply_dirichlet_bc(A, b, sys["Dir"][1], 0.0)
 
     sys["u"] = spsolve(A, b)
 
@@ -83,7 +83,7 @@ def capacitive_clearance(plot=False):
     A = sys["S"]
     b = np.zeros(sys["NDOFs"], dtype=complex)
 
-    A, b = apply_dirichlet_bc(A, b, sys["Dir_0"], 1.0)
+    A, b = apply_dirichlet_bc(A, b, sys["Dir"][0], 1.0)
 
     sys["u"] = spsolve(A, b)
 

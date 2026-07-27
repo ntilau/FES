@@ -9,7 +9,7 @@ function WriteTwoPosts(a, c, r, L, n)
 
 th = linspace(0, 2*pi*(n-1)/n, n);
 
-polyID = fopen('FEpre/TwoPosts.poly', 'w');
+polyID = fopen('mesh/TwoPosts.poly', 'w');
 fprintf(polyID, '%d 2 1 1\n', 4+2*n);
 
 % Waveguide corners

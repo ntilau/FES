@@ -1,6 +1,6 @@
 function PlotPoly(FileName, figHandle, scale)
 % Plot the geometry defined in a .poly file (Triangle format).
-polyID = fopen(['FEpre/', FileName, '.poly'], 'r');
+polyID = fopen(['mesh/', FileName, '.poly'], 'r');
 rows = fgetl(polyID);
 rown = sscanf(rows, '%d');
 Geom.NNODE = rown(1);

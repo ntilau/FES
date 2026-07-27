@@ -7,7 +7,7 @@ function WriteCirculator(a, s, nt1, d)
 
 thb = linspace(0, 2*pi*(nt1-1)/nt1, nt1);
 
-polyID = fopen('FEpre/circulator.poly', 'w');
+polyID = fopen('mesh/circulator.poly', 'w');
 fprintf(polyID, '%d 2 1 1\n', 9+nt1);
 
 % Nodes

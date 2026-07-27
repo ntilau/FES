@@ -43,10 +43,10 @@ def thermal_distribution(K=52, ht=750, T_edge=(300.0, 200.0), q0=100.0,
     A = K * sys["S"]
     b = q0 * sys["fs"]
 
-    for ibc in range(len(np.atleast_1d(mesh["BC"]["Dir"]))):
-        dir_key = f"Dir_{ibc}"
-        if dir_key in sys and len(sys[dir_key]) > 0:
-            A, b = apply_dirichlet_bc(A, b, sys[dir_key], T_edge[ibc])
+    if "Dir" in sys:
+        for ibc, arr in enumerate(sys["Dir"]):
+            if len(arr) > 0:
+                A, b = apply_dirichlet_bc(A, b, arr, T_edge[ibc])
 
     u = spsolve(A, b)
     sys["u"] = u
@@ -74,11 +74,10 @@ def thermal_distribution_dg():
     A = 52 * sys["S"]
     b = 100 * sys["fs"]
 
-    for ibc in range(len(np.atleast_1d(mesh["BC"]["Dir"]))):
-        dir_key = f"Dir_{ibc}"
-        if dir_key in sys and len(sys[dir_key]) > 0:
-            A, b = apply_dirichlet_bc(A, b, sys[dir_key],
-                                      [300.0, 200.0][ibc])
+    if "Dir" in sys:
+        for ibc, arr in enumerate(sys["Dir"]):
+            if len(arr) > 0:
+                A, b = apply_dirichlet_bc(A, b, arr, [300.0, 200.0][ibc])
 
     sys["u"] = spsolve(A, b)
     print(f"DG thermal: T min={sys['u'].min():.2f}, T max={sys['u'].max():.2f}")

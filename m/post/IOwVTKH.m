@@ -1,7 +1,7 @@
 function IOwVTKH(Sys, Mesh, filename)
 % Write a VTK file for magnetic field visualisation in Paraview.
 tic;
-fid = fopen(['FEpost/', filename, '.vtk'], 'w');
+fid = fopen(['post/', filename, '.vtk'], 'w');
 fprintf(fid, '# vtk DataFile Version 2.0\nUnstructured Grid\n');
 fprintf(fid, 'ASCII\nDATASET UNSTRUCTURED_GRID\n');
 fprintf(fid, 'POINTS %d double\n', Mesh.NNODE);

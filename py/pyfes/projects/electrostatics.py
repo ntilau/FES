@@ -32,8 +32,8 @@ def run_electrostatics():
     A = sys["S"]
     b = np.zeros(sys["NDOFs"], dtype=complex)
 
-    if "Dir_0" in sys:
-        dir_dofs = sys["Dir_0"]
+    if "Dir" in sys and len(sys["Dir"]) > 0:
+        dir_dofs = sys["Dir"][0]
         b = b - A[:, dir_dofs].dot(np.ones(len(dir_dofs))) * sys["V"][0]
         A = A.tolil()
         A[dir_dofs, :] = 0
@@ -42,8 +42,8 @@ def run_electrostatics():
         A = A.tocsr()
         b[dir_dofs] = sys["V"][0]
 
-    if "Dir_1" in sys:
-        dir_dofs = sys["Dir_1"]
+    if "Dir" in sys and len(sys["Dir"]) > 1:
+        dir_dofs = sys["Dir"][1]
         b = b - A[:, dir_dofs].dot(np.ones(len(dir_dofs))) * sys["V"][1]
         A = A.tolil()
         A[dir_dofs, :] = 0

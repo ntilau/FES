@@ -51,7 +51,7 @@ def modal_analysis_rectangular(a=22.86e-3, b=10.16e-3, p_ord=3,
     Ste = sys["St"]
 
     # Remove Dirichlet DOFs (vector version)
-    dir_dofs = sys.get("Dir_0", np.array([], dtype=int))
+    dir_dofs = sys["Dir"][0] if sys.get("Dir") and len(sys["Dir"]) > 0 else np.array([], dtype=int)
 
     # For vector problem: Dirichlet removes boundary DOFs
     # slab is already 0-based; slab_zero gives interior edge indices directly
