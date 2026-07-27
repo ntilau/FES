@@ -49,7 +49,6 @@ cd py && .venv/bin/python -c "from pyfes.projects import run_waveguide; run_wave
 ```bash
 make m-build        # build IOrMesh and Triangle mesh tools (or: cd m && make all)
 make m-test         # run all FEM project test cases (m/tests/)
-make m-projects     # (removed — use make m-test instead)
 ```
 
 ### Setup
