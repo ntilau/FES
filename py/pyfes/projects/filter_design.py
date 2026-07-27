@@ -35,7 +35,7 @@ def bilateral_filter(n_freqs=81, plot=False):
         Scattering parameters.
     """
     sys = {"pOrd": 2, "hOrd": 1}
-    mesh = read_poly("BilatFilter", data_dir="./data", scale=1e-6)
+    mesh = read_poly("BilatFilter_py", data_dir="../data", scale=1e-6)
     mesh["epsr"] = [1, 2.1]
     mesh["BC"] = {"Dir": 1, "WP": [11, 12]}
 
@@ -95,7 +95,7 @@ def bilateral_filter_hb(n_freqs=1, plot=False):
         Scattering parameters at each harmonic.
     """
     sys = {"pOrd": 3, "hOrd": 1}
-    mesh = read_poly("BilatFilter", data_dir="./data", scale=1e-6)
+    mesh = read_poly("BilatFilter_py", data_dir="../data", scale=1e-6)
     mesh["epsr"] = [1, 2.1]
     mesh["kerr"] = [0, 1.625e-10]
     mesh["NLlab"] = 2
@@ -194,7 +194,7 @@ def two_post_filter(n_freqs=81, plot=False):
     fc_ref = 7.868577546294576e9
 
     sys = {"pOrd": 2, "hOrd": 1}
-    mesh = read_poly("TwoPosts", data_dir="./data", scale=1e-3)
+    mesh = read_poly("TwoPosts_py", data_dir="../data", scale=1e-3)
     mesh["epsr"] = [1, 112.5]
     mesh["BC"] = {"Dir": 1, "WP": [11, 12]}
 
@@ -239,7 +239,7 @@ def two_post_filter_hb():
     Port of ProjectTwoPostFilterHB.m.
     """
     sys = {"pOrd": 2, "hOrd": 1}
-    mesh = read_poly("TwoPosts", data_dir="./data", scale=1e-3)
+    mesh = read_poly("TwoPosts_py", data_dir="../data", scale=1e-3)
     mesh["epsr"] = [1, 112.5]
     mesh["BC"] = {"Dir": 1, "WP": [11, 12]}
 

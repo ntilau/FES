@@ -4,7 +4,7 @@ Guidance for Claude Code when working with this repository.
 
 ## Overview
 
-This repo has three independent FEM solver implementations sharing model files in `mdl/`:
+This repo has three independent FEM solver implementations sharing model files in `data/`:
 
 | Backend | Dir | Primary use |
 |---------|-----|-------------|
@@ -20,16 +20,16 @@ This repo has three independent FEM solver implementations sharing model files i
 
 ```bash
 make build          # cmake configure + build (Release)
-make test           # build + run all .fes models in mdl/ (load & mesh check)
+make test           # build + run all .fes models in data/ (load & mesh check)
 make clean          # remove cpp/build
 ```
 
 Binary is at `cpp/build/fes`. Run directly:
 
 ```bash
-./cpp/build/fes mdl/WR90 1e10 +poly AafeeQ +p 2       # 3D EM (default)
-./cpp/build/fes mdl/WR90 1e10 +poly AafeeQ +p 2 +formula em_e_tl_eig  # waveport eigenmodes
-./cpp/build/fes mdl/BilatFilter 150e9 +poly +p 2 +formula em_ez_fd   # 2D TMz
+./cpp/build/fes data/WR90 1e10 +poly AafeeQ +p 2       # 3D EM (default)
+./cpp/build/fes data/WR90 1e10 +poly AafeeQ +p 2 +formula em_e_tl_eig  # waveport eigenmodes
+./cpp/build/fes data/BilatFilter 150e9 +poly +p 2 +formula em_ez_fd   # 2D TMz
 ```
 
 ### Python backend
@@ -174,7 +174,6 @@ py/
 │       ├── scattering.py       # Wave scattering with ABC, DD
 │       ├── capacitive.py       # Coaxial capacitance, capacitive sensor
 │       └── _utils.py           # Shared helper functions
-├── data/                # .poly geometry files + .h1.mat mesh caches
 ├── iormesh/             # C mesher (Triangle wrapper) — builds binary
 ├── tests/               # pytest suite
 ├── setup.py             # pip installable package

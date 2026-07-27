@@ -93,7 +93,7 @@ class DNN_GP(gpytorch.models.ExactGP):
 
 
 def generate_data(epsr_values=None, n_freqs=81, freq_range=(138e9, 158e9),
-                  data_dir="./data", verbose=True):
+                  data_dir="../data", verbose=True):
     """Run FEM solves to build training dataset.
 
     Parameters
@@ -131,7 +131,7 @@ def generate_data(epsr_values=None, n_freqs=81, freq_range=(138e9, 158e9),
     idx = 0
     for epsr in epsr_values:
         sys = {"pOrd": 2, "hOrd": 1}
-        mesh = read_poly("BilatFilter", data_dir=data_dir, scale=1e-6)
+        mesh = read_poly("BilatFilter_py", data_dir=data_dir, scale=1e-6)
         mesh["epsr"] = [1, epsr]
         mesh["BC"] = {"Dir": 1, "WP": [11, 12]}
         sys["Height"] = 1.651e-3 / 2
@@ -789,7 +789,7 @@ def plot_results(freqs, s11_true, s21_true, s11_pred, s21_pred,
 
 def bilateral_filter_dnngp(n_epsr=10, n_freqs=81, n_epochs=500,
                            plot=True, save_model="bilat_dnngp.pt",
-                           generate=True, data_dir="./data",
+                           generate=True, data_dir="../data",
                            mat_file=None):
     """Train a DKL surrogate for bilateral filter S-parameters.
 
@@ -981,7 +981,7 @@ def adaptive_lhs_bilateral_filter(
     n_epochs=500,
     target_rel_error=1.0,
     max_n_epsr=100,
-    data_dir="./data",
+    data_dir="../data",
     plot=True,
     random_seed=42,
     cache_file="adaptive_dnngp_data.npz",

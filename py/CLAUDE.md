@@ -71,7 +71,7 @@ pyFES — Python Finite Element Software for electromagnetics.
 | Path | Description |
 |---|---|
 | `pyfes/constants.py` | Physical constants (c0, z0, eps0, mu0), dB/phase utilities |
-| `data/` | .poly geometry files and .h1.mat mesh files |
+| `../data/` | Shared .poly geometry + .h1.mat mesh caches (top-level data/) |
 | `iormesh/` | C mesher (Triangle wrapper, MAT .mat exporter) |
 
 ### Paper

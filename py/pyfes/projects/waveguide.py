@@ -17,7 +17,7 @@ def run_waveguide():
     sys = {"pOrd": 4, "hOrd": 1}
 
     # Mesh (a WR-90 rectangular waveguide)
-    mesh = read_poly("WaveGuide", data_dir="./data", scale=1e-3)
+    mesh = read_poly("WaveGuide_py", data_dir="../data", scale=1e-3)
     mesh["a"] = 22.86e-3
     mesh["b"] = mesh["a"] / 2
 

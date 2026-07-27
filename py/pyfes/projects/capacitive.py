@@ -32,7 +32,7 @@ def coaxial_capacitance(plot=False):
         Potential field.
     """
     sys = {"pOrd": 4, "hOrd": 1}
-    mesh = read_poly("coax", data_dir="./data")
+    mesh = read_poly("coax", data_dir="../data")
 
     epsr_dielectric = (1 / 0.66)**2
     mesh["epsr"] = [1, epsr_dielectric]
@@ -75,7 +75,7 @@ def capacitive_clearance(plot=False):
         Potential field.
     """
     sys = {"pOrd": 4, "hOrd": 1}
-    mesh = read_poly("CapSense", data_dir="./data")
+    mesh = read_poly("CapSense_py", data_dir="../data")
     mesh["BC"] = {"Dir": [1]}
 
     sys, mesh = assemble_linear(sys, mesh)

@@ -30,16 +30,16 @@ The binary is at `cpp/build/fes`:
 
 ```bash
 # 3D waveguide — mesh with TetGen, then solve
-cd mdl && ../cpp/build/fes WR90 +poly AafeeQ +f 1e10 +p 2
+cd data && ../cpp/build/fes WR90 +poly AafeeQ +f 1e10 +p 2
 
 # 2D TMz filter — mesh with Triangle, then solve
-cd mdl && ../cpp/build/fes BilatFilter +poly q34a +f 150e9 +p 2
+cd data && ../cpp/build/fes BilatFilter +poly q34a +f 150e9 +p 2
 
 # Waveport eigenmodes
-cd mdl && ../cpp/build/fes WR90 +poly AafeeQ +f 1e10 +p 2 +formula em_e_tl_eig
+cd data && ../cpp/build/fes WR90 +poly AafeeQ +f 1e10 +p 2 +formula em_e_tl_eig
 
 # Electrostatic (requires voltage assignment)
-cd mdl && ../cpp/build/fes CapSense +poly +f 0 +volt Elec 1
+cd data && ../cpp/build/fes CapSense +poly +f 0 +volt Elec 1
 ```
 
 ### Python backend
@@ -160,7 +160,6 @@ This pipeline is implemented independently in each backend:
 │   └── CMakeLists.txt #   C++14, links dep/lib/*.a
 ├── py/                # Python FEM + ML surrogates
 │   ├── pyfes/         #   FEM core: fem/, mesh/, post/, projects/
-│   ├── data/          #   .poly model files + .h1.mat mesh caches
 │   ├── tests/         #   pytest suite
 │   └── setup.py       #   pip-installable package
 ├── m/                 # MATLAB reference implementation
@@ -168,7 +167,7 @@ This pipeline is implemented independently in each backend:
 │   ├── FEpre/         #   Pre-processing: mesh I/O, geometry writing, IGES
 │   ├── FEpost/        #   VTK output
 │   └── Tests/         #   MATLAB tests and debug scripts
-├── mdl/               # Shared .poly model files (all backends)
+├── data/              # Shared model files — .poly geometry + .h1.mat mesh caches (all backends)
 └── dep/               # C++ library dependencies (dep/src, dep/build, dep/lib)
 ```
 

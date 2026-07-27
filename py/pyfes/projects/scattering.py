@@ -62,7 +62,7 @@ def scattering_dd(theta=0, p_ord=4, plot=False):
     sys["kEinc"] = np.array([np.cos(np.deg2rad(theta)),
                              np.sin(np.deg2rad(theta))])
 
-    mesh = read_poly("ModelScatteringDD", data_dir="./data")
+    mesh = read_poly("ModelScatteringDD_py", data_dir="../data")
     mesh["BC"] = {"Dir": [1], "ABC": 133}
     mesh["epsr"] = [1, 1]
 
@@ -116,7 +116,7 @@ def scattering_dd_iterative(theta=0, p_ord=4, toll=0.001, max_iter=1000, plot=Fa
     sys_base["kEinc"] = np.array([np.cos(np.deg2rad(theta)),
                                   np.sin(np.deg2rad(theta))])
 
-    mesh_base = read_poly("ModelScatteringDD", data_dir="./data")
+    mesh_base = read_poly("ModelScatteringDD_py", data_dir="../data")
     mesh_base["BC"] = {"Dir": [1], "ABC": 133, "DD": 13}
     mesh_base["epsr"] = [1, 1]
 
@@ -240,7 +240,7 @@ def scattering_full_field(theta=0, p_ord=3, plot=False):
     sys["kEinc"] = np.array([np.cos(np.deg2rad(theta)),
                              np.sin(np.deg2rad(theta))])
 
-    mesh = read_poly("ModelScatteringDD", data_dir="./data")
+    mesh = read_poly("ModelScatteringDD_py", data_dir="../data")
     mesh["BC"] = {"Dir": [1], "ABC": 133}
     mesh["epsr"] = [1, 1]
 

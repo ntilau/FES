@@ -3,12 +3,12 @@ BUILD_DIR := $(CORE_DIR)/build
 CMAKE := cmake
 CMAKE_BUILD_TYPE ?= Release
 FES := $(BUILD_DIR)/fes
-MODEL_DIR := mdl
+MODEL_DIR := data
 
 # Export build dir so 'fes' works directly from shell
 export PATH := $(BUILD_DIR):$(PATH)
 
-# All .fes projects (basenames in mdl/)
+# All .fes projects (basenames in data/)
 FES_PROJECTS := $(patsubst $(MODEL_DIR)/%.fes,%,$(wildcard $(MODEL_DIR)/*.fes))
 
 # ─── Top-level targets ──────────────────────────────────────────────────

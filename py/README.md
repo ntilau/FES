@@ -128,7 +128,7 @@ make build
 make list
 
 # Mesh a single file (with overridable Triangle arguments)
-make data/WaveGuide.h1.mat ARGS="q34A"
+make ../data/WaveGuide_py.h1.mat ARGS="q34A"
 
 # Mesh all missing .poly files
 make all
@@ -165,7 +165,7 @@ Default Triangle arguments: `q34A` (quality mesh, 34° min angle, region attribu
 | `pyfes/projects/` | Simulation examples (19 projects) |
 | `pyfes/projects/filter_dnngp.py` | DNN-GP surrogate model (GPyTorch) |
 | `iormesh/` | C mesher (Triangle wrapper, MATLAB .mat exporter) |
-| `data/` | `.poly` geometry files and `.h1.mat` mesh files |
+| `../data/` | Shared `.poly` geometry + `.h1.mat` mesh caches (see top-level `data/`) |
 | `tests/` | pytest suite |
 | `paper/` | IEEE paper and vector figures |
 

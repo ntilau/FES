@@ -104,7 +104,7 @@ def modal_analysis_open_strip():
     Port of ProjectModalAnalysisOpenStrip.m.
     """
     sys = {"pOrd": 2, "hOrd": 1}
-    mesh = read_poly("ModelWR90Strip", data_dir="./data")
+    mesh = read_poly("ModelWR90Strip_py", data_dir="../data")
     mesh["BC"] = {"Dir": [1]}
 
     sys["Hcurl"] = True

@@ -35,7 +35,7 @@ def thermal_distribution(K=52, ht=750, T_edge=(300.0, 200.0), q0=100.0,
         Temperature field.
     """
     sys = {"pOrd": 1, "hOrd": 1}
-    mesh = read_poly("ModelHeatEquationDD", data_dir="./data")
+    mesh = read_poly("ModelHeatEquationDD_py", data_dir="../data")
     mesh["BC"] = {"Dir": [2, 3], "Neu": 3}
 
     sys, mesh = assemble_linear(sys, mesh)
@@ -66,7 +66,7 @@ def thermal_distribution_dg():
     Port of ProjectThermalDistroDG.m.
     """
     sys = {"pOrd": 1, "hOrd": 1}
-    mesh = read_poly("ModelHeatEquationDD", data_dir="./data")
+    mesh = read_poly("ModelHeatEquationDD_py", data_dir="../data")
     mesh["BC"] = {"Dir": [2, 3], "Neu": 3}
 
     sys, mesh = assemble_linear(sys, mesh)

@@ -21,7 +21,7 @@ def run_electrostatics():
     sys = {"pOrd": 4, "hOrd": 1}
 
     # Mesh and boundary conditions
-    mesh = read_poly("ModelScatteringDD", data_dir="./data")
+    mesh = read_poly("ModelScatteringDD_py", data_dir="../data")
     mesh["BC"] = {"Dir": [1, 133]}
     sys["V"] = [1.0, 0.0]
 

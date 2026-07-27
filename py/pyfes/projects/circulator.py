@@ -39,7 +39,7 @@ def circulator(freq=9e9, n_freqs=1, plot=False):
         Scattering parameters.
     """
     sys = {"pOrd": 4, "hOrd": 1}
-    mesh = read_poly("CircKoshiba26", data_dir="./data", scale=1e-3)
+    mesh = read_poly("CircKoshiba26", data_dir="../data", scale=1e-3)
     mesh["a"] = 22.86e-3
     mesh["b"] = mesh["a"] / 2
     mesh["epsr"] = [1, 11.7]
@@ -118,7 +118,7 @@ def circulator_ddschur(freq=10e9, plot=False):
     from ..fem.boundary import get_bnd_map
 
     sys = {"pOrd": 1, "hOrd": 1}
-    mesh = read_poly("CircKoshiba26_5", data_dir="./data", scale=1e-3)
+    mesh = read_poly("CircKoshiba26_5", data_dir="../data", scale=1e-3)
     mesh["a"] = 22.86e-3
     mesh["b"] = mesh["a"] / 2
     mesh["epsr"] = [1, 1, 1, 1, 11.7]
@@ -188,7 +188,7 @@ def circulator_imp(f1=1e9, f2=1.1e9, plot=False):
         System with harmonic balance solution.
     """
     sys = {"pOrd": 2, "hOrd": 1}
-    mesh = read_poly("CircKoshiba26_5", data_dir="./data", scale=1e-3)
+    mesh = read_poly("CircKoshiba26_5", data_dir="../data", scale=1e-3)
     mesh["epsr"] = [1, 1, 1, 1, 11.7]
     mesh["BC"] = {"Dir": 1, "WP": [11, 12, 13]}
     mesh["NLlab"] = 2
