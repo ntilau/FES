@@ -8,8 +8,12 @@ MODEL_DIR := data
 # Export build dir so 'fes' works directly from shell
 export PATH := $(BUILD_DIR):$(PATH)
 
-# All .fes projects (basenames in data/)
-FES_PROJECTS := $(patsubst $(MODEL_DIR)/%.fes,%,$(wildcard $(MODEL_DIR)/*.fes))
+# All .poly projects (basenames in data/, excluding _py variants)
+POLY_FILES   := $(filter-out %_py.poly, $(wildcard $(MODEL_DIR)/*.poly))
+FES_PROJECTS := $(patsubst $(MODEL_DIR)/%.poly,%,$(POLY_FILES))
+
+# Default frequency for mesh-check runs
+FREQ ?= 1e10
 
 # ─── Top-level targets ──────────────────────────────────────────────────
 
@@ -26,7 +30,7 @@ help: help-cpp help-py help-m
 help-cpp:
 	@echo "=== C++ backend (cpp/) ==="
 	@echo "  make build       Build fes (cmake configure + compile)"
-	@echo "  make test        Run all .fes models (load & mesh check)"
+	@echo "  make test        Run all .poly models (mesh check)"
 	@echo "  make <model>     Run a single model (e.g. WR90)"
 	@echo "  make config      Reconfigure cmake"
 	@echo "  make clean       Remove build directory"
@@ -42,11 +46,11 @@ build: config
 clean:
 	rm -rf $(BUILD_DIR)
 
-# Each .fes model: load and exit
+# Each .poly model: mesh and exit
 define fes_target
 $(1): build
 	@echo "--- $(1) ---"
-	cd $(MODEL_DIR) && $(abspath $(FES)) $(1)
+	cd $(MODEL_DIR) && $(abspath $(FES)) $(1) $(FREQ) +poly +p 1
 endef
 $(foreach p,$(FES_PROJECTS),$(eval $(call fes_target,$(p))))
 
@@ -55,7 +59,7 @@ test: build
 	@failed=""; FES_BIN="$(abspath $(FES))"; \
 	for p in $(FES_PROJECTS); do \
 		echo "--- $$p ---"; \
-		cd $(MODEL_DIR) && $$FES_BIN $$p || failed="$$failed $$p"; \
+		cd $(MODEL_DIR) && $$FES_BIN $$p $(FREQ) +poly +p 1 || failed="$$failed $$p"; \
 		cd ..; \
 	done; \
 	if [ -n "$$failed" ]; then \
