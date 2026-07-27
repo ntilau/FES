@@ -41,7 +41,7 @@ make py-test        # run pytest (or: cd py && .venv/bin/python -m pytest tests/
 
 Projects run from `py/`:
 ```bash
-cd py && .venv/bin/python -c "from pyfes.projects import run_waveguide; run_waveguide()"
+cd py && .venv/bin/python -c "from fes.projects import run_waveguide; run_waveguide()"
 ```
 
 ### MATLAB backend
@@ -148,8 +148,8 @@ cpp/
 
 ```
 py/
-├── pyfes/
-│   ├── fem/               # FEM core
+├── fes/
+│   ├── core/               # FEM core
 │   │   ├── shape_functions.py  # Scalar Lagrange (1–4), H(curl) vector basis
 │   │   ├── quadrature.py       # Gauss–Legendre, Duffy simplex quadrature
 │   │   ├── jacobian.py         # Jacobian for triangles
@@ -192,25 +192,26 @@ py/
 
 ```
 m/
-├── fem/                # Assembly routines (40+ files)
-│   ├── AssembLin.m         Linear assembly
-│   ├── AssembHB.m          Harmonic balance assembly
-│   ├── AssembDD.m          Domain decomposition assembly
-│   ├── AssembNL.m          Nonlinear assembly
-│   └── ...                 (CalcShapeFunctions, GetCoupl*, Solv*, etc.)
-├── mesh/               # Pre-processing / mesh I/O
-│   ├── WriteWaveGuide.m    Geometry writers
-│   ├── IOrPoly.m           .poly file I/O
-│   ├── IOwPoly.m           .poly file output
-│   ├── ...
-│   ├── IGES/               IGES CAD file import toolbox
-│   └── iormesh-src/        C source for IOrMesh mesher
-├── post/               # Post-processing
-│   ├── IOwVTK.m            VTK field export
-│   └── IOwVTKH.m           VTK H-field export
-├── tests/              # FEM project drivers (was Project*.m at root)
-│   └── Project*.m          27 end-to-end test cases
-├── extras/             # Standalone / debug / DD / NL test scripts
+├── fes/                # Package root (mirrors py/fes/)
+│   ├── core/               # Assembly routines (40+ files)
+│   │   ├── AssembLin.m         Linear assembly
+│   │   ├── AssembHB.m          Harmonic balance assembly
+│   │   ├── AssembDD.m          Domain decomposition assembly
+│   │   ├── AssembNL.m          Nonlinear assembly
+│   │   └── ...                 (CalcShapeFunctions, GetCoupl*, Solv*, etc.)
+│   ├── mesh/              # Mesh I/O, geometry writers
+│   │   ├── WriteWaveGuide.m    Geometry writers
+│   │   ├── IOrPoly.m           .poly file I/O
+│   │   ├── IOwPoly.m           .poly file output
+│   │   ├── ...
+│   │   ├── IGES/               IGES CAD file import toolbox
+│   │   └── iormesh-src/        C source for IOrMesh mesher
+│   ├── post/              # Post-processing
+│   │   ├── IOwVTK.m            VTK field export
+│   │   └── IOwVTKH.m           VTK H-field export
+│   └── projects/          # Simulation project drivers (was tests/)
+│       └── Project*.m          27 end-to-end test cases
+├── tests/              # Standalone / debug / DD / NL test scripts
 │   ├── DD/                 Domain decomposition tests
 │   ├── NL/                 Nonlinear tests
 │   ├── _Matlab/            Internal debug scripts

@@ -51,10 +51,10 @@ make py-test                    # or: py/.venv/bin/python -m pytest py/tests/ -v
 
 ```bash
 # Run waveguide simulation
-cd py && .venv/bin/python -c "from pyfes.projects import run_waveguide; run_waveguide()"
+cd py && .venv/bin/python -c "from fes.projects import run_waveguide; run_waveguide()"
 
 # Train DNN-GP surrogate model
-cd py && .venv/bin/python -c "from pyfes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"
+cd py && .venv/bin/python -c "from fes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"
 ```
 
 ### MATLAB backend
@@ -159,14 +159,17 @@ This pipeline is implemented independently in each backend:
 │   ├── src/           #   27 implementation files + main.cpp
 │   └── CMakeLists.txt #   C++14, links dep/lib/*.a
 ├── py/                # Python FEM + ML surrogates
-│   ├── pyfes/         #   FEM core: fem/, mesh/, post/, projects/
+│   ├── fes/         #   FEM core: fem/, mesh/, post/, projects/
 │   ├── tests/         #   pytest suite
 │   └── setup.py       #   pip-installable package
 ├── m/                 # MATLAB reference implementation
-│   ├── FEass/         #   Assembly routines (40+ files)
-│   ├── FEpre/         #   Pre-processing: mesh I/O, geometry writing, IGES
-│   ├── FEpost/        #   VTK output
-│   └── Tests/         #   MATLAB tests and debug scripts
+│   ├── fes/           #   Package root (mirrors py/fes/)
+│   │   ├── core/      #     Assembly routines (40+ files)
+│   │   ├── mesh/      #     Mesh I/O, geometry writers
+│   │   ├── post/      #     VTK field export
+│   │   └── projects/  #     Simulation project drivers
+│   ├── tests/         #   Standalone / debug / DD / NL scripts
+│   └── Config.m       #   Path setup (addpath(genpath('.')))
 ├── data/              # Shared model files — .poly geometry + .h1.mat mesh caches (all backends)
 └── dep/               # C++ library dependencies (dep/src, dep/build, dep/lib)
 ```
@@ -181,7 +184,7 @@ This pipeline is implemented independently in each backend:
 - **2D TMz solver** — P2 elements on Triangle triangulations, auto-detected from `#Formula`
 - **2D electrostatic** — P1 triangle assembly for quasistatic analysis
 - **2D cross-section eigenmode** — waveguide TE/TM mode computation on 2D meshes
-- **DNN-GP surrogate modelling** — Deep Kernel Learning surrogates (pyfes, Wilson et al. 2016)
+- **DNN-GP surrogate modelling** — Deep Kernel Learning surrogates (fes, Wilson et al. 2016)
 - **Auto-formulation** — `#Formula` tag in `.poly` selects assembly type automatically
 - **OOP architecture** — polymorphic assembly (`assembler` base), strategy-pattern solvers (`solver` base)
 - **Sparse matrices** — `arma::SpMat<complex<double>>` (C++), `scipy.sparse.csr` (Python)

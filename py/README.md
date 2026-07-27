@@ -20,8 +20,8 @@ pip install -e .
 
 ```python
 import numpy as np
-from pyfes.projects import run_waveguide, bilateral_filter
-from pyfes.post.plot import plot_field
+from fes.projects import run_waveguide, bilateral_filter
+from fes.post.plot import plot_field
 from scipy import sparse
 
 # Full S-parameter sweep
@@ -35,13 +35,13 @@ plot_field(sys, mesh, field="u", component="abs", cmap="jet")
 Or from the command line:
 
 ```bash
-python -c "from pyfes.projects import run_waveguide; run_waveguide()"
+python -c "from fes.projects import run_waveguide; run_waveguide()"
 ```
 
 ### DNN-GP surrogate model
 
 ```python
-from pyfes.projects import bilateral_filter_dnngp
+from fes.projects import bilateral_filter_dnngp
 
 # Train from pre-generated .mat data (50 epsr x 81 freq)
 model, metrics = bilateral_filter_dnngp(
@@ -57,14 +57,14 @@ X_new = np.column_stack([np.full(81, 2.15),
 s11_pred, s21_pred = model.predict(X_new)
 
 # Load a saved checkpoint
-from pyfes.projects.filter_dnngp import BilateralFilterDNNGP
+from fes.projects.filter_dnngp import BilateralFilterDNNGP
 model = BilateralFilterDNNGP().load("bilat_dnngp.pt")
 ```
 
 ### Adaptive LHS — automatic convergence
 
 ```python
-from pyfes.projects import adaptive_lhs_bilateral_filter
+from fes.projects import adaptive_lhs_bilateral_filter
 
 # Starts with 5 LHS epsr values, adds 5 per iteration,
 # stops when both S11 and S21 relative error < 1%
@@ -150,20 +150,20 @@ Default Triangle arguments: `q34A` (quality mesh, 34° min angle, region attribu
 
 | Path | Description |
 |---|---|
-| `pyfes/constants.py` | Physical constants (c₀, Z₀, ε₀, μ₀) |
-| `pyfes/fem/shape_functions.py` | Scalar Lagrange (orders 1–4), H(curl) vector basis |
-| `pyfes/fem/quadrature.py` | Gauss–Legendre on [0,1] and Duffy-transformed simplices |
-| `pyfes/fem/jacobian.py` | Jacobian determinant / inverse transpose for triangles |
-| `pyfes/fem/dof.py` | Global DOF numbering and hierarchical basis indices |
-| `pyfes/fem/boundary.py` | Boundary DOF maps for domain decomposition |
-| `pyfes/fem/assembly.py` | S/T/St/Tt/G matrix assembly, waveguide ports, BCs |
-| `pyfes/fem/harmonic_balance.py` | Harmonic balance (Kerr nonlinearity, ferrite) |
-| `pyfes/mesh/io_poly.py` | Triangle .poly I/O and .h1.mat reader (MATLAB v5 format) |
-| `pyfes/mesh/build.py` | Regular triangular meshes on the unit square |
-| `pyfes/mesh/plot.py` | Matplotlib mesh / geometry plotting |
-| `pyfes/post/plot.py` | pyVista-based in-process field rendering |
-| `pyfes/projects/` | Simulation examples (19 projects) |
-| `pyfes/projects/filter_dnngp.py` | DNN-GP surrogate model (GPyTorch) |
+| `fes/constants.py` | Physical constants (c₀, Z₀, ε₀, μ₀) |
+| `fes/core/shape_functions.py` | Scalar Lagrange (orders 1–4), H(curl) vector basis |
+| `fes/core/quadrature.py` | Gauss–Legendre on [0,1] and Duffy-transformed simplices |
+| `fes/core/jacobian.py` | Jacobian determinant / inverse transpose for triangles |
+| `fes/core/dof.py` | Global DOF numbering and hierarchical basis indices |
+| `fes/core/boundary.py` | Boundary DOF maps for domain decomposition |
+| `fes/core/assembly.py` | S/T/St/Tt/G matrix assembly, waveguide ports, BCs |
+| `fes/core/harmonic_balance.py` | Harmonic balance (Kerr nonlinearity, ferrite) |
+| `fes/mesh/io_poly.py` | Triangle .poly I/O and .h1.mat reader (MATLAB v5 format) |
+| `fes/mesh/build.py` | Regular triangular meshes on the unit square |
+| `fes/mesh/plot.py` | Matplotlib mesh / geometry plotting |
+| `fes/post/plot.py` | pyVista-based in-process field rendering |
+| `fes/projects/` | Simulation examples (19 projects) |
+| `fes/projects/filter_dnngp.py` | DNN-GP surrogate model (GPyTorch) |
 | `iormesh/` | C mesher (Triangle wrapper, MATLAB .mat exporter) |
 | `../data/` | Shared `.poly` geometry + `.h1.mat` mesh caches (see top-level `data/`) |
 | `tests/` | pytest suite |

@@ -20,10 +20,10 @@ pyFES — Python Finite Element Software for electromagnetics.
 - Single test: `python -m pytest tests/test_core.py::TestShapeFunctions::test_2d_linear -v`
 
 ### Projects
-- Bilateral filter (FEM): `python -c "from pyfes.projects import bilateral_filter; bilateral_filter()"`
-- DNN-GP surrogate: `python -c "from pyfes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp(mat_file='bilat_all_sparams_50epsr.mat')"`
-- DNN-GP plot: `python -c "from pyfes.projects import plot_surrogate; plot_surrogate()"`
-- Waveguide: `python -c "from pyfes.projects import run_waveguide; run_waveguide()"`
+- Bilateral filter (FEM): `python -c "from fes.projects import bilateral_filter; bilateral_filter()"`
+- DNN-GP surrogate: `python -c "from fes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp(mat_file='bilat_all_sparams_50epsr.mat')"`
+- DNN-GP plot: `python -c "from fes.projects import plot_surrogate; plot_surrogate()"`
+- Waveguide: `python -c "from fes.projects import run_waveguide; run_waveguide()"`
 
 ### Venv
 - Activate: `source .venv/bin/activate`
@@ -31,7 +31,7 @@ pyFES — Python Finite Element Software for electromagnetics.
 
 ## Architecture
 
-### FEM core (`pyfes/fem/`)
+### FEM core (`fes/core/`)
 | Module | Description |
 |---|---|
 | `shape_functions.py` | Scalar Lagrange (orders 1–4), H(curl) vector basis, DOF counting |
@@ -42,19 +42,19 @@ pyFES — Python Finite Element Software for electromagnetics.
 | `assembly.py` | System matrix assembly (S/T/St/Tt/G), waveguide ports, BCs |
 | `harmonic_balance.py` | Harmonic balance (Kerr nonlinearity, ferrite) |
 
-### Mesh (`pyfes/mesh/`)
+### Mesh (`fes/mesh/`)
 | Module | Description |
 |---|---|
 | `io_poly.py` | Read Triangle .poly meshes, write .poly geometry files |
 | `build.py` | Regular triangular meshes on the unit square |
 | `plot.py` | Matplotlib mesh / geometry plotting |
 
-### Post-processing (`pyfes/post/`)
+### Post-processing (`fes/post/`)
 | Module | Description |
 |---|---|
 | `plot.py` | pyVista-based in-process field rendering |
 
-### Projects (`pyfes/projects/`)
+### Projects (`fes/projects/`)
 | Module | Description |
 |---|---|
 | `filter_design.py` | Waveguide filter scattering (bilateral, two-post, HB) |
@@ -70,7 +70,7 @@ pyFES — Python Finite Element Software for electromagnetics.
 ### Other
 | Path | Description |
 |---|---|
-| `pyfes/constants.py` | Physical constants (c0, z0, eps0, mu0), dB/phase utilities |
+| `fes/constants.py` | Physical constants (c0, z0, eps0, mu0), dB/phase utilities |
 | `../data/` | Shared .poly geometry + .h1.mat mesh caches (top-level data/) |
 | `iormesh/` | C mesher (Triangle wrapper, MAT .mat exporter) |
 

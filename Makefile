@@ -70,8 +70,8 @@ PY_VENV := py/.venv
 
 help-py:
 	@echo "=== Python backend (py/) ==="
-	@echo "  make py-setup    Create .venv and install pyfes package"
-	@echo "  make py-test     Run pytest on pyfes"
+	@echo "  make py-setup    Create .venv and install fes package"
+	@echo "  make py-test     Run pytest on fes"
 	@echo ""
 
 py-setup:

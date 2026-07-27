@@ -1,13 +1,13 @@
 """Tests for core pyFES utilities."""
 
 import numpy as np
-from pyfes.constants import get_constants
-from pyfes.fem.shape_functions import (
+from fes.constants import get_constants
+from fes.core.shape_functions import (
     get_shape_functions, calc_order_mat_size
 )
-from pyfes.fem.jacobian import jacobian_2d
-from pyfes.fem.quadrature import simplex_quad
-from pyfes.fem.dof import calc_dofs_number, calc_glob_index, calc_order_mat_size as dof_mat_size
+from fes.core.jacobian import jacobian_2d
+from fes.core.quadrature import simplex_quad
+from fes.core.dof import calc_dofs_number, calc_glob_index, calc_order_mat_size as dof_mat_size
 
 
 class TestConstants:
@@ -134,7 +134,7 @@ class TestQuadrature:
 
 class TestMesh:
     def test_regular_square_mesh(self):
-        from pyfes.mesh.build import build_regular_square
+        from fes.mesh.build import build_regular_square
         mesh = build_regular_square(4, 4)
         assert mesh["NNODE"] == 16
         assert mesh["NELE"] == 18  # 2 * 3 * 3
@@ -145,7 +145,7 @@ class TestMesh:
         assert mesh["spig2"].shape[1] == 2
 
     def test_build_mesh_connectivity(self):
-        from pyfes.mesh.build import build_regular_square
+        from fes.mesh.build import build_regular_square
         mesh = build_regular_square(3, 3)
         # All elements should be triangles (3 nodes each)
         assert np.all(mesh["ele"].shape[1] == 3)
@@ -157,7 +157,7 @@ class TestMesh:
 
 class TestDof:
     def test_glob_index_2d_p1(self):
-        from pyfes.mesh.build import build_regular_square
+        from fes.mesh.build import build_regular_square
         mesh = build_regular_square(3, 3)
         gIs, gIv = calc_glob_index(2, 1, mesh, 0)
         assert len(gIs) == 3  # 3 nodes per element

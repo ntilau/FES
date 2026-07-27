@@ -17,8 +17,8 @@ function Mesh = IOrPoly(filename, args, hOrd, scal)
 %   -A  Applies attributes to identify triangles in certain regions.
 %   -o2 Generates second-order subparametric elements.
 tic
-system(['cd FEpre/iormesh-src && ./IOrMesh ../', filename, ' ', args]);
-load(['FEpre/', filename, '.h', num2str(hOrd), '.mat']);
+system(['cd fes/mesh/iormesh-src && ./IOrMesh ../', filename, ' ', args]);
+load(['fes/mesh/', filename, '.h', num2str(hOrd), '.mat']);
 Mesh.node = node * scal;
 Mesh.ele = ele;
 Mesh.spig = spig;

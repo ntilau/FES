@@ -1,5 +1,5 @@
 %% Config - Initialize paths and logging
-% Directory layout: fem/ (assembly), mesh/ (mesh I/O + IGES + iormesh-src),
+% Directory layout: fes/ (assembly), mesh/ (mesh I/O + IGES + iormesh-src),
 %                   post/ (VTK export), projects/ (drivers), tests/ (test scripts).
 function Config()
     addpath(genpath('.'));

@@ -3,19 +3,20 @@
 # IOrMesh : 2D mesh interface tool for MATLAB (Triangle wrapper)
 #   (c) Laurent Ntibarikure
 #
-# Directory layout:
-#   fem/       — assembly routines
-#   mesh/      — mesh I/O, geometry writers, IGES/, iormesh-src/
-#   post/      — VTK field export
-#   tests/     — project drivers (FEM test cases, was m/ root Project*.m)
-#   extras/    — standalone / debug / DD / NL test scripts (was Tests/)
+# Directory layout (mirrors py/):
+#   fes/       — package root
+#     core/      — assembly routines
+#     mesh/      — mesh I/O, geometry writers, IGES/, iormesh-src/
+#     post/      — VTK field export
+#     projects/  — project drivers (FEM test cases)
+#   tests/     — standalone / debug / DD / NL test scripts
 #
 # Targets:
 #   make IOrMesh     Build mesh generator (C++/C)
 #   make triangle    Build Triangle library binary (called by IOrMesh)
 #   make all         Build both
 #   make test        Run all project-based FEM test cases
-#   make extras      Run standalone test scripts
+#   make tests       Run standalone test scripts
 #   make clean       Remove build artifacts
 
 CXX      ?= g++
@@ -23,8 +24,8 @@ CC       ?= gcc
 CFLAGS   ?= -Wall -O3 -ffast-math -march=native -Wno-deprecated
 LDFLAGS  ?=
 
-IORMESH_DIR = mesh/iormesh-src
-IORMESH_BIN = mesh/iormesh-src/IOrMesh
+IORMESH_DIR = fes/mesh/iormesh-src
+IORMESH_BIN = fes/mesh/iormesh-src/IOrMesh
 
 # ─── IOrMesh (mesh generator) ─────────────────────────────────────────
 # Note: macOS APFS is case-insensitive; avoid name collision between
@@ -52,9 +53,9 @@ all: IOrMesh triangle
 
 # ─── Install ────────────────────────────────────────────────────────────
 install: IOrMesh triangle
-	cp $(IORMESH_BIN) mesh/IOrMesh
-	cp $(IORMESH_DIR)/triangle mesh/
-	@echo 'Installed: mesh/IOrMesh  mesh/triangle'
+	cp $(IORMESH_BIN) fes/mesh/IOrMesh
+	cp $(IORMESH_DIR)/triangle fes/mesh/
+	@echo 'Installed: fes/mesh/IOrMesh  fes/mesh/triangle'
 
 # ─── MATLAB / Octave helpers ──────────────────────────────────────────
 MATLAB   ?= matlab
@@ -96,23 +97,23 @@ DD_EXTRAS = Accuracy Convergence ConvergenceDD ConvergenceDDref \
 
 test: $(TESTS:%=test-%)
 
-test-%: tests/%.m
+test-%: fes/projects/%.m
 	$(call run_m, $*)
 
-extras: $(EXTRAS:%=extras-%)
+tests: $(EXTRAS:%=tests-%)
 
-extras-%: extras/%.m
+tests-%: tests/%.m
 	$(call run_m, $*)
 
-extras-dd: $(DD_EXTRAS:%=extras-dd-%)
+tests-dd: $(DD_EXTRAS:%=tests-dd-%)
 
-extras-dd-%: extras/DD/%.m
-	$(call run_m, cd extras/DD; $*)
+tests-dd-%: tests/DD/%.m
+	$(call run_m, cd tests/DD; $*)
 
-extras-nl:
+tests-nl:
 
-extras-nl-%: extras/NL/%.m
-	$(call run_m, cd extras/NL; $*)
+tests-nl-%: tests/NL/%.m
+	$(call run_m, cd tests/NL; $*)
 
 # ─── Run arbitrary MATLAB file ─────────────────────────────────────────
 run:
@@ -124,14 +125,14 @@ endif
 # ─── Clean ──────────────────────────────────────────────────────────────
 clean:
 	rm -f $(IORMESH_BIN) $(IORMESH_DIR)/triangle
-	rm -f mesh/IOrMesh mesh/triangle
+	rm -f fes/mesh/IOrMesh fes/mesh/triangle
 	rm -f $(IORMESH_DIR)/*.o $(IORMESH_DIR)/obj/*.o
 	rm -f *.asv *~ *.log *.mat
-	rm -f fem/*.asv mesh/*.asv post/*.asv
-	rm -f tests/*.asv extras/*.asv extras/DD/*.asv extras/NL/*.asv
+	rm -f fes/core/*.asv fes/mesh/*.asv fes/post/*.asv
+	rm -f fes/projects/*.asv tests/*.asv tests/DD/*.asv tests/NL/*.asv
 
 distclean: clean
 	rm -f octave-workspace
 
 .PHONY: all install clean distclean IOrMesh triangle \
-        test extras extras-dd extras-nl run
+        test tests tests-dd tests-nl run

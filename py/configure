@@ -46,7 +46,7 @@ esac
 # 3. Verify
 echo "Verifying installation ..."
 "$VENV/bin/python" -c "
-from pyfes import constants
+from fes import constants
 print(f'pyFES OK')
 try:
     import torch; print(f'  torch {torch.__version__}')
@@ -70,7 +70,7 @@ echo "Python:      $PYVER"
 echo "Package:     pyFES 0.2.0"
 echo ""
 echo "Quick test:  $VENV/bin/python -m pytest tests/ -v"
-echo "Run FDFD:    $VENV/bin/python -c 'from pyfes.projects import run_waveguide; run_waveguide()'"
-echo "Run DNN-GP:  $VENV/bin/python -c 'from pyfes.projects import bilateral_filter_dnngp; print(\"import OK\")'"
+echo "Run FDFD:    $VENV/bin/python -c 'from fes.projects import run_waveguide; run_waveguide()'"
+echo "Run DNN-GP:  $VENV/bin/python -c 'from fes.projects import bilateral_filter_dnngp; print(\"import OK\")'"
 echo ""
 echo "=== done ==="
