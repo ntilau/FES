@@ -3,11 +3,19 @@
 # IOrMesh : 2D mesh interface tool for MATLAB (Triangle wrapper)
 #   (c) Laurent Ntibarikure
 #
+# Directory layout:
+#   fem/       — assembly routines
+#   mesh/      — mesh I/O, geometry writers, IGES/, iormesh-src/
+#   post/      — VTK field export
+#   tests/     — project drivers (FEM test cases, was m/ root Project*.m)
+#   extras/    — standalone / debug / DD / NL test scripts (was Tests/)
+#
 # Targets:
 #   make IOrMesh     Build mesh generator (C++/C)
 #   make triangle    Build Triangle library binary (called by IOrMesh)
 #   make all         Build both
-#   make test        Run MATLAB/Octave tests
+#   make test        Run all project-based FEM test cases
+#   make extras      Run standalone test scripts
 #   make clean       Remove build artifacts
 
 CXX      ?= g++
@@ -63,7 +71,7 @@ define run_m
 endef
 endif
 
-PROJECTS  = ProjectElectrostatics ProjectModalAnalysis \
+TESTS     = ProjectElectrostatics ProjectModalAnalysis \
             ProjectModalAnalysisOpenStrip ProjectThermalDistro \
             ProjectThermalDistroDG ProjectCapacitiveClearance \
             ProjectCapacitiveClearanceCorrelated ProjectWaveGuide \
@@ -78,9 +86,9 @@ PROJECTS  = ProjectElectrostatics ProjectModalAnalysis \
             ProjectCableParassitics ProjectCoaxWideband ProjectNewDDscattering \
             ProjectScatteringFloquet
 
-TESTS     = fem1ode TestCoupling TestCouplingGeneric ThermalFE EntCirc
+EXTRAS    = fem1ode TestCoupling TestCouplingGeneric ThermalFE EntCirc
 
-DD_TESTS  = Accuracy Convergence ConvergenceDD ConvergenceDDref \
+DD_EXTRAS = Accuracy Convergence ConvergenceDD ConvergenceDDref \
             DDfreq FETI Horn Miller WR90 CPWlin CheckSys CheckSysDD \
             CheckSysFE CheckSysGMRES SolversComparison TestBoeing \
             TestEfficient TestHgrad TestInv TestSchur AccuracyDDWEEP \
@@ -91,22 +99,20 @@ test: $(TESTS:%=test-%)
 test-%: tests/%.m
 	$(call run_m, $*)
 
-test-all: test test-dd
+extras: $(EXTRAS:%=extras-%)
 
-test-dd: $(DD_TESTS:%=test-dd-%)
-
-test-dd-%: tests/DD/%.m
-	$(call run_m, cd tests/DD; $*)
-
-test-nl: test-nl-FerriteTensor
-
-test-nl-%: tests/NL/%.m
-	$(call run_m, cd tests/NL; $*)
-
-projects: $(PROJECTS:%=project-%)
-
-project-%: projects/%.m
+extras-%: extras/%.m
 	$(call run_m, $*)
+
+extras-dd: $(DD_EXTRAS:%=extras-dd-%)
+
+extras-dd-%: extras/DD/%.m
+	$(call run_m, cd extras/DD; $*)
+
+extras-nl:
+
+extras-nl-%: extras/NL/%.m
+	$(call run_m, cd extras/NL; $*)
 
 # ─── Run arbitrary MATLAB file ─────────────────────────────────────────
 run:
@@ -122,10 +128,10 @@ clean:
 	rm -f $(IORMESH_DIR)/*.o $(IORMESH_DIR)/obj/*.o
 	rm -f *.asv *~ *.log *.mat
 	rm -f fem/*.asv mesh/*.asv post/*.asv
-	rm -f tests/*.asv tests/DD/*.asv tests/NL/*.asv
+	rm -f tests/*.asv extras/*.asv extras/DD/*.asv extras/NL/*.asv
 
 distclean: clean
 	rm -f octave-workspace
 
 .PHONY: all install clean distclean IOrMesh triangle \
-        test test-all test-dd test-nl projects run
+        test extras extras-dd extras-nl run

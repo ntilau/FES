@@ -48,8 +48,8 @@ cd py && .venv/bin/python -c "from pyfes.projects import run_waveguide; run_wave
 
 ```bash
 make m-build        # build IOrMesh and Triangle mesh tools (or: cd m && make all)
-make m-test         # run MATLAB/Octave tests
-make m-projects     # run all project scripts
+make m-test         # run all FEM project test cases (m/tests/)
+make m-projects     # (removed — use make m-test instead)
 ```
 
 ### Setup
@@ -210,11 +210,13 @@ m/
 ├── post/               # Post-processing
 │   ├── IOwVTK.m            VTK field export
 │   └── IOwVTKH.m           VTK H-field export
-├── tests/              # Test and debug scripts
+├── tests/              # FEM project drivers (was Project*.m at root)
+│   └── Project*.m          27 end-to-end test cases
+├── extras/             # Standalone / debug / DD / NL test scripts
 │   ├── DD/                 Domain decomposition tests
 │   ├── NL/                 Nonlinear tests
-│   └── _Matlab/            Internal debug scripts
-├── projects/           # 27 project drivers (was m/ root)
+│   ├── _Matlab/            Internal debug scripts
+│   └── ...                 22 standalone scripts
 └── Config.m            # Path setup (addpath(genpath('.')))
 ```
 
