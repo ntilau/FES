@@ -89,7 +89,7 @@ help-m:
 	@echo "=== MATLAB backend (m/) ==="
 	@echo "  make m-build     Build IOrMesh and Triangle (mesh tools)"
 	@echo "  make m-test      Run all FEM test cases (Project*.m in tests/)"
-	@echo "  make m-extras    Run standalone/DD test scripts (extras/)"
+	@echo "  make m-tests     Run standalone/DD test scripts (tests/)"
 	@echo ""
 
 m-build:
@@ -98,5 +98,5 @@ m-build:
 m-test:
 	$(MAKE) -C m test
 
-m-extras:
-	$(MAKE) -C m extras
+m-tests:
+	$(MAKE) -C m tests
