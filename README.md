@@ -1,4 +1,4 @@
-# FES — Finite Element Solver
+# FES — Finite Element Software
 
 [![build](https://github.com/ntilau/FES/actions/workflows/build.yml/badge.svg)](https://github.com/ntilau/FES/actions/workflows/build.yml)
 
