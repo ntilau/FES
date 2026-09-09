@@ -9,10 +9,10 @@ from scipy import sparse
 
 from ..mesh.io_poly import read_poly
 from ..mesh.build import build_regular_square
-from ..fem.assembly import (
+from ..core.assembly import (
     assemble_linear, assemble_waveguide_port, assemble_domain_decomposition
 )
-from ..fem.harmonic_balance import assemble_hb_ferrite, assemble_wp_hb
+from ..core.harmonic_balance import assemble_hb_ferrite, assemble_wp_hb
 from ..post.plot import plot_field
 from ._utils import scattering_parameters, reconstruct_wp_field
 
@@ -115,7 +115,7 @@ def circulator_ddschur(freq=10e9, plot=False):
     sys : dict
         System with solution field.
     """
-    from ..fem.boundary import get_bnd_map
+    from ..core.boundary import get_bnd_map
 
     sys = {"pOrd": 1, "hOrd": 1}
     mesh = read_poly("CircKoshiba26_5", data_dir="../data", scale=1e-3)

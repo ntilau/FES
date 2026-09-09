@@ -8,7 +8,7 @@ import numpy as np
 from ..constants import get_constants
 from ..mesh.io_poly import read_poly
 from scipy import sparse
-from ..fem.assembly import assemble_linear, assemble_waveguide_port
+from ..core.assembly import assemble_linear, assemble_waveguide_port
 from ..post.plot import plot_field
 
 

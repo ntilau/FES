@@ -17,6 +17,10 @@ cpp/*
 !cpp/include/**
 !cpp/src/
 !cpp/src/**
+m/fes/mesh/iormesh-src/IOrMesh
+m/fes/mesh/iormesh-src/triangle
+m/fes/mesh/iormesh-src/*.o
+m/fes/mesh/iormesh-src/*.a
 *.png
 *.jpg
 tools/__pycache__/

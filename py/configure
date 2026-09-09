@@ -24,22 +24,22 @@ if [ ! -d "$VENV" ]; then
 fi
 
 echo "Installing package + dependencies ..."
-"$VENV/bin/pip" install --quiet --upgrade pip
-"$VENV/bin/pip" install --quiet -e "$HERE[viz]"
-"$VENV/bin/pip" install --quiet pytest
+"$VENV/bin/pip3" install --quiet --upgrade pip
+"$VENV/bin/pip3" install --quiet -e "$HERE[viz]"
+"$VENV/bin/pip3" install --quiet pytest
 
 # 2. Optional extras
 case "$MODE" in
     --dev)
         echo "Installing ML / DNN-GP dependencies ..."
-        "$VENV/bin/pip" install --quiet torch gpytorch scikit-learn
+        "$VENV/bin/pip3" install --quiet torch gpytorch scikit-learn
         ;;
     --minimal)
         echo "Skipping ML dependencies (FEM-only mode)."
         ;;
     *)
         echo "Installing ML / DNN-GP dependencies ..."
-        "$VENV/bin/pip" install --quiet torch gpytorch scikit-learn
+        "$VENV/bin/pip3" install --quiet torch gpytorch scikit-learn
         ;;
 esac
 

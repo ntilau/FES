@@ -9,7 +9,7 @@ from scipy import sparse
 from scipy.sparse.linalg import spsolve
 
 from ..mesh.io_poly import read_poly
-from ..fem.assembly import assemble_linear, assemble_domain_decomposition
+from ..core.assembly import assemble_linear, assemble_domain_decomposition
 from ..post.plot import plot_field
 from ._utils import apply_dirichlet_bc
 

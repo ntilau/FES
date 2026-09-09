@@ -10,7 +10,7 @@ from scipy.sparse.linalg import spsolve
 from ..constants import get_constants
 from ..mesh.io_poly import read_poly
 from ..mesh.plot import plot_mesh
-from ..fem.assembly import assemble_linear
+from ..core.assembly import assemble_linear
 from ..post.plot import plot_field
 
 

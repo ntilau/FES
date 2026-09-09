@@ -9,7 +9,7 @@ from scipy.sparse.linalg import eigs
 from ..constants import get_constants
 from ..mesh.build import build_regular_square
 from ..mesh.io_poly import read_poly
-from ..fem.assembly import assemble_linear
+from ..core.assembly import assemble_linear
 from ..post.plot import plot_field
 
 

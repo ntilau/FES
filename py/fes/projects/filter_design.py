@@ -8,9 +8,9 @@ import numpy as np
 from scipy import sparse
 
 from ..mesh.io_poly import read_poly
-from ..fem.assembly import assemble_linear, assemble_waveguide_port
-from ..fem.dof import calc_dofs_number
-from ..fem.harmonic_balance import assemble_hb, assemble_wp_hb
+from ..core.assembly import assemble_linear, assemble_waveguide_port
+from ..core.dof import calc_dofs_number
+from ..core.harmonic_balance import assemble_hb, assemble_wp_hb
 from ..post.plot import plot_field
 from ._utils import scattering_parameters, reconstruct_wp_field
 

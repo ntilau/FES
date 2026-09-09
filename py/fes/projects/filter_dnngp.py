@@ -18,7 +18,7 @@ import torch
 import gpytorch
 
 from ..mesh.io_poly import read_poly
-from ..fem.assembly import assemble_linear, assemble_waveguide_port
+from ..core.assembly import assemble_linear, assemble_waveguide_port
 from ..projects._utils import scattering_parameters
 
 # ──────────────────────────────────────────────
