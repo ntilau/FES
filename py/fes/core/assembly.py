@@ -304,13 +304,14 @@ def assemble_linear(sys, mesh):
     # Boundary conditions
     # ================================================================
 
-    # Absorbing boundary condition
+    # Absorbing boundary condition (ABC)
     if flag_abc:
         ids_abc = sys.get("idsABC", [])
         if len(ids_abc) > 0:
-            k = sys.get("k", 1.0)
-            k_einc = sys.get("kEinc", np.array([0.0, 0.0]))
+            k = sys.get("k", 1.0)  # Wavenumber
+            k_einc = sys.get("kEinc", np.array([0.0, 0.0]))  # Incident wave direction
             ref_node = mesh.get("refNode", np.zeros((ndofs, 3)))
+            # Calculate incident field excitation vector
             sys["fsEinc"] = np.exp(
                 -1j * k * (ref_node[:, :2] @ k_einc)
             )
@@ -322,7 +323,9 @@ def assemble_linear(sys, mesh):
             xx_abc = np.zeros(max_entries)
             is_abc = 0
 
+            # Loop through all elements to assemble ABC contributions
             for ie in range(n_ele):
+                # Check which edges of this element are on ABC boundaries
                 on_abc = np.array([
                     np.sum(np.abs(mesh["spig"][ie, 0]) == ids_abc),
                     np.sum(np.abs(mesh["spig"][ie, 1]) == ids_abc),
@@ -334,13 +337,16 @@ def assemble_linear(sys, mesh):
                         spig_id = mesh["spig"][ie, i]
                         node_id = mesh["spig2"][abs(spig_id) - 1, :]
                         int_node = mesh["ele"][ie, :]
+                        # Get the node opposite to this edge
                         int_node = int_node[
                             (int_node != node_id[0]) & (int_node != node_id[1])
                         ][0]
 
+                        # Get global DoF indices for this edge
                         gIs = calc_glob_index(1, p_ord, mesh, ie, i + 1)[0]
-                        gIs_0 = gIs - 1
+                        gIs_0 = gIs - 1  # Convert to 0-based indexing
 
+                        # Calculate edge length and normal vector
                         l_vec = np.diff(mesh["node"][node_id, :], axis=0).ravel()
                         l = np.linalg.norm(l_vec)
 
@@ -356,10 +362,12 @@ def assemble_linear(sys, mesh):
                         )[:2]
                         n_vec = n_vec / np.linalg.norm(n_vec)
 
+                        # Assemble boundary condition matrix (TrBC) and vector (frBC)
                         TrBC = np.zeros((p_ord + 1, p_ord + 1))
                         for iq in range(len(wq1)):
                             TrBC += l * np.outer(ns1[iq], ns1[iq]) * wq1[iq]
 
+                        # Prepare coordinates for integration
                         rho = np.column_stack([
                             mesh["node"][node_id[0], :]
                             + np.outer(xq1.ravel(), l_vec),
@@ -369,6 +377,7 @@ def assemble_linear(sys, mesh):
                         k_einc_3d = np.append(k_einc, 0)
                         n_3d = np.append(n_vec, 0)
 
+                        # Calculate incident field contribution
                         Inc = (np.dot(v, v - np.cross(n_3d, np.cross(k_einc_3d, v)))
                                * np.exp(-1j * k * np.dot(
                                    rho[:, :2], k_einc
@@ -378,6 +387,7 @@ def assemble_linear(sys, mesh):
                         for iq in range(len(wq1)):
                             frBC += l * ns1[iq] * Inc[iq] * wq1[iq]
 
+                        # Add contributions to global matrices
                         entries = (p_ord + 1)**2
                         for j in range(p_ord + 1):
                             for kk in range(p_ord + 1):
@@ -387,15 +397,17 @@ def assemble_linear(sys, mesh):
                                 xx_abc[idx] = TrBC[j, kk]
                         is_abc += entries
 
+                        # Add to RHS vector
                         sys["fs"][gIs_0] += frBC
 
+            # Trim arrays to actual size and create sparse matrix
             ii_abc = ii_abc[:is_abc]
             jj_abc = jj_abc[:is_abc]
             xx_abc = xx_abc[:is_abc]
             sys["ABC"] = sparse.csr_matrix(
                 (xx_abc, (ii_abc, jj_abc)), shape=(ndofs, ndofs)
             )
-            sys["DirABC"] = np.unique(ii_abc)
+            sys["DirABC"] = np.unique(ii_abc)  # Dirichlet-like DoFs for ABC
 
     # Domain decomposition boundary condition
     if flag_dd:

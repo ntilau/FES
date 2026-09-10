@@ -169,6 +169,7 @@ void option::apply_cli()
 {
     if(cli_override.empty()) return;
 
+    // Helper lambdas for checking and retrieving override values
     auto ov = [&](const std::string& key) -> bool {
         return cli_override.find(key) != cli_override.end();
     };
@@ -185,11 +186,14 @@ void option::apply_cli()
         try { return (size_t)std::stoull(cli_override[key]); } catch(...) { return 0; }
     };
 
+    // ============================================================
+    // Solver and formulation selection
+    // ============================================================
     if(ov("solver"))    solver    = solver_type_from_name(getS("solver"));
     if(ov("formula"))  assembly  = formula_type_from_name(getS("formula"));
     if(ov("assembly"))  assembly  = assemb_type_from_name(getS("assembly"));
 
-    // Shorthand: +em_e_fd, +em_ez_fd, +em_e_tl_eig, etc.
+    // Shorthand flags: +em_e_fd, +em_ez_fd, etc. (override formula/assembly)
     if(ov("em_e_fd"))     assembly = em_e_fd;
     if(ov("em_e_fd_dd"))  assembly = em_e_fd_dd;
     if(ov("em_e_fd_nl"))  assembly = em_e_fd_nl;
@@ -198,6 +202,9 @@ void option::apply_cli()
     if(ov("em_ez_fd"))    assembly = em_ez_fd;
     if(ov("em_e_tl_eig")) assembly = em_e_tl_eig;
 
+    // ============================================================
+    // Boolean flags
+    // ============================================================
     if(ov("dbg"))        dbg        = getB("dbg");
     if(ov("dbl"))        dbl        = getB("dbl");
     if(ov("einc"))       einc       = getB("einc");
@@ -208,6 +215,10 @@ void option::apply_cli()
     if(ov("dds"))        dds        = getB("dds");
     if(ov("nl"))         nl         = getB("nl");
     if(ov("n_jor_gs"))   n_jor_gs     = getB("n_jor_gs");
+
+    // ============================================================
+    // Numeric parameters
+    // ============================================================
     if(ov("n_dd"))       n_dd        = getI("n_dd");
     if(ov("niter"))      niter      = getI("niter");
     if(ov("h_ord"))      h_ord       = getI("h_ord");
@@ -224,9 +235,15 @@ void option::apply_cli()
     if(ov("n_phi"))      n_phi       = getD("n_phi");
     if(ov("power"))      power      = getD("power");
 
+    // ============================================================
+    // String parameters
+    // ============================================================
     if(ov("poly_cmd"))   poly_cmd    = getS("poly_cmd");
     if(ov("href_cmd"))   href_cmd    = getS("href_cmd");
 
+    // ============================================================
+    // Incident plane wave parameters (+einc Ex Ey Ez kx ky kz)
+    // ============================================================
     if(ov("Ex")) { einc = true; E[0] = getD("Ex"); }
     if(ov("Ey")) { einc = true; E[1] = getD("Ey"); }
     if(ov("Ez")) { einc = true; E[2] = getD("Ez"); }
@@ -234,7 +251,10 @@ void option::apply_cli()
     if(ov("ky")) { einc = true; k[1] = getD("ky"); }
     if(ov("kz")) { einc = true; k[2] = getD("kz"); }
 
-    // volt: prefix keys → Vbnd map (one per +volt <boundary> <voltage> CLI arg)
+    // ============================================================
+    // Voltage boundary conditions (+volt <boundary> <voltage>)
+    // Stored as volt:<boundary> -> <voltage> in cli_override
+    // ============================================================
     for(const auto& kv : cli_override) {
         if(kv.first.compare(0, 5, "volt:") == 0) {
             try { Vbnd[kv.first.substr(5)] = std::stod(kv.second); }
