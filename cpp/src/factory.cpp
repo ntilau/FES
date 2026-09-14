@@ -256,6 +256,13 @@ size_t assembler::compute_waveport_modes(
             std::cout << shift << std::endl;
             eigen ceigen(tmpA, tmpB, numt, numz, shift, bc->num_modes);
             bc->mode_beta = ceigen.mode_beta;
+            // Sort eigenvalues by |beta| descending (since lambda = beta^2, |lambda| = |beta|^2, so same order)
+            arma::cx_vec eval = bc->mode_beta;
+            arma::uvec idx = arma::sort_index(arma::abs(eval), "descend");
+            bc->mode_beta = eval(idx);
+            // Rearrange eigenvectors accordingly
+            arma::cx_mat evecs = ceigen.mode_vec;
+            ceigen.mode_vec = evecs.cols(idx);
             for(int i=0; i<bc->num_modes; i++)
                 std::cout << bc->mode_beta(i);
 
