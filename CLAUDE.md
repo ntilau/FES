@@ -1,8 +1,34 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Quick Start
+
+### Build and Test
+
+- **C++ backend (primary)**:
+  - `make build` - compile the C++ solver
+  - `make test` - run all model mesh checks
+  - `make <model>` - run a specific model (e.g., `make WR90`)
+
+- **Python backend**:
+  - `make py-setup` - set up the Python environment
+  - `make py-test` - run Python tests
+
+- **MATLAB backend**:
+  - `make m-build` - build MATLAB mesh tools
+  - `make m-test` - run MATLAB test cases
+
+### Common Commands
+
+- `./setup` - install all dependencies (C++, Python, MATLAB)
+- `./setup --py` - Python only
+- `./setup --m` - MATLAB only
+- `./setup --compiler` - C++ dependencies only
 
 ## Overview
+
+Guidance for Claude Code when working with this repository.
 
 This repo has three independent FEM solver implementations sharing model files in `data/`:
 
@@ -176,7 +202,7 @@ py/
 │       └── _utils.py           # Shared helper functions
 ├── iormesh/             # C mesher (Triangle wrapper) — builds binary
 ├── tests/               # pytest suite
-├── setup.py             # pip installable package
+├── setup.py             # pip-installable package
 └── configure            # venv setup script
 ```
 
