@@ -189,6 +189,8 @@ This pipeline is implemented independently in each backend:
 - **OOP architecture** — polymorphic assembly (`assembler` base), strategy-pattern solvers (`solver` base)
 - **Sparse matrices** — `arma::SpMat<complex<double>>` (C++), `scipy.sparse.csr` (Python)
 
+- **Deterministic waveport mode ordering** — eigenmodes sorted by propagation constant magnitude for reproducible output
+
 ### .poly file format
 
 Standard TetGen PLC sections (nodes, facets, holes, regions) plus custom trailing sections:
