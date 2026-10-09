@@ -6,6 +6,28 @@ FES is a 2D/3D finite element solver for computational electromagnetics based on
 with H(curl) conforming elements. It supports S-parameter extraction, eigenmode analysis,
 electrostatics, and nonlinear Kerr materials.
 
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| **Install all dependencies** | `./setup` |
+| **Install Python backend only** | `./setup --py` |
+| **Install MATLAB backend only** | `./setup --m` |
+| **Install C++ dependencies only** | `./setup --compiler` |
+| **Build C++ solver** | `make build` |
+| **Run all C++ model tests** | `make test` |
+| **Run a specific C++ model** | `make <model>` (e.g., `make WR90`) |
+| **Set up Python environment** | `make py-setup` |
+| **Run Python tests** | `make py-test` |
+| **Build MATLAB mesh tools** | `make m-build` |
+| **Run MATLAB test cases** | `make m-test` |
+| **Run MATLAB standalone scripts** | `make m-tests` |
+| **Run C++ binary directly** | `./cpp/build/fes <model> <freq> [options]` |
+| **Run Python project example** | `cd py && .venv/bin/python -c "from fes.projects import run_waveguide; run_waveguide()"` |
+| **Run MATLAB example** | In MATLAB: `addpath(genpath('m')); ProjectWaveGuide;` |
+
+## Overview
+
 The solver has three language backends sharing the same model files:
 
 | Backend | Dir | Description |
@@ -188,7 +210,6 @@ This pipeline is implemented independently in each backend:
 - **Auto-formulation** — `#Formula` tag in `.poly` selects assembly type automatically
 - **OOP architecture** — polymorphic assembly (`assembler` base), strategy-pattern solvers (`solver` base)
 - **Sparse matrices** — `arma::SpMat<complex<double>>` (C++), `scipy.sparse.csr` (Python)
-
 - **Deterministic waveport mode ordering** — eigenmodes sorted by propagation constant magnitude for reproducible output
 
 ### .poly file format

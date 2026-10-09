@@ -2,261 +2,188 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Quick Start
+## Quick Reference
 
-### Build and Test
-
-- **C++ backend (primary)**:
-  - `make build` - compile the C++ solver
-  - `make test` - run all model mesh checks
-  - `make <model>` - run a specific model (e.g., `make WR90`)
-
-- **Python backend**:
-  - `make py-setup` - set up the Python environment
-  - `make py-test` - run Python tests
-
-- **MATLAB backend**:
-  - `make m-build` - build MATLAB mesh tools
-  - `make m-test` - run MATLAB test cases
-
-### Common Commands
-
-- `./setup` - install all dependencies (C++, Python, MATLAB)
-- `./setup --py` - Python only
-- `./setup --m` - MATLAB only
-- `./setup --compiler` - C++ dependencies only
+| Task | Command |
+|------|---------|
+| **Install all dependencies** | `./setup` |
+| **Install Python backend only** | `./setup --py` |
+| **Install MATLAB backend only** | `./setup --m` |
+| **Install C++ dependencies only** | `./setup --compiler` |
+| **Build C++ solver** | `make build` |
+| **Run all C++ model tests** | `make test` |
+| **Run a specific C++ model** | `make <model>` (e.g., `make WR90`) |
+| **Set up Python environment** | `make py-setup` |
+| **Run Python tests** | `make py-test` |
+| **Build MATLAB mesh tools** | `make m-build` |
+| **Run MATLAB test cases** | `make m-test` |
+| **Run MATLAB standalone scripts** | `make m-tests` |
+| **Run C++ binary directly** | `./cpp/build/fes <model> <freq> [options]` |
+| **Run Python project example** | `cd py && .venv/bin/python -c "from fes.projects import run_waveguide; run_waveguide()"` |
+| **Run MATLAB example** | In MATLAB: `addpath(genpath('m')); ProjectWaveGuide;` |
 
 ## Overview
 
-Guidance for Claude Code when working with this repository.
+This repository contains three independent finite element method (FEM) solvers for computational electromagnetics, sharing the same `.poly` model files in the `data/` directory:
 
-This repo has three independent FEM solver implementations sharing model files in `data/`:
+| Backend | Directory | Primary Use |
+|---------|-----------|-------------|
+| **C++** | `cpp/` | Production 3D solver (curl-curl formulation, MUMPS/GMRES, domain decomposition, waveports) |
+| **Python** | `py/` | 2D solver + DNN-GP surrogate modeling (scalar Helmholtz, harmonic balance, machine learning surrogates) |
+| **MATLAB** | `m/` | Reference / legacy implementation (full-featured, research-oriented) |
 
-| Backend | Dir | Primary use |
-|---------|-----|-------------|
-| C++     | `cpp/` | Production 3D solver (curl-curl, waveports, MUMPS/GMRES, DD) |
-| Python  | `py/`  | 2D solver + DNN-GP surrogate modelling |
-| MATLAB  | `m/`   | Reference / legacy implementation |
-
----
+All backends follow the same pipeline: **import → mesh → assemble → solve → export**.
 
 ## Build & Test
 
-### C++ backend (primary)
+### C++ Backend (`cpp/`)
 
+- **Build**: `make build` (runs CMake configure and compile in Release mode)
+- **Test all models**: `make test` (builds and runs mesh/check on all `.poly` files in `data/`)
+- **Test a specific model**: `make <model>` (e.g., `make WR90` runs the WR90 waveguide model)
+- **Clean build**: `make clean` (removes the `cpp/build` directory)
+- **Reconfigure CMake**: `make config`
+- **Binary location**: `cpp/build/fes`
+
+**Direct usage examples**:
 ```bash
-make build          # cmake configure + build (Release)
-make test           # build + run all .fes models in data/ (load & mesh check)
-make clean          # remove cpp/build
+# 3D waveguide (default frequency-domain formulation)
+cd data && ../cpp/build/fes WR90 1e10 +poly AafeeQ +p 2
+
+# 2D TMz filter
+cd data && ../cpp/build/fes BilatFilter 150e9 +poly +p 2 +formula em_ez_fd
+
+# Waveport eigenmodes
+cd data && ../cpp/build/fes WR90 1e10 +poly AafeeQ +p 2 +formula em_e_tl_eig
+
+# Electrostatics (requires voltage assignment)
+cd data && ../cpp/build/fes CapSense 0 +poly +volt Elec 1
 ```
 
-Binary is at `cpp/build/fes`. Run directly:
+### Python Backend (`py/`)
 
+- **Setup**: `make py-setup` (creates virtual environment and installs dependencies)
+- **Run tests**: `make py-test` (executes pytest suite)
+- **Manual setup**: `cd py && ./configure`
+- **Virtual environment**: `py/.venv`
+
+**Example usage**:
 ```bash
-./cpp/build/fes data/WR90 1e10 +poly AafeeQ +p 2       # 3D EM (default)
-./cpp/build/fes data/WR90 1e10 +poly AafeeQ +p 2 +formula em_e_tl_eig  # waveport eigenmodes
-./cpp/build/fes data/BilatFilter 150e9 +poly +p 2 +formula em_ez_fd   # 2D TMz
-```
-
-### Python backend
-
-```bash
-make py-setup       # create .venv + pip install (or: cd py && ./configure)
-make py-test        # run pytest (or: cd py && .venv/bin/python -m pytest tests/ -v)
-```
-
-Projects run from `py/`:
-```bash
+# Run waveguide S-parameter simulation
 cd py && .venv/bin/python -c "from fes.projects import run_waveguide; run_waveguide()"
+
+# Train DNN-GP surrogate model for a bilateral filter
+cd py && .venv/bin/python -c "from fes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"
 ```
 
-### MATLAB backend
+### MATLAB Backend (`m/`)
 
-```bash
-make m-build        # build IOrMesh and Triangle mesh tools (or: cd m && make all)
-make m-test         # run all FEM project test cases (m/tests/)
+- **Build mesh tools**: `make m-build` (compiles IOrMesh and Triangle wrappers)
+- **Run test cases**: `make m-test` (executes all FEM project test cases in `m/tests/`)
+- **Run standalone scripts**: `make m-tests` (runs debug, domain decomposition, and nonlinear test scripts)
+- **Manual build**: `cd m && make all`
+
+**Usage in MATLAB/Octave**:
+```matlab
+addpath(genpath('m'));
+ProjectWaveGuide; % Example: waveguide simulation
 ```
-
-### Setup
-
-```bash
-./setup             # everything: C++ deps + py venv + m check
-./setup --py        # Python backend only
-./setup --m         # MATLAB backend check only
-./setup --compiler  # C++ deps only (OpenBLAS, ARPACK-NG, MUMPS, Armadillo, Triangle, TetGen)
-```
-
----
 
 ## Architecture
 
-The pipeline shared across all backends is: **import → mesh → assemble → solve → export**.
+### Pipeline
 
-### C++ backend (`cpp/`)
+All backends implement the same core pipeline:
+1. **Import**: Read `.poly` file and parse geometry, materials, boundary conditions.
+2. **Mesh**: Generate triangular (2D) or tetrahedral (3D) mesh using Triangle or TetGen.
+3. **Assemble**: Construct system matrices and right-hand side vectors for the chosen formulation.
+4. **Solve**: Solve the linear system (or eigenvalue problem) using direct or iterative solvers.
+5. **Export**: Compute S-parameters, field data, radiation patterns, or other quantities of interest.
 
-#### Source layout
+### Source Layout
 
 ```
 cpp/
-├── include/          # 23 headers (all snake_case)
-│   ├── option.h         # CLI option storage
-│   ├── project.h        # Model I/O: .poly mesh + preprocessing
-│   ├── mesh.h           # Mesh data: nodes, edges, faces, tetras
-│   ├── equation_system.h  # eq_sys — frequency loop, wires assembly→solve→postproc
-│   ├── assembler.h      # Abstract base + 6 derived assembly classes
-│   ├── solver.h         # Abstract base + mumps_solver / gmres_solver
-│   ├── post_processor.h # S-param / field / radiation export
-│   ├── pre_processor.h  # Auto-detects 2D/3D, dispatches Triangle or TetGen
-│   ├── eigen_solver.h   # ARPACK eigenvalue solver for waveport modes
-│   ├── element_matrix.h # Element-level FE matrix computation
-│   ├── shape.h          # Basis function evaluation (hcurl, hgrad)
-│   ├── quadrature.h     # Gauss-Legendre quadrature rules
-│   ├── boundary_condition.h  # bc data (PEC, PMC, waveport, ABC)
-│   ├── material.h       # Material properties (epsr, mur, sigma, kerr)
-│   ├── field.h          # VTK field export
-│   ├── radiation.h      # Far-field radiation pattern
-│   ├── gmres.h          # DD-preconditioned GMRES templates
-│   ├── mumps_constants.h  # MUMPS parameter constants
-│   ├── tet_gen_wrap.h   # TetGen wrapper
-│   ├── triangle_wrap.h  # Triangle wrapper (2D meshing)
-│   ├── degree_of_freedom.h  # Local→global DOF numbering
-│   ├── coupling.h       # Kerr nonlinear coupling tensor
-│   ├── memory.h         # Memory reporting
-│   ├── configuration.h  # System config / priority helpers
-│   └── constants.h      # Physical constants
-├── src/              # 27 implementation files + main.cpp
-└── CMakeLists.txt    # C++14, links dep/lib/*.a and dep/lib/*.dylib
-```
+├── include/          # 25+ headers (snake_case): option, project, mesh, equation_system, assembler, solver, etc.
+├── src/              # 27+ implementation files + main.cpp
+└── CMakeLists.txt    # C++14, links prebuilt dependencies in dep/lib/
 
-#### Solver flow (EM frequency-domain)
-
-1. `main.cpp` → `option::set(argc, argv)` parses CLI flags → `option::apply_cli()` applies them
-2. `project(log_file, &opt)` meshes `.poly` via TetGen/Triangle
-3. `eq_sys(log_file, &prj)` — for each frequency:
-   - `assembler::create(type)->assemble(log, sys)` — polymorphic assembly
-   - `solver::create(*opt)->solve(sys, log)` — mumps_solver direct or gmres_solver iterative
-   - `post_processor(sys, log).save_data()` — S-params, VTK fields, radiation
-
-#### Formulations
-
-| CLI flag | Assembler class | Description |
-|---|---|---|
-| `+formula em_e_fd` or `+em_e_fd` | `assembler_em_e_fd` | 3D frequency-domain (curl-curl + mass) |
-| `+formula em_e_fd_dd` or `+em_e_fd_dd` | `assembler_em_e_fd_dd` | Domain decomposition |
-| `+formula em_e_fd_nl` or `+em_e_fd_nl` | `assembler_em_e_fd_nl` | Nonlinear Kerr (harmonic balance) |
-| `+formula em_ez_fd` or `+em_ez_fd` | `assembler_em_ez_fd` | 2D TMz (scalar Helmholtz) |
-| `+formula em_e_qs` or `+em_e_qs` | `assembler_em_e_qs` | Electrostatic quasistatic |
-| `+formula em_e_tl_eig` or `+em_e_tl_eig` | auto (3D→`assembler_em_e_fd`, 2D→`assembler_em_ez_fd`) | Waveport eigenmodes only |
-
-#### Key types
-
-| Type | Header | Storage |
-|------|--------|---------|
-| `mat_row_type` | `equation_system.h` | `arma::SpMat<std::complex<double>>` — CSR sparse |
-| `mat_col_type` | `equation_system.h` | `arma::SpMat<std::complex<double>>` — CSC sparse |
-| `vec_type` | `equation_system.h` | `arma::cx_vec` |
-| DOF vectors | `equation_system.h` | `arma::cx_mat` — dense complex Armadillo matrices |
-
-#### CLI defaults
-
-`tfe=true`, `sparam=true`, `solver=direct`, `p_ord=1`, `assembly=em_e_fd`, `dbl=true`
-
-#### Dependency notes
-
-- **Armadillo 15.x** — `solve(out, A, B)` no longer accepts string solver type; use `solve_opts::opts`
-- **OpenMP** is optional — CMake warns if not found but build succeeds without it
-
----
-
-### Python backend (`py/`)
-
-#### Source layout
-
-```
 py/
-├── fes/
-│   ├── core/               # FEM core
-│   │   ├── shape_functions.py  # Scalar Lagrange (1–4), H(curl) vector basis
-│   │   ├── quadrature.py       # Gauss–Legendre, Duffy simplex quadrature
-│   │   ├── jacobian.py         # Jacobian for triangles
-│   │   ├── dof.py              # Global DOF numbering
-│   │   ├── boundary.py         # Boundary DOF maps for DD
-│   │   ├── assembly.py         # System matrix assembly, waveguide ports, BCs
-│   │   └── harmonic_balance.py # Kerr nonlinearity, ferrite HB
-│   ├── mesh/              # Mesh I/O and generation
-│   │   ├── io_poly.py     # Read Triangle .poly, write .poly geometry
-│   │   ├── build.py       # Regular triangular meshes
-│   │   └── plot.py        # Matplotlib mesh plotting
-│   ├── post/              # Post-processing
-│   │   └── plot.py        # pyVista field rendering
-│   └── projects/          # Simulation projects
-│       ├── waveguide.py        # Rectangular waveguide S-params
-│       ├── filter_design.py    # Bilateral/two-post filter scattering
-│       ├── filter_dnngp.py     # DNN-GP surrogate model training
-│       ├── modal_analysis.py   # TE mode cutoffs, open microstrip
-│       ├── electrostatics.py   # Electrostatic potential
-│       ├── thermal.py          # Heat conduction (standard + DG)
-│       ├── circulator.py       # Ferrite circulator, intermodulation
-│       ├── scattering.py       # Wave scattering with ABC, DD
-│       ├── capacitive.py       # Coaxial capacitance, capacitive sensor
-│       └── _utils.py           # Shared helper functions
-├── iormesh/             # C mesher (Triangle wrapper) — builds binary
-├── tests/               # pytest suite
-├── setup.py             # pip-installable package
-└── configure            # venv setup script
-```
+├── fes/              # FEM core and projects
+│   ├── core/         # Shape functions, quadrature, Jacobian, DOF, boundary, assembly, harmonic balance
+│   ├── mesh/         # .poly I/O, mesh generation, plotting
+│   ├── post/         # Field visualization (pyVista)
+│   └── projects/     # Simulation scripts (waveguide, filter design, DNN-GP, modal analysis, etc.)
+├── tests/            # Pytest suite
+├── setup.py          # Pip-installable package
+└── configure         # Virtual environment setup script
 
-#### Key conventions
-
-- Mesh uses **0-based indexing** (MATLAB used 1-based)
-- Sparse matrices use `scipy.sparse.csr_matrix`
-- Shape functions are lambda functions evaluated at reference coordinates
-- Reference triangle: vertices (0,0), (1,0), (0,1)
-- `sys` dict carries all system state, `mesh` dict carries geometry/topology
-
-### MATLAB backend (`m/`)
-
-```
 m/
-├── fes/                # Package root (mirrors py/fes/)
-│   ├── core/               # Assembly routines (40+ files)
-│   │   ├── AssembLin.m         Linear assembly
-│   │   ├── AssembHB.m          Harmonic balance assembly
-│   │   ├── AssembDD.m          Domain decomposition assembly
-│   │   ├── AssembNL.m          Nonlinear assembly
-│   │   └── ...                 (CalcShapeFunctions, GetCoupl*, Solv*, etc.)
-│   ├── mesh/              # Mesh I/O, geometry writers
-│   │   ├── WriteWaveGuide.m    Geometry writers
-│   │   ├── IOrPoly.m           .poly file I/O
-│   │   ├── IOwPoly.m           .poly file output
-│   │   ├── ...
-│   │   ├── IGES/               IGES CAD file import toolbox
-│   │   └── iormesh-src/        C source for IOrMesh mesher
-│   ├── post/              # Post-processing
-│   │   ├── IOwVTK.m            VTK field export
-│   │   └── IOwVTKH.m           VTK H-field export
-│   └── projects/          # Simulation project drivers (was tests/)
-│       └── Project*.m          27 end-to-end test cases
-├── tests/              # Standalone / debug / DD / NL test scripts
-│   ├── DD/                 Domain decomposition tests
-│   ├── NL/                 Nonlinear tests
-│   ├── _Matlab/            Internal debug scripts
-│   └── ...                 22 standalone scripts
-└── Config.m            # Path setup (addpath(genpath('.')))
+├── fes/              # Package root (mirrors py/fes/)
+│   ├── core/         # Assembly routines (40+ files)
+│   ├── mesh/         # Mesh I/O, geometry writers
+│   ├── post/         # VTK field export
+│   └── projects/     # Simulation project drivers (Project*.m)
+├── tests/            # Standalone scripts, domain decomposition, nonlinear tests
+└── Config.m          # Path setup: addpath(genpath('.'))
+
+data/                 # Shared .poly model files and mesh caches (.h1.mat)
+dep/                  # C++ dependency libraries (OpenBLAS, ARPACK-NG, MUMPS, Armadillo, Triangle, TetGen)
 ```
 
----
+### Key Features (C++ Backend)
 
-## .poly file format
+- **H(curl) conforming elements**: Hierarchical vector basis functions (orders 1–4) for curl-curl formulation.
+- **Transfinite Elements (TFE)**: Exact waveport mode expansion for accurate S-parameters.
+- **Domain Decomposition**: Additive Schwarz or Schur complement preconditioners for large problems.
+- **Nonlinear Materials**: Kerr effect modeled via harmonic balance and fixed-point iteration.
+- **2D Solvers**: TMz (scalar Helmholtz), electrostatic, and cross-section eigenmode.
+- **Automatic Formulation Selection**: `#Formula` tag in `.poly` files chooses assembly type; CLI flags (`+formula`) can override.
+- **Sparse Linear Algebra**: Armadillo `SpMat<complex<double>>` for system matrices; MUMPS direct or GMRES iterative solvers.
+- **Deterministic Waveport Ordering**: Eigenmodes sorted by propagation constant magnitude for reproducible results.
 
-Standard TetGen PLC sections (nodes, facets, holes, regions) plus custom trailing sections:
+### .poly File Format
+
+Standard TetGen PLC format with custom sections for materials and boundaries:
 
 ```
-#Formula EM_E_FD
-#Solids N
-<name> <label> <epsr> <mur> <sigma> <type>
-#Boundaries M
-<name> <label> <type>
+# NODES: <num_nodes> <dim> <num_attributes> <num_markers>
+...
+# SEGMENTS: <num_segments> <num_markers>
+...
+# REGIONS: <num_regions>
+...
+#Formula <TYPE>        ← Selects formulation (EM_E_FD, EM_EZ_FD, EM_E_TL_EIG, EM_E_QS)
+#Solids <N>
+<name> <label> <epsr> <mur> <sigma> <matname>
+#Boundaries <M>
+<name> <label> <type> [numModes]
 ```
 
-Solids populate materials (vacuum, dielectric, conductor). Boundaries define PEC, PMC, waveports, lumped ports, absorbing BCs.
+- **Materials**: Defined in `#Solids`; vacuum, dielectric, conductor.
+- **Boundaries**: Types include `PerfectE` (PEC), `PerfectH` (PMC), `Radiation` (ABC), `WavePort`.
+- **Special flags**: `+poly` in CLI invokes TetGen/Triangle meshing; optional quality switches (e.g., `+poly q34a`).
+
+### Common CLI Options (C++ Binary)
+
+| Option | Description |
+|--------|-------------|
+| `+poly [CMD]` | Load `.poly` file; CMD passed to TetGen/Triangle (e.g., `+poly q34a` for quality mesh) |
+| `+formula NAME` | Explicit formulation override (e.g., `em_e_fd`, `em_ez_fd`, `em_e_tl_eig`) |
+| `+f FREQ` | Frequency in Hz (required; 0 for electrostatic) |
+| `+p N` | Polynomial order (1–4) |
+| `+tfe` | Enable transfinite element formulation on waveports (default on) |
+| `+sparam` | Write S-parameter Touchstone file (default on) |
+| `+field` | Export VTK field data |
+| `+rad Nθ Nφ` | Export far-field radiation pattern |
+| `+direct` | Use MUMPS direct solver (default) |
+| `+gmres tol [restart]` | Use GMRES iterative solver |
+| `+dd N` | Domain decomposition into N subdomains |
+| `+nl H mat kerr relax` | Kerr nonlinearity: H harmonics, material label, kerr coefficient, relaxation factor |
+
+## Development Tips
+
+- To run a specific test for debugging, use the corresponding `make <target>` (e.g., `make WR90` for C++, or invoke Python/MATLAB examples directly).
+- The `data/` directory contains numerous `.poly` files for various structures (waveguides, filters, antennas, etc.).
+- When modifying formulations or solvers, focus on the `assembler*` and `solver*` classes in the C++ backend, or the `assembly.py` and harmonic balance modules in Python.
+- MATLAB scripts in `m/tests/` and `m/projects/` serve as references for implementing new features.
