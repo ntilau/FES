@@ -16,6 +16,7 @@ NumPy, SciPy and Matplotlib (all core FES dependencies).
 
 ```bash
 ./setup                # or: pip install -e .
+source .venv/bin/activate   # activate so `python`/`pytest` work directly
 ```
 
 ## Quick start
@@ -150,7 +151,8 @@ the documented workflow.  The file layout is unchanged.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/test_rfm.py -q
+source .venv/bin/activate   # activate once, then:
+pytest tests/test_rfm.py -q
 ```
 
 The suite covers the containers, Touchstone port ordering/formats/wrapping and

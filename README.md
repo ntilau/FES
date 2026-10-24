@@ -17,8 +17,16 @@ make setup                     # create .venv and install the package (editable)
 ./configure --minimal          # FEM-only: skip ML/visualization extras
 ```
 
-There is no `fes` console script; always invoke the package as
-`.venv/bin/python -m fes`.
+After setup, activate the virtual environment so you can run `python`,
+`pytest`, and `ruff` directly instead of prefixing every command with
+`.venv/bin/python -m`:
+
+```bash
+source .venv/bin/activate
+```
+
+There is no `fes` console script; once activated, invoke the package as
+`python -m fes` (or use `.venv/bin/python -m fes` without activating).
 
 Meshing from a `.poly` file needs the optional native libraries, which are not
 vendored as binaries:
@@ -39,21 +47,22 @@ local `<name>.h1.mat.npz` cache, which is gitignored.
 |------|---------|
 | **Install** | `make setup` |
 | **Install FEM-only** | `./configure --minimal` |
-| **Run tests** | `make test` |
-| **CI-equivalent tests** | `.venv/bin/python -m pytest -q` |
+| **Activate venv** | `source .venv/bin/activate` |
+| **Run tests** | `make test` (or `pytest tests/ -q` after activating) |
+| **CI-equivalent tests** | `pytest -q` |
 | **Lint** | `ruff check fes tools tests mm n2f rfm setup.py` |
 | **Build native meshers** | `python tools/build_triangle.py && python tools/build_tetgen.py` |
-| **Run the CLI** | `.venv/bin/python -m fes run WR90 +f 1e10 +poly +p 2` |
-| **Legacy CLI spelling** | `.venv/bin/python -m fes WR90 1e10 +poly +p 2` |
-| **Inspect the resolved plan** | `.venv/bin/python -m fes run WR90 +f 1e10 --dry-run` |
-| **Mesh only (2D cache)** | `.venv/bin/python -m fes mesh BilatFilter --out build/meshes` |
-| **Frequency sweep** | `.venv/bin/python -m fes sweep BilatFilter +fr 140e9 160e9 3 +poly +p 1` |
-| **S-parameters** | `.venv/bin/python -m fes sparam BilatFilter +f 150e9 +poly +p 1` |
-| **Eigenmodes** | `.venv/bin/python -m fes eigen WR90_TL +f 1e10 +poly` |
-| **List / inspect models** | `.venv/bin/python -m fes models` / `... info WR90 [--json]` |
-| **Python project example** | `.venv/bin/python -c "from fes.projects import run_waveguide; run_waveguide()"` |
-| **DNN-GP surrogate** | `.venv/bin/python -c "from fes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"` |
-| **Modal-matching benchmark** | `.venv/bin/python -m mm Riblet --no-plot` |
+| **Run the CLI** | `python -m fes run WR90 +f 1e10 +poly +p 2` |
+| **Legacy CLI spelling** | `python -m fes WR90 1e10 +poly +p 2` |
+| **Inspect the resolved plan** | `python -m fes run WR90 +f 1e10 --dry-run` |
+| **Mesh only (2D cache)** | `python -m fes mesh BilatFilter --out build/meshes` |
+| **Frequency sweep** | `python -m fes sweep BilatFilter +fr 140e9 160e9 3 +poly +p 1` |
+| **S-parameters** | `python -m fes sparam BilatFilter +f 150e9 +poly +p 1` |
+| **Eigenmodes** | `python -m fes eigen WR90_TL +f 1e10 +poly` |
+| **List / inspect models** | `python -m fes models` / `... info WR90 [--json]` |
+| **Python project example** | `python -c "from fes.projects import run_waveguide; run_waveguide()"` |
+| **DNN-GP surrogate** | `python -c "from fes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"` |
+| **Modal-matching benchmark** | `python -m mm Riblet --no-plot` |
 | **Near-field → far-field** | `from n2f import sf_nf2ff_solver` (see `docs/bundled_modules.md`) |
 | **RFM / vector fitting** | `from rfm import read_touchstone, vector_fit` (see `rfm/README.md`) |
 
@@ -61,21 +70,22 @@ local `<name>.h1.mat.npz` cache, which is gitignored.
 
 ```bash
 make setup                     # creates .venv and installs the package
+source .venv/bin/activate      # activate so `python`/`pytest` work directly
 make test                      # runs the pytest suite
 ```
 
 ```bash
 # 3D waveguide — mesh with TetGen (default switches), then solve
-.venv/bin/python -m fes run WR90 +f 1e10 +poly +p 2
+python -m fes run WR90 +f 1e10 +poly +p 2
 
 # 2D TMz filter — mesh with Triangle, then solve
-.venv/bin/python -m fes run BilatFilter +f 150e9 +poly +p 2
+python -m fes run BilatFilter +f 150e9 +poly +p 2
 
 # 2D cross-section eigenmodes (WR90_TL is the 2D cross-section of WR90)
-.venv/bin/python -m fes eigen WR90_TL +f 1e10 +poly
+python -m fes eigen WR90_TL +f 1e10 +poly
 
 # Electrostatics (requires voltage assignment)
-.venv/bin/python -m fes run CapSense +f 0 +poly +volt Elec 1
+python -m fes run CapSense +f 0 +poly +volt Elec 1
 ```
 
 Programmatic use:
@@ -303,8 +313,9 @@ Native library discovery can be overridden with `FES_TRIANGLE` (Triangle) and
 
 ```bash
 make test                                           # pytest tests/ -v
-.venv/bin/python -m pytest -q                       # CI equivalent
-.venv/bin/python -m pytest tests/test_core.py::TestShapeFunctions::test_2d_linear -v
+source .venv/bin/activate                           # activate once, then:
+pytest -q                                           # CI equivalent
+pytest tests/test_core.py::TestShapeFunctions::test_2d_linear -v
 ```
 
 Markers:
