@@ -15,6 +15,7 @@ the plotting helpers).
 
 ```bash
 ./setup                # or: pip install -e .
+source .venv/bin/activate   # activate so `python`/`pytest` work directly
 ```
 
 ## Quick start
@@ -94,7 +95,8 @@ Port indices are 1-based, following the MATLAB original.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/test_mm.py -q
+source .venv/bin/activate   # activate once, then:
+pytest tests/test_mm.py -q
 ```
 
 The suite covers the modal primitives, mode ordering and symmetry, wave

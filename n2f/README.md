@@ -15,6 +15,7 @@ NumPy; Matplotlib is optional and used only by `n2f.plotting`.
 
 ```bash
 ./setup                # or: pip install -e .
+source .venv/bin/activate   # activate so `python`/`pytest` work directly
 ```
 
 ## Quick start — scalar field
@@ -123,7 +124,8 @@ reproduces the real part of `sf_nf2ff_solver` to machine precision.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest tests/test_n2f.py -q
+source .venv/bin/activate   # activate once, then:
+pytest tests/test_n2f.py -q
 ```
 
 The suite covers the geometry builders, transforms and rotation matrices,
