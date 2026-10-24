@@ -253,7 +253,7 @@ def mesh(
     """Mesh a model from its ``.poly`` file.
 
     A 2D model is meshed with Triangle and the result is written as
-    ``<model>.h1.mat.npz`` next to the ``.poly`` file (or into *out_dir*),
+    ``<model>.npz`` next to the ``.poly`` file (or into *out_dir*),
     which is where :func:`fes.mesh.io_poly.read_poly` looks for it.  ``+poly_cmd``
     selects the mesher switches; the default ``pq34AfeQ`` is the one the v0.1
     C++ binary used.
@@ -308,7 +308,7 @@ def mesh(
 
         directory = Path(out_dir) if out_dir else Path(plan.model.path).parent
         target = write_cache(
-            directory / f"{plan.model.name}.h1.mat.npz", **arrays
+            directory / f"{plan.model.name}.npz", **arrays
         )
 
     return {

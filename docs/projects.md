@@ -113,18 +113,18 @@ Outputs: `adaptive_convergence.png` (error × cost curves),
 | `bilateral_filter_dnngp` | Deep Kernel Learning surrogate — S₁₁ 0.19%, S₂₁ 0.21% relative error |
 | `adaptive_lhs_bilateral_filter` | Adaptive LHS-driven convergence to prescribed error target |
 
-## Mesh generation (`.poly` → `.h1.mat`)
+## Mesh generation (`.poly` → `.npz`)
 
 `.poly` files are geometry descriptions for the
 [Triangle](https://www.cs.cmu.edu/~quake/triangle.html) mesh generator. The
 solver meshes them in-process through the bundled Triangle library and caches
-the result as `<name>.h1.mat.npz`; models whose `.poly` has no cache are meshed
+the result as `<name>.npz`; models whose `.poly` has no cache are meshed
 automatically on first use.
 
 ```bash
 source .venv/bin/activate      # activate so `python` works directly
 
-# Mesh one model and write <model>.h1.mat.npz next to its .poly
+# Mesh one model and write <model>.npz next to its .poly
 python -m fes mesh WaveGuide_py
 
 # Choose your own Triangle switches (default: pq34AfeQ)

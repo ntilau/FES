@@ -1,4 +1,4 @@
-"""Legacy mesh arrays: the ``.h1.mat`` layout that ``IOrMesh`` wrote.
+"""Legacy mesh arrays: the layout that ``IOrMesh`` wrote.
 
 ``py/iormesh/IOrMesh`` was a C wrapper around Triangle.  It ran the command
 line binary (``triangle -p<args>DeQ``), read the ``.1.node/.1.ele/.1.edge``
@@ -101,7 +101,7 @@ def build_ele2edge(elements: np.ndarray, edges: np.ndarray) -> np.ndarray:
 
 
 def legacy_arrays(triangulation: TriangleMesh) -> Dict[str, np.ndarray]:
-    """Convert a Triangle result into the ``.h1.mat`` arrays (0-based)."""
+    """Convert a Triangle result into the mesh arrays (0-based)."""
     points = np.asarray(triangulation.points, dtype=float).reshape(-1, 2)
     n_nodes = points.shape[0]
 
@@ -159,10 +159,10 @@ def write_model_cache(
     switches: Optional[str] = None,
     stem: Optional[str] = None,
 ) -> Path:
-    """Mesh *filename* and write ``<stem>.h1.mat.npz`` into *out_dir*."""
+    """Mesh *filename* and write ``<stem>.npz`` into *out_dir*."""
     path = Path(filename)
     arrays = mesh_arrays_from_poly(path, switches=switches)
     name = stem or path.stem
-    target = Path(out_dir) / f"{name}.h1.mat.npz"
+    target = Path(out_dir) / f"{name}.npz"
     write_cache(target, **arrays)
     return target

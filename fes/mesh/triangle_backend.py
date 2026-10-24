@@ -116,9 +116,8 @@ class TriangleMesh:
     that becomes ``mesh->facLab``.
 
     ``edges``/``edge_markers`` are the full edge list (Triangle's ``-e``
-    output).  The reference implementation ignores them, but the legend ``.h1.mat`` caches store
-    exactly this list as ``spig2``/``slab``, so they are kept here.  ``edges``
-    is 1-based, like ``segments``: both are copied from the library unshifted.
+    output).  The reference implementation ignores them, but the legacy cache
+    stores exactly this list as ``spig2``/``slab``, so they are kept here.
     """
 
     points: np.ndarray  # (np, 2)

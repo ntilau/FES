@@ -1,9 +1,9 @@
-"""Mesh I/O for Triangle ``.poly`` geometry and ``.h1.mat`` caches.
+"""Mesh I/O for Triangle ``.poly`` geometry and ``.npz`` caches.
 
 The ``.poly`` format is the Triangle mesh generator format:
   https://www.cs.cmu.edu/~quake/triangle.poly.html
 
-The ``.h1.mat`` caches hold the arrays the legacy ``IOrMesh`` tool wrote
+The ``.npz`` caches hold the arrays the legacy ``IOrMesh`` tool wrote
 (``node``, ``ele``, ``spig``, ``spig2``, ``nlab``, ``elab``, ``slab``).  They
 are read and written by :mod:`fes.mesh.io_mat`; :mod:`fes.mesh.topology`
 rebuilds them from a Triangle result, so a model without a cache is meshed on
@@ -39,8 +39,8 @@ def _cached_or_meshed(
     persist: bool,
 ):
     """Load the cache for *filename*, or mesh its ``.poly`` when absent."""
-    npz_path, mat_path = cache_paths(data_dir, filename, h_ord)
-    has_cache = npz_path.is_file() or mat_path.is_file()
+    npz_path = cache_paths(data_dir, filename, h_ord)
+    has_cache = npz_path.is_file()
     if has_cache and not remesh:
         # A corrupt cache is an error: silently remeshing would hide the
         # problem and change every downstream result.
@@ -49,8 +49,8 @@ def _cached_or_meshed(
     poly_path = Path(data_dir) / f"{filename}.poly"
     if not poly_path.is_file():
         raise FileNotFoundError(
-            f"Mesh file not found for {filename}. None of {npz_path}, "
-            f"{mat_path} or {poly_path} exists."
+            f"Mesh file not found for {filename}. None of {npz_path} "
+            f"or {poly_path} exists."
         )
     if h_ord != 1:
         raise NotImplementedError(
@@ -72,10 +72,9 @@ def read_poly(filename, args="", h_ord=1, scale=1.0, data_dir=".", *,
               remesh=False, persist=False):
     """Read a Triangle mesh for *filename*.
 
-    A pre-generated cache (``<name>.h<N>.mat.npz`` or ``<name>.h<N>.mat``)
-    short-circuits meshing.  When neither exists, the ``<name>.poly`` file in
-    *data_dir* is meshed with Triangle, reproducing the arrays the legacy
-    ``IOrMesh`` tool wrote.
+    A pre-generated cache (``<name>.npz``) short-circuits meshing.  When it does
+    not exist, the ``<name>.poly`` file in *data_dir* is meshed with Triangle,
+    reproducing the arrays the legacy ``IOrMesh`` tool wrote.
 
     Parameters
     ----------
@@ -93,7 +92,7 @@ def read_poly(filename, args="", h_ord=1, scale=1.0, data_dir=".", *,
     remesh : bool
         Ignore an existing cache and mesh from ``.poly``.
     persist : bool
-        Write the generated mesh to ``<name>.h1.mat.npz`` in *data_dir*.
+        Write the generated mesh to ``<name>.npz`` in *data_dir*.
 
     Returns
     -------

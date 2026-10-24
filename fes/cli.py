@@ -352,7 +352,7 @@ def _cmd_sweep(rest: Sequence[str], switches: Dict[str, object]) -> int:
 
 
 def _cmd_mesh(rest: Sequence[str], switches: Dict[str, object]) -> int:
-    """Mesh one model from its ``.poly`` and write the ``.h1.mat.npz`` cache."""
+    """Mesh one model from its ``.poly`` and write the ``.npz`` cache."""
     if switches.get("help"):
         print(help_text())
         return EXIT_OK
