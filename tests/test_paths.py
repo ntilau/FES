@@ -7,10 +7,10 @@ import pytest
 from fes.paths import data_dir, list_models, model_path, repo_root
 
 
-def test_repo_root_contains_data_and_version():
+def test_repo_root_contains_data_and_package():
     root = repo_root()
     assert (root / "data").is_dir()
-    assert (root / "VERSION").is_file()
+    assert (root / "fes").is_dir()
 
 
 def test_data_dir_is_repo_data():

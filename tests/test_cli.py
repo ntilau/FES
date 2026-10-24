@@ -13,18 +13,6 @@ from fes.cli import (
 )
 
 
-def test_version(capsys):
-    assert main(["version"]) == EXIT_OK
-    assert capsys.readouterr().out.strip().startswith("fes ")
-
-
-def test_version_json(capsys):
-    assert main(["version", "--json"]) == EXIT_OK
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["version"]
-    assert payload["python"]
-
-
 def test_help(capsys):
     assert main(["help"]) == EXIT_OK
     text = capsys.readouterr().out

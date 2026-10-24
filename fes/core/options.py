@@ -420,10 +420,6 @@ def parse_argv(argv: Sequence[str], legacy: bool = False) -> Options:
             opt.extra["help"] = "1"
             index += 1
             continue
-        if token in ("--version", "-V"):
-            opt.extra["version"] = "1"
-            index += 1
-            continue
         if token in ("--legacy",):
             opt.legacy = True
             index += 1

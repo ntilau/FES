@@ -10,7 +10,6 @@ Subcommands add discoverable entry points::
     fes sweep WR90 +fr 8e9 12e9 5
     fes info WR90 --json
     fes models
-    fes version
 """
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
-from . import __version__
 from .api import (
     FormulationUnavailableError,
     NotPortedError,
@@ -32,7 +30,7 @@ from .api import (
 from .core.options import Options, UsageError, parse_argv
 from .paths import data_dir, list_models
 
-COMMANDS = ("run", "sweep", "mesh", "sparam", "eigen", "info", "models", "version")
+COMMANDS = ("run", "sweep", "mesh", "sparam", "eigen", "info", "models")
 
 EXIT_OK = 0
 EXIT_USAGE = 1
@@ -60,10 +58,6 @@ def _extract_switches(argv: Sequence[str]) -> Tuple[List[str], Dict[str, object]
             "-h",
         ):
             switches[token.lstrip("-").replace("-", "_")] = True
-            index += 1
-            continue
-        if token in ("--version", "-V"):
-            switches["version"] = True
             index += 1
             continue
         matched = False
@@ -114,7 +108,7 @@ def _null_rhs_abort(exc: RuntimeError) -> int:
 
 
 def help_text() -> str:
-    return f"""fes {__version__} — finite element solver for electromagnetics
+    return """fes — finite element solver for electromagnetics
 
 Usage:
   fes <project> [frequency] [+flags]        legacy C++ invocation
@@ -125,7 +119,6 @@ Usage:
   fes eigen <project> [+n_modes N]          eigenmode analysis
   fes info <project> [--json]               print model metadata
   fes models [--json]               list models in data/
-  fes version [--json]                      print version information
 
 Common flags:
   +f FREQ              frequency in Hz (0 selects electrostatics)
@@ -156,26 +149,6 @@ Exit codes: 0 success, 1 usage error, 2 formulation not yet ported, 3 I/O error.
 
 
 # ── commands ────────────────────────────────────────────────────────────────
-
-
-def _cmd_version(switches: Dict[str, object]) -> int:
-    if switches.get("json"):
-        import platform
-
-        payload = {
-            "version": __version__,
-            "python": sys.version.split()[0],
-            "platform": platform.platform(),
-        }
-        for module in ("numpy", "scipy", "matplotlib"):
-            try:
-                payload[module] = __import__(module).__version__
-            except Exception:
-                payload[module] = None
-        _json_dump(payload)
-    else:
-        print(f"fes {__version__}")
-    return EXIT_OK
 
 
 def _cmd_models(switches: Dict[str, object]) -> int:
@@ -441,8 +414,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     except UsageError as exc:
         return _error(str(exc))
 
-    if switches.get("version"):
-        return _cmd_version(switches)
     if not rest or switches.get("help"):
         print(help_text())
         return EXIT_OK
@@ -453,8 +424,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     if command in ("help", "-h", "--help"):
         print(help_text())
         return EXIT_OK
-    if command in ("version", "--version", "-V"):
-        return _cmd_version(switches)
     if command == "models":
         return _cmd_models(switches)
     if command == "info":

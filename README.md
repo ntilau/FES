@@ -49,7 +49,6 @@ tests marked `triangle`/`tetgen` are skipped.
 | **S-parameters** | `.venv/bin/python -m fes sparam BilatFilter +f 150e9 +poly +p 1` |
 | **Eigenmodes** | `.venv/bin/python -m fes eigen WR90_TL +f 1e10 +poly` |
 | **List / inspect models** | `.venv/bin/python -m fes models` / `... info WR90 [--json]` |
-| **Version** | `.venv/bin/python -m fes version [--json]` |
 | **Python project example** | `.venv/bin/python -c "from fes.projects import run_waveguide; run_waveguide()"` |
 | **DNN-GP surrogate** | `.venv/bin/python -c "from fes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"` |
 | **Modal-matching benchmark** | `.venv/bin/python -m mm Riblet --no-plot` |
@@ -107,7 +106,6 @@ success, `1` usage error, `2` formulation not ported, `3` I/O error.
 | `eigen <model> [+n_modes N]` | Cross-section eigenmode analysis (`em_e_tl_eig`) |
 | `info <model> [--json]` | Print model metadata (dimension, formula, solids, boundaries) |
 | `models [--json]` | List models in the data directory |
-| `version [--json]` | Print version information |
 
 ## Formulations
 

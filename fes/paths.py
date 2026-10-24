@@ -20,7 +20,7 @@ def repo_root() -> Path:
     if override:
         return Path(override).expanduser().resolve()
     for parent in _THIS.parents:
-        if (parent / "data").is_dir() and (parent / "VERSION").is_file():
+        if (parent / "data").is_dir() and (parent / "fes").is_dir():
             return parent
     return Path.cwd().resolve()
 

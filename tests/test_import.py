@@ -40,7 +40,6 @@ import fes.core.assemblers
 assert fes.api.load_drivers() is None
 assert "em_ez_fd" in fes.api.DRIVERS
 assert "fes.projects" not in sys.modules, "projects must stay lazy"
-print(fes.__version__)
 """
 
 
