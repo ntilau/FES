@@ -39,7 +39,7 @@ python tools/build_tetgen.py
 Without them, models cannot be meshed from `.poly`, and tests marked
 `triangle`/`tetgen` are skipped. Mesh caches are not shipped: run
 `fes mesh` (or any solve) on a machine with the native libraries to write a
-local `<name>.h1.mat.npz` cache, which is gitignored.
+local `<name>.npz` cache, which is gitignored.
 
 ## Quick Reference
 
@@ -140,7 +140,7 @@ every input tried, so there is no reference result to compare against.
 | `+poly [CMD]` | — | Import `.poly` (auto-detects 2D/3D) and mesh; optional CMD means `+poly_cmd CMD` |
 | `+poly_cmd CMD` | `q34` / `q` | Mesher switches (Triangle / TetGen); see the note below |
 | `--dry-run` | — | Resolve and print the run plan without solving |
-| `--out DIR` | — | `fes mesh`: directory for the 2D `.h1.mat.npz` cache |
+| `--out DIR` | — | `fes mesh`: directory for the 2D `.npz` cache |
 | `--no-write` | — | `fes mesh`: report counts without writing a cache |
 | `--remesh` | — | `fes mesh`: accepted; meshing always restarts from `.poly` |
 | | **Formulation** | |
@@ -301,9 +301,9 @@ file.
 `fes/paths.py` resolves a bare model name to `data/<name>.poly` (also
 `<cwd>/data`, or `$FES_DATA`). `fes models` lists available models.
 
-A 2D model's mesh is loaded from `<name>.h<N>.mat.npz` or the legacy
-`<name>.h<N>.mat`; if absent it is meshed from the `.poly` and written back as
-`.npz`. `fes mesh --out DIR` writes the cache elsewhere. 3D models are meshed
+A 2D model's mesh is loaded from `<name>.npz`; if absent it is meshed from the
+`.poly` and written back as `.npz`. `fes mesh --out DIR` writes the cache
+elsewhere. 3D models are meshed
 with TetGen on every run and are never cached, matching the v0.1 C++ version.
 
 Native library discovery can be overridden with `FES_TRIANGLE` (Triangle) and
@@ -342,7 +342,7 @@ The bundled `mm`, `n2f` and `rfm` modules use only the core dependencies.
 
 ## License
 
-Copyright (c) 2026 Laurent Ntibarikure.
+Copyright (c) 2010-2026 Laurent Ntibarikure.
 
 MIT License — see [LICENSE](LICENSE). The same single license file covers the
 repository and the bundled `mm`, `n2f` and `rfm` packages; their duplicate

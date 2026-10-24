@@ -11,7 +11,7 @@ numerical path (neither the reference assemblers nor the legacy
 | `n2f` | Near-field to far-field transformation by Huygens/Kottler integration, with SVD model-order reduction |
 | `rfm` | Rational function models: Touchstone I/O, Vector Fitting, pole-residue macromodels, passivity checking |
 
-All three packages are MIT-licensed (Copyright (c) 2026 Laurent Ntibarikure).
+All three packages are MIT-licensed (Copyright (c) 2010-2026 Laurent Ntibarikure).
 Their license texts are identical and have been merged into the single
 repository-root [`LICENSE`](../LICENSE), which covers FES and the bundled
 packages alike; there are no per-package license copies.
