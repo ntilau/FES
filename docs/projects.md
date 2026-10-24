@@ -8,7 +8,8 @@ the DNN-GP surrogate models. They use the legacy assembly path
 
 ```bash
 ./configure                    # create .venv and install the package
-.venv/bin/python -c "from fes.projects import run_waveguide; run_waveguide()"
+source .venv/bin/activate      # activate so `python` works directly
+python -c "from fes.projects import run_waveguide; run_waveguide()"
 ```
 
 ## Run a project
@@ -121,17 +122,19 @@ the result as `<name>.h1.mat.npz`; models whose `.poly` has no cache are meshed
 automatically on first use.
 
 ```bash
+source .venv/bin/activate      # activate so `python` works directly
+
 # Mesh one model and write <model>.h1.mat.npz next to its .poly
-.venv/bin/python -m fes mesh WaveGuide_py
+python -m fes mesh WaveGuide_py
 
 # Choose your own Triangle switches (default: pq34AfeQ)
-.venv/bin/python -m fes mesh WaveGuide_py +poly_cmd q33a1
+python -m fes mesh WaveGuide_py +poly_cmd q33a1
 
 # Report counts without writing a cache
-.venv/bin/python -m fes mesh WaveGuide_py --no-write --json
+python -m fes mesh WaveGuide_py --no-write --json
 
 # Write the cache somewhere else
-.venv/bin/python -m fes mesh WaveGuide_py --out /tmp/meshes
+python -m fes mesh WaveGuide_py --out /tmp/meshes
 ```
 
 Default Triangle arguments are `pq34AfeQ` (quality mesh, 34° min angle, region

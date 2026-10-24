@@ -42,8 +42,9 @@ print(len(S), "frequency points, fatal:", err.get("fatal"))
 ```
 
 ```bash
-.venv/bin/python -m mm BifurcationE --no-plot
-.venv/bin/python -m mm hildebrandfull        # aliases are case-insensitive
+source .venv/bin/activate   # activate once, then:
+python -m mm BifurcationE --no-plot
+python -m mm hildebrandfull        # aliases are case-insensitive
 ```
 
 Only NumPy and Matplotlib (already core FES dependencies) are needed;
