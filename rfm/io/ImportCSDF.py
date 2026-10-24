@@ -24,3 +24,8 @@ def ImportCSDF(filename: Union[str, Path],
     Returns:
         DUM: DUM structure containing the imported data
     """
+
+    raise NotImplementedError(
+        "ImportCSDF is a placeholder in the upstream RFM code and is not "
+        "implemented in the bundled package"
+    )

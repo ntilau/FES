@@ -25,3 +25,8 @@ def MOD2DUM(MOD: Union[Macromodel, dict],
     Returns:
         DUM: DUM structure containing the converted data
     """
+
+    raise NotImplementedError(
+        "MOD2DUM is a placeholder in the upstream RFM code and is not "
+        "implemented in the bundled package"
+    )

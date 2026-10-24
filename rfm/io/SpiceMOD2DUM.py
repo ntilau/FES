@@ -25,3 +25,8 @@ def SpiceMOD2DUM(filename: Union[str, Path],
     Returns:
         DUM: DUM structure containing the imported data
     """
+
+    raise NotImplementedError(
+        "SpiceMOD2DUM is a placeholder in the upstream RFM code and is not "
+        "implemented in the bundled package"
+    )

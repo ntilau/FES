@@ -44,3 +44,8 @@ def SS2ResPoles(A: Union[np.ndarray, List[List[float]]],
         all complex poles and residues are included, not only those with positive imaginary part!
         This function should be used only if the matrices are full. Sparse matrices are not supported.
     """
+
+    raise NotImplementedError(
+        "SS2ResPoles is a placeholder in the upstream RFM code and is not "
+        "implemented in the bundled package"
+    )

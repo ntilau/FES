@@ -47,3 +47,8 @@ def MODFill(MOD: Macromodel, tol: float = 1e-3, RootFigHandle=None) -> Macromode
           (exact for full systems, approximate for sparse systems based on tol)
         - if both or neither are present, returns appropriate result
     """
+
+    raise NotImplementedError(
+        "MODFill is a placeholder in the upstream RFM code and is not "
+        "implemented in the bundled package"
+    )

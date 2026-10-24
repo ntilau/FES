@@ -50,3 +50,8 @@ def ResPoles2ABC(rp: Union[np.ndarray, List[float]],
             A, B, C: Gilbert's realization matrices
             Nr: Number of real poles
     """
+
+    raise NotImplementedError(
+        "ResPoles2ABC is a placeholder in the upstream RFM code and is not "
+        "implemented in the bundled package"
+    )
