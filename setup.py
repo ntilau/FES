@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="fes",
-    version="0.2.0",
+    version="0.0.1",
     license="MIT",
     packages=find_packages(),
     package_data={
