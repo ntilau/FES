@@ -26,22 +26,22 @@ def get_spanning_angles(max_nbr_angles, angle_range):
     order = int(np.floor(np.log2(max_nbr_angles))) - 1
     data_inc = [1, 2]
     nbr_angles = [1, 3]
-    
+
     for i in range(order):
         temp = sorted(angles)
         new = temp[1] / 2
         angles.append(new)
         data = 1
         parts = int(angle_range / new)
-        
+
         for j in range(1, parts + 1):
             if new * j not in angles:
                 angles.append(new * j)
                 data += 1
-        
+
         data_inc.append(data)
         nbr_angles.append(sum(data_inc))
-    
+
     return np.array(angles), np.array(nbr_angles)
 
 
@@ -72,14 +72,14 @@ def get_look_angle_poly(phi, size_t, size_t_ref, nbr_coeffs):
     """
     nbr_coeffs = int(np.floor(nbr_coeffs / 2))
     phi_ff, theta_ff = np.meshgrid(phi, np.linspace(0, 2 * np.pi * size_t / size_t, size_t))
-    
+
     angles = np.linspace(0, (size_t - 1) / size_t, size_t)
     ifft_op = np.zeros((size_t, 2 * nbr_coeffs + 1), dtype=complex)
-    
+
     for i in range(nbr_coeffs + 1):
         ifft_op[:, i] = np.exp(1j * 2 * np.pi * angles * (i - 1)) / size_t_ref
-    
+
     for i in range(1, nbr_coeffs + 1):
         ifft_op[:, nbr_coeffs + i] = np.exp(-1j * 2 * np.pi * angles * (nbr_coeffs - i + 1)) / size_t_ref
-    
+
     return ifft_op, phi_ff, theta_ff

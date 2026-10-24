@@ -701,7 +701,7 @@ def MultiPortDeviceValidate(
     # Display device if flag > 0
     if flag:
         MultiPortDeviceDraw(two_port_devices, nto1_connections, max(0, flag - 1), options)
-    
+
     fs, err = FrequencySweepValidate(frequency_sweep)
     if err.get("fatal"):
         return two_port_devices, nto1_connections, open_ports, connected_ports, fs, {}, {}, err
@@ -1157,85 +1157,85 @@ def MultiPortDeviceDraw(
     options: dict[str, Any],
 ) -> None:
     """Draw every TwoPortDevice and N-to-1 connection belonging to a MultiPortDevice definition.
-    
+
     [IN]
         two_port_devices    - cell array of TwoPortDevice structs
         nto1_connections    - cell array of Nto1Connection structs
         flag                - 0 compact draw, 1 exploded draw
-        options             - draw options struct 
-    
+        options             - draw options struct
+
     [OUT]
         (none)              - opens and populates a figure
     """
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
-    
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
-    
+
     position = 0.0
     end_position = 0.0
-    
+
     for index in range(len(nto1_connections)):
         current_wgs = []
         nto1_conn = nto1_connections[index]
-        
+
         # Draw SideOne devices
         for i, side_one_dev in enumerate(nto1_conn["SideOne"]):
             d1_idx = side_one_dev["TwoPortDeviceIndex"] - 1  # Convert to 0-indexed
-            
+
             # Check for symmetry mirror drawing
             sym_use = options.get("DeviceSymmetry", {}).get("Use", 0)
             sym_side = options.get("DeviceSymmetry", {}).get("Side", 2)
             if index == 0 and sym_use == 1 and sym_side == 1:
                 sym_conn, _, _ = TwoPortDeviceGetPortSegment(two_port_devices[d1_idx]["D"], 1)
                 WaveGuideConnectionCapDraw(ax, sym_conn, "m", 0.0)
-            
+
             # Check if device was already solved in previous connection
             current_wgs_copy = two_port_devices[d1_idx]["D"]
             if index > 0:
                 for prev_idx in range(index):
                     for alpha, alpha_dev in enumerate(nto1_connections[prev_idx]["SideTwo"]):
                         for beta, beta_dev in enumerate(nto1_conn["SideOne"]):
-                            if (alpha_dev["TwoPortDeviceIndex"] == 
+                            if (alpha_dev["TwoPortDeviceIndex"] ==
                                 beta_dev["TwoPortDeviceIndex"]):
                                 sym_seg, _, _ = TwoPortDeviceGetPortSegment(two_port_devices[d1_idx]["D"], 2)
                                 current_wgs_copy = [sym_seg]
                                 current_wgs_copy[0] = dict(current_wgs_copy[0])
                                 current_wgs_copy[0]["l"] = 0
-            
+
             # Set zo (starting z position)
             current_wgs_copy = [dict(seg) for seg in current_wgs_copy]
             current_wgs_copy[0]["zo"] = position
             end_position = TwoPortDeviceDraw(ax, current_wgs_copy, flag)
-        
+
         # Draw Nto1 junction
         nto1_conn_copy = dict(nto1_conn)
         nto1_conn_copy["zo"] = end_position
         Nto1DeviceDraw(ax, two_port_devices, nto1_conn_copy)
         position = end_position
-        
+
         # Draw SideTwo devices
         for i, side_two_dev in enumerate(nto1_conn["SideTwo"]):
             d2_idx = side_two_dev["TwoPortDeviceIndex"] - 1  # Convert to 0-indexed
-            
+
             # Set zo for the device
             dev_copy = {"D": [dict(seg) for seg in two_port_devices[d2_idx]["D"]]}
             dev_copy["D"][0]["zo"] = position
             end_position = TwoPortDeviceDraw(ax, dev_copy["D"], flag)
-            
+
             # Draw connection cap between junctions
             if index < len(nto1_connections) - 1:
                 last_seg = dev_copy["D"][-1]
                 WaveGuideConnectionCapDraw(ax, last_seg, "c", end_position)
                 position = end_position
-            
+
             # Check for symmetry mirror drawing
-            if (index == len(nto1_connections) - 1 and 
+            if (index == len(nto1_connections) - 1 and
                 sym_use == 1 and sym_side == 2):
                 sym_conn, _, _ = TwoPortDeviceGetPortSegment(two_port_devices[d2_idx]["D"], 2)
                 WaveGuideConnectionCapDraw(ax, sym_conn, "m", end_position)
-    
+
     ax.set_xlabel("X (m)")
     ax.set_ylabel("Y (m)")
     ax.set_zlabel("Z (m)")
@@ -1245,18 +1245,18 @@ def MultiPortDeviceDraw(
 
 def TwoPortDeviceDraw(ax: Any, two_port_device: list[dict[str, Any]], explode: int) -> float:
     """Draw one TwoPortDevice either compactly or exploded along z.
-    
+
     [IN]
         ax                  - matplotlib 3D axes
         two_port_device     - cell array describing the device waveguide structure
         explode             - 0 no draw, 1 compact draw, 2 exploded draw
-    
+
     [OUT]
         position            - z-coordinate of the exit port
     """
     ze = 0.0
     z0 = two_port_device[0].get("zo", 0.0)
-    
+
     if explode:
         for seg in two_port_device:
             ze += seg["b"]
@@ -1265,26 +1265,26 @@ def TwoPortDeviceDraw(ax: Any, two_port_device: list[dict[str, Any]], explode: i
             z0 = -(ze * len(two_port_device)) + z0
             if len(two_port_device) == 1:
                 z0 = z0 - ze / 2
-    
+
     for i in range(len(two_port_device) - 1):
         z0 = z0 + ze / 2
         z0 = ShowSegment(ax, two_port_device[i], z0) + ze / 2
         WaveGuideCapDraw(ax, two_port_device[i], two_port_device[i + 1], z0)
-    
+
     z0 = z0 + ze / 2
     z0 = ShowSegment(ax, two_port_device[-1], z0)
-    
+
     return z0 + ze / 2
 
 
 def ShowSegment(ax: Any, waveguide_segment: dict[str, Any], z0: float) -> float:
     """Draw one rectangular waveguide segment as a set of 3-D patches.
-    
+
     [IN]
         ax                  - matplotlib 3D axes
         waveguide_segment   - struct containing a, b, l, xo, yo
         z0                  - starting z-position [m]
-    
+
     [OUT]
         z0                  - ending z-position after drawing the segment
     """
@@ -1293,7 +1293,7 @@ def ShowSegment(ax: Any, waveguide_segment: dict[str, Any], z0: float) -> float:
     l = waveguide_segment["l"]
     xo = waveguide_segment["xo"]
     yo = waveguide_segment["yo"]
-    
+
     # Bottom face (y-)
     x_bottom = [xo - a / 2, xo + a / 2, xo + a / 2, xo - a / 2]
     y_bottom = [yo - b / 2, yo - b / 2, yo - b / 2, yo - b / 2]
@@ -1302,28 +1302,28 @@ def ShowSegment(ax: Any, waveguide_segment: dict[str, Any], z0: float) -> float:
     ax.plot_surface(*np.meshgrid([xo - a / 2, xo + a / 2], [z0, z0 + l]),
                    np.ones_like(np.meshgrid([xo - a / 2, xo + a / 2], [z0, z0 + l])[0]) * (yo - b / 2),
                    alpha=0.3, color="blue")
-    
+
     # Top face (y+)
     ax.plot_surface(*np.meshgrid([xo - a / 2, xo + a / 2], [z0, z0 + l]),
                    np.ones_like(np.meshgrid([xo - a / 2, xo + a / 2], [z0, z0 + l])[0]) * (yo + b / 2),
                    alpha=0.3, color="blue")
-    
+
     # Left face (x-)
     ax.plot_surface(np.ones_like(np.meshgrid([yo - b / 2, yo + b / 2], [z0, z0 + l])[0]) * (xo - a / 2),
                    *np.meshgrid([yo - b / 2, yo + b / 2], [z0, z0 + l]),
                    alpha=0.3, color="blue")
-    
+
     # Right face (x+)
     ax.plot_surface(np.ones_like(np.meshgrid([yo - b / 2, yo + b / 2], [z0, z0 + l])[0]) * (xo + a / 2),
                    *np.meshgrid([yo - b / 2, yo + b / 2], [z0, z0 + l]),
                    alpha=0.3, color="blue")
-    
+
     return z0 + l
 
 
 def WaveGuideCapDraw(ax: Any, seg_a: dict[str, Any], seg_b: dict[str, Any], z0: float) -> None:
     """Draw the transverse cap joining two waveguide cross-sections in 3-D.
-    
+
     [IN]
         ax                  - matplotlib 3D axes
         seg_a               - first waveguide segment struct
@@ -1334,16 +1334,16 @@ def WaveGuideCapDraw(ax: Any, seg_a: dict[str, Any], seg_b: dict[str, Any], z0: 
     b1 = seg_a["b"]
     xo1 = seg_a["xo"]
     yo1 = seg_a["yo"]
-    
+
     a2 = seg_b["a"]
     b2 = seg_b["b"]
     xo2 = seg_b["xo"]
     yo2 = seg_b["yo"]
-    
+
     # Define connection points
     x = [xo1 - a1 / 2, xo2 - a2 / 2, xo2 + a2 / 2, xo1 + a1 / 2]
     y = [yo1 - b1 / 2, yo2 - b2 / 2, yo2 + b2 / 2, yo1 + b1 / 2]
-    
+
     # Connection matrix for patch faces
     conn = [
         [[0, 1, 1, 0], [1, 2, 2, 1]],  # Top-left
@@ -1351,18 +1351,18 @@ def WaveGuideCapDraw(ax: Any, seg_a: dict[str, Any], seg_b: dict[str, Any], z0: 
         [[2, 3, 3, 2], [3, 0, 0, 3]],  # Bottom-right
         [[3, 0, 0, 3], [0, 1, 1, 0]],  # Bottom-left
     ]
-    
+
     eps = 1e-10
     for face_x, face_y in conn:
         xp = [x[i] for i in face_x]
         yp = [y[i] for i in face_y]
-        
+
         # Check if patch is inside either cross-section
         in1 = (min(xp) >= xo1 - a1 / 2 - eps and max(xp) <= xo1 + a1 / 2 + eps and
                min(yp) >= yo1 - b1 / 2 - eps and max(yp) <= yo1 + b1 / 2 + eps)
         in2 = (min(xp) >= xo2 - a2 / 2 - eps and max(xp) <= xo2 + a2 / 2 + eps and
                min(yp) >= yo2 - b2 / 2 - eps and max(yp) <= yo2 + b2 / 2 + eps)
-        
+
         if in1 or in2:
             zp = [z0, z0, z0, z0]
             ax.plot_surface(np.array([xp[:2], xp[2:]]), np.array([yp[:2], yp[2:]]),
@@ -1371,7 +1371,7 @@ def WaveGuideCapDraw(ax: Any, seg_a: dict[str, Any], seg_b: dict[str, Any], z0: 
 
 def WaveGuideConnectionCapDraw(ax: Any, two_port_device: dict[str, Any], color: str, z0: float) -> None:
     """Draw the cap patch corresponding to a TwoPortDevice connection face.
-    
+
     [IN]
         ax                  - matplotlib 3D axes
         two_port_device     - segment or device geometry to draw
@@ -1382,28 +1382,28 @@ def WaveGuideConnectionCapDraw(ax: Any, two_port_device: dict[str, Any], color: 
     b1 = two_port_device["b"]
     xo1 = two_port_device["xo"]
     yo1 = two_port_device["yo"]
-    
+
     x = [xo1 - a1 / 2, xo1 + a1 / 2, xo1 + a1 / 2, xo1 - a1 / 2]
     y = [yo1 - b1 / 2, yo1 - b1 / 2, yo1 + b1 / 2, yo1 + b1 / 2]
     z = [z0, z0, z0, z0]
-    
+
     ax.plot_surface(np.array([x[:2], x[2:]]), np.array([y[:2], y[2:]]),
                    np.array([z[:2], z[2:]]), alpha=0.7, color=color, edgecolor="black")
 
 
 def Nto1DeviceDraw(ax: Any, two_port_devices: list[dict[str, Any]], nto1_connection: dict[str, Any]) -> None:
     """Draw one N-to-1 connection and the attached TwoPortDevices.
-    
+
     [IN]
         ax                  - matplotlib 3D axes
         two_port_devices    - cell array of all TwoPortDevice structs
         nto1_connection     - Nto1Connection struct to draw
     """
     zo = nto1_connection.get("zo", 0.0)
-    
+
     nbr_ports_side_one = len(nto1_connection["SideOne"])
     nbr_ports_side_two = len(nto1_connection["SideTwo"])
-    
+
     # Determine which side is the "many" side for drawing
     if nbr_ports_side_one > nbr_ports_side_two:
         many_side = nto1_connection["SideOne"]
@@ -1415,14 +1415,14 @@ def Nto1DeviceDraw(ax: Any, two_port_devices: list[dict[str, Any]], nto1_connect
         few_side = nto1_connection["SideOne"]
         many_count = nbr_ports_side_two
         few_count = nbr_ports_side_one
-    
+
     # Draw the junction as a series of transition patches
     # This is a simplified representation showing the port openings
-    colors_many = ["cyan" if nbr_ports_side_one > nbr_ports_side_two else "green" 
+    colors_many = ["cyan" if nbr_ports_side_one > nbr_ports_side_two else "green"
                    for _ in range(many_count)]
-    colors_few = ["green" if nbr_ports_side_one > nbr_ports_side_two else "cyan" 
+    colors_few = ["green" if nbr_ports_side_one > nbr_ports_side_two else "cyan"
                   for _ in range(few_count)]
-    
+
     # Draw all ports
     for i, dev_info in enumerate(many_side):
         d_idx = dev_info["TwoPortDeviceIndex"] - 1

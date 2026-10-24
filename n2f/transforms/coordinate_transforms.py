@@ -23,7 +23,7 @@ def cartesian2spherical(ax, ay, az, theta, phi):
     ar = ax * np.sin(theta) * np.cos(phi) + ay * np.sin(theta) * np.sin(phi) + az * np.cos(theta)
     at = ax * np.cos(theta) * np.cos(phi) + ay * np.cos(theta) * np.sin(phi) - az * np.sin(theta)
     ap = -ax * np.sin(phi) + ay * np.cos(phi)
-    
+
     return ar, at, ap
 
 
@@ -47,7 +47,7 @@ def spherical2cartesian(ar, at, ap, theta, phi):
     ax = ar * np.sin(theta) * np.cos(phi) + at * np.cos(theta) * np.cos(phi) - ap * np.sin(phi)
     ay = ar * np.sin(theta) * np.sin(phi) + at * np.cos(theta) * np.sin(phi) + ap * np.cos(phi)
     az = ar * np.cos(theta) - at * np.sin(theta)
-    
+
     return ax, ay, az
 
 
@@ -77,7 +77,7 @@ def cross_operator(ax, ay, az, bx, by, bz):
     cx = ay * bz - az * by
     cy = az * bx - ax * bz
     cz = ax * by - ay * bx
-    
+
     return cx, cy, cz
 
 
@@ -101,27 +101,27 @@ def get_rotation_matrix(rot_angle, rot_axis):
         Rotation matrix for linear transformation of vectors in Cartesian coordinates
     """
     from ..utils.deg2rad import deg2rad
-    
+
     # Normalize axis
     rot_axis_norm = rot_axis / np.linalg.norm(rot_axis)
     rot_angle_rad = deg2rad(rot_angle)
-    
+
     # Rodrigues' formula components
     c1 = np.cos(rot_angle_rad)
     c2 = 1 - c1
     s = np.sin(rot_angle_rad)
-    
+
     # Outer product: u*u^T
     outer = np.outer(rot_axis_norm, rot_axis_norm)
-    
+
     # Skew-symmetric matrix [u]_x
     skew = np.array([
         [0, -rot_axis_norm[2], rot_axis_norm[1]],
         [rot_axis_norm[2], 0, -rot_axis_norm[0]],
         [-rot_axis_norm[1], rot_axis_norm[0], 0]
     ])
-    
+
     # Build rotation matrix
     rot_matrix = c1 * np.eye(3) + c2 * outer + s * skew
-    
+
     return rot_matrix

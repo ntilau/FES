@@ -144,10 +144,10 @@ def sf_plot_ff_cut_planes(phi_cuts, theta, pattern, title='Far Field Cut Planes'
         Plot title
     """
     fig, axes = plt.subplots(1, len(phi_cuts), figsize=(5*len(phi_cuts), 4))
-    
+
     if len(phi_cuts) == 1:
         axes = [axes]
-    
+
     for idx, phi_val in enumerate(phi_cuts):
         ax = axes[idx]
         ax.plot(theta, 20 * np.log10(np.abs(pattern[:, idx]) + 1e-10))
@@ -155,7 +155,7 @@ def sf_plot_ff_cut_planes(phi_cuts, theta, pattern, title='Far Field Cut Planes'
         ax.set_ylabel('Magnitude [dB]')
         ax.set_title(f'φ = {phi_val}°')
         ax.grid(True)
-    
+
     fig.suptitle(title)
     plt.tight_layout()
     plt.show()
@@ -329,21 +329,21 @@ def vf_plot_ff_cut_planes(phi_cuts, theta, et_pattern, ep_pattern, title='Vector
         Plot title
     """
     fig, axes = plt.subplots(len(phi_cuts), 2, figsize=(10, 4*len(phi_cuts)))
-    
+
     if len(phi_cuts) == 1:
         axes = axes.reshape(1, 2)
-    
+
     for idx, phi_val in enumerate(phi_cuts):
         axes[idx, 0].plot(theta, 20 * np.log10(np.abs(et_pattern[:, idx]) + 1e-10))
         axes[idx, 0].set_ylabel('Magnitude [dB]')
         axes[idx, 0].set_title(f'Theta Pol., φ = {phi_val}°')
         axes[idx, 0].grid(True)
-        
+
         axes[idx, 1].plot(theta, 20 * np.log10(np.abs(ep_pattern[:, idx]) + 1e-10))
         axes[idx, 1].set_ylabel('Magnitude [dB]')
         axes[idx, 1].set_title(f'Phi Pol., φ = {phi_val}°')
         axes[idx, 1].grid(True)
-    
+
     axes[-1, 0].set_xlabel('Theta [deg]')
     axes[-1, 1].set_xlabel('Theta [deg]')
     fig.suptitle(title)
@@ -372,7 +372,7 @@ def vf_plot_ff_polar_cut_planes(phi_cuts, theta, pattern, title='Polar Far Field
         Figure object
     """
     fig = plt.figure()
-    
+
     for idx, phi_val in enumerate(phi_cuts):
         ax = fig.add_subplot(1, len(phi_cuts), idx+1, projection='polar')
         r = np.abs(pattern[:, idx])
@@ -380,7 +380,7 @@ def vf_plot_ff_polar_cut_planes(phi_cuts, theta, pattern, title='Polar Far Field
         ax.plot(theta_deg, 20 * np.log10(r + 1e-10))
         ax.set_title(f'φ = {phi_val}°')
         ax.grid(True)
-    
+
     fig.suptitle(title)
     plt.tight_layout()
     return fig
@@ -401,10 +401,10 @@ def vf_plot_surface_power_density(matrix_size, power_density, title='Surface Pow
     """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    
+
     X, Y = np.meshgrid(range(matrix_size[1]), range(matrix_size[0]))
     Z = power_density.reshape(matrix_size)
-    
+
     surf = ax.plot_surface(X, Y, Z, cmap='hot')
     ax.set_title(title)
     ax.set_xlabel('X')

@@ -31,18 +31,18 @@ def get_box_dim(wavelength, array_pos, wl_ranging, wl_spacing, ext):
     """
     spacing = wl_spacing * wavelength
     ranging = wl_ranging * wavelength
-    
+
     x_min = np.min(array_pos[0, :]) - ext * wavelength
     x_max = np.max(array_pos[0, :]) + ext * wavelength
-    
+
     y_min = np.min(array_pos[1, :]) - ext * wavelength
     y_max = np.max(array_pos[1, :]) + ext * wavelength
-    
+
     z_min = np.min(array_pos[2, :]) - ranging
     z_max = np.max(array_pos[2, :]) + ranging
-    
+
     x_pts = int(np.floor((x_max - x_min) / spacing))
     y_pts = int(np.floor((y_max - y_min) / spacing))
     z_pts = int(np.floor(2 * ranging / spacing))
-    
+
     return x_min, x_max, y_min, y_max, z_min, z_max, x_pts, y_pts, z_pts

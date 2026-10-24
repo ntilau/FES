@@ -29,7 +29,7 @@ def get_box_vectors(array_pos, box_pos, box_n):
     # distance to surface patches and the scalar product to their normal versor
     rhon_mag = np.zeros((array_pos.shape[1], box_pos.shape[1]))
     box_n_dot_rhon_v = np.zeros((array_pos.shape[1], box_pos.shape[1]))
-    
+
     for i in range(array_pos.shape[1]):
         R = np.vstack([
             box_pos[0, :] - array_pos[0, i],
@@ -39,7 +39,7 @@ def get_box_vectors(array_pos, box_pos, box_n):
         rhon_mag[i, :] = np.sqrt(R[0, :]**2 + R[1, :]**2 + R[2, :]**2)
         # Scalar product of the versor to surface normal
         box_n_dot_rhon_v[i, :] = np.sum(box_n * R, axis=0) / rhon_mag[i, :]
-    
+
     return rhon_mag, box_n_dot_rhon_v
 
 
@@ -61,7 +61,7 @@ def get_sph_vectors(array_pos, sphere_pos):
         Vectors from each array element to the sphere sampling points
     n_dot_rhon_v : ndarray (N_array, N_sphere)
         For each array element, dot product between the normal unit vector
-        of the surface patch and the unit vector pointing from the point 
+        of the surface patch and the unit vector pointing from the point
         source to the surface patch
     n : ndarray (3, N_sphere)
         Normal unit vector to the patches, outwardly directed from the sphere
@@ -73,13 +73,13 @@ def get_sph_vectors(array_pos, sphere_pos):
         sphere_pos[1, :] / radius,
         sphere_pos[2, :] / radius
     ])
-    
+
     # Array related vectors to the patches
     # For each elements vector to the integration surface, computation of the
     # distance to surface patches and the scalar product to their normal versor
     rhon_mag = np.zeros((array_pos.shape[1], sphere_pos.shape[1]))
     n_dot_rhon_v = np.zeros((array_pos.shape[1], sphere_pos.shape[1]))
-    
+
     for i in range(array_pos.shape[1]):
         R = np.vstack([
             sphere_pos[0, :] - array_pos[0, i],
@@ -89,7 +89,7 @@ def get_sph_vectors(array_pos, sphere_pos):
         rhon_mag[i, :] = np.sqrt(R[0, :]**2 + R[1, :]**2 + R[2, :]**2)
         # Scalar product of the versor to surface normal
         n_dot_rhon_v[i, :] = np.sum(n * R, axis=0) / rhon_mag[i, :]
-    
+
     return rhon_mag, n_dot_rhon_v, n
 
 
@@ -112,8 +112,8 @@ def get_sph_radius(wavelength, array_pos, ext):
     radius : float
         Sphere radius in [m]
     """
-    radius = (np.sqrt(np.max(np.abs(array_pos[0, :]))**2 + 
+    radius = (np.sqrt(np.max(np.abs(array_pos[0, :]))**2 +
                       np.max(np.abs(array_pos[1, :]))**2 +
                       np.max(np.abs(array_pos[2, :]))**2) / wavelength + ext) * wavelength
-    
+
     return radius

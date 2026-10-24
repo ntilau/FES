@@ -8,8 +8,14 @@ __pycache__/
 *.egg-info/
 .venv/
 .env
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 ### Generated output files
+# 2D mesh caches are written locally by `fes mesh`; never commit them.
+data/*.h*.mat
+data/*.h*.mat.npz
 *.log
 *.o
 *.s?p
@@ -26,3 +32,17 @@ __pycache__/
 *build/
 dep/
 matrix_WR90.txt
+
+# ML / surrogate artifacts and mesh caches (generated, never committed)
+*.pt
+*.npz
+fit.json
+
+# IDE / editor state
+.claude/
+.idea/
+
+# Build / test outputs
+dist/
+.coverage/
+htmlcov/

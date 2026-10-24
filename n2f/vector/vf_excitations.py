@@ -7,8 +7,8 @@ from ..utils import deg2rad
 
 def vf_excitations(k0, array_pos, jmag, tj, pj, mmag, tm, pm, steering_t, steering_p):
     """
-    Computes the required linear phase excitations for a beam steering 
-    process in (theta, phi). The phasors are computed to achieve constructive 
+    Computes the required linear phase excitations for a beam steering
+    process in (theta, phi). The phasors are computed to achieve constructive
     interference in the scan angle.
 
     Parameters
@@ -37,17 +37,17 @@ def vf_excitations(k0, array_pos, jmag, tj, pj, mmag, tm, pm, steering_t, steeri
     M : ndarray (3, N_a)
         Magnetic current vector
     """
-    excit_phasor = np.exp(-1j * k0 * 
+    excit_phasor = np.exp(-1j * k0 *
                          (array_pos[0, :] * np.sin(deg2rad(steering_t)) * np.cos(deg2rad(steering_p)) +
                           array_pos[1, :] * np.sin(deg2rad(steering_t)) * np.sin(deg2rad(steering_p)) +
                           array_pos[2, :] * np.cos(deg2rad(steering_t))))
-    
+
     J_r, J_t, J_p = spherical2cartesian(excit_phasor * jmag, 0, 0, deg2rad(tj), deg2rad(pj))
     M_r, M_t, M_p = spherical2cartesian(excit_phasor * mmag, 0, 0, deg2rad(tm), deg2rad(pm))
-    
+
     J = np.vstack([J_r, J_t, J_p])
     M = np.vstack([M_r, M_t, M_p])
-    
+
     return J, M
 
 
@@ -81,34 +81,34 @@ def vf_direct_ff_solver(k0, z0, array_pos, J, M, theta_ff, phi_ff):
         Spherical phi component of the far electric field
     """
     from ..transforms import cartesian2spherical, cross_operator
-    
+
     ex_ff = np.zeros(theta_ff.shape, dtype=complex)
     ey_ff = np.zeros(theta_ff.shape, dtype=complex)
     ez_ff = np.zeros(theta_ff.shape, dtype=complex)
-    
+
     for i in range(theta_ff.shape[1]):
         for j in range(phi_ff.shape[0]):
             rff_vx = np.sin(theta_ff[j, i]) * np.cos(phi_ff[j, i])
             rff_vy = np.sin(theta_ff[j, i]) * np.sin(phi_ff[j, i])
             rff_vz = np.cos(theta_ff[j, i])
-            
+
             green = np.exp(1j * k0 * (rff_vx * array_pos[0, :] +
                                       rff_vy * array_pos[1, :] +
                                       rff_vz * array_pos[2, :]))
-            
+
             j_dot_rff_v = J[0, :] * rff_vx + J[1, :] * rff_vy + J[2, :] * rff_vz
-            
+
             mcross_rff_x, mcross_rff_y, mcross_rff_z = cross_operator(
                 M[0, :], M[1, :], M[2, :], rff_vx, rff_vy, rff_vz)
-            
+
             ex_ff[j, i] = -1j * k0 / (4 * np.pi) * np.sum(
                 (z0 * (J[0, :] - j_dot_rff_v * rff_vx) + mcross_rff_x) * green)
             ey_ff[j, i] = -1j * k0 / (4 * np.pi) * np.sum(
                 (z0 * (J[1, :] - j_dot_rff_v * rff_vy) + mcross_rff_y) * green)
             ez_ff[j, i] = -1j * k0 / (4 * np.pi) * np.sum(
                 (z0 * (J[2, :] - j_dot_rff_v * rff_vz) + mcross_rff_z) * green)
-    
+
     # Convert Cartesian far fields to spherical components
     er_ff, et_ff, ep_ff = cartesian2spherical(ex_ff, ey_ff, ez_ff, theta_ff, phi_ff)
-    
+
     return et_ff, ep_ff

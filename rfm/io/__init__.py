@@ -8,7 +8,7 @@ from .touchstone import read_touchstone, write_touchstone, read_csv
 
 # Try to import other format readers, but don't fail if they're not available
 try:
-    from .csv import ImportCSV
+    from .ImportCSV import ImportCSV
 except ImportError:
     ImportCSV = None
 

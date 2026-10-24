@@ -31,7 +31,7 @@ def get_sph_smpl_angles(d_theta, d_phi):
     matrix_size = theta_grid.shape
     theta = theta_grid.flatten()
     phi = phi_grid.flatten()
-    
+
     return theta, phi, matrix_size
 
 
@@ -64,7 +64,7 @@ def get_sph_smpl_angles_for_plots(d_theta, d_phi):
     matrix_size = theta_grid.shape
     theta = theta_grid.flatten()
     phi = phi_grid.flatten()
-    
+
     return theta, phi, matrix_size
 
 
@@ -88,8 +88,8 @@ def get_sph_smpl_res(radius, sph_smpl_res):
     """
     n_theta = int(np.floor(radius * np.pi / sph_smpl_res - 1))
     n_phi = int(np.floor(radius * 2 * np.pi / sph_smpl_res))
-    
+
     d_theta = 180 / n_theta
     d_phi = 360 / n_phi
-    
+
     return d_theta, d_phi

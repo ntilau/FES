@@ -5,17 +5,17 @@ import numpy as np
 def vector2matrix(dim, vector):
     """
     Convert a vector to a matrix of specified dimensions.
-    
+
     The vector is reshaped into a matrix with dimensions (rows, columns).
     This is the inverse operation of matrix(:) in MATLAB.
-    
+
     Parameters
     ----------
     dim : tuple or list
         Dimensions (rows, columns) of the output matrix
     vector : array_like
         Input vector to be reshaped into a matrix
-        
+
     Returns
     -------
     matrix : ndarray

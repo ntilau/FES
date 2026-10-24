@@ -5,7 +5,7 @@ import numpy as np
 
 def build_array(wavelength, nbr_elems_x, wl_spacing_x, nbr_elems_y, wl_spacing_y):
     """
-    Returns the positions of a planar radiating array defined on the XY plane, 
+    Returns the positions of a planar radiating array defined on the XY plane,
     centered at the origin.
 
     Parameters
@@ -35,26 +35,26 @@ def build_array(wavelength, nbr_elems_x, wl_spacing_x, nbr_elems_y, wl_spacing_y
     """
     spacing_x = wl_spacing_x * wavelength
     spacing_y = wl_spacing_y * wavelength
-    
+
     # Check odd or even for array centering
     if nbr_elems_x % 2:
         dim_x = nbr_elems_x // 2
     else:
         dim_x = (nbr_elems_x - 1) // 2
-    
+
     if nbr_elems_y % 2:
         dim_y = nbr_elems_y // 2
     else:
         dim_y = (nbr_elems_y - 1) // 2
-    
+
     # Create planar grid points for array elements positions
     x0, y0 = np.meshgrid(spacing_x * np.arange(-dim_x, dim_x + 1),
                          spacing_y * np.arange(-dim_y, dim_y + 1))
-    
+
     array_pos = np.vstack([
         x0.flatten(),
         y0.flatten(),
         np.zeros_like(x0.flatten())
     ])
-    
+
     return array_pos

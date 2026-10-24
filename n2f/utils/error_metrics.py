@@ -5,14 +5,14 @@ import numpy as np
 def get_l1_error(matrix, ref_matrix):
     """
     Calculate the relative L1 norm error between two matrices.
-    
+
     Parameters
     ----------
     matrix : array_like
         Matrix to compute error for
     ref_matrix : array_like
         Reference matrix
-        
+
     Returns
     -------
     error : float
@@ -28,14 +28,14 @@ def get_l1_error(matrix, ref_matrix):
 def get_l2_error(matrix, ref_matrix):
     """
     Calculate the relative L2 norm error between two matrices.
-    
+
     Parameters
     ----------
     matrix : array_like
         Matrix to compute error for
     ref_matrix : array_like
         Reference matrix
-        
+
     Returns
     -------
     error : float
@@ -51,14 +51,14 @@ def get_l2_error(matrix, ref_matrix):
 def get_max_error(matrix, ref_matrix):
     """
     Calculate the relative max (L-infinity) norm error between two matrices.
-    
+
     Parameters
     ----------
     matrix : array_like
         Matrix to compute error for
     ref_matrix : array_like
         Reference matrix
-        
+
     Returns
     -------
     error : float

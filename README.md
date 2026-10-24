@@ -28,8 +28,10 @@ python tools/build_triangle.py
 python tools/build_tetgen.py
 ```
 
-Without them, only 2D models with a pre-computed mesh cache can be run, and
-tests marked `triangle`/`tetgen` are skipped.
+Without them, models cannot be meshed from `.poly`, and tests marked
+`triangle`/`tetgen` are skipped. Mesh caches are not shipped: run
+`fes mesh` (or any solve) on a machine with the native libraries to write a
+local `<name>.h1.mat.npz` cache, which is gitignored.
 
 ## Quick Reference
 
@@ -74,10 +76,6 @@ make test                      # runs the pytest suite
 
 # Electrostatics (requires voltage assignment)
 .venv/bin/python -m fes run CapSense +f 0 +poly +volt Elec 1
-
-# Incident plane wave and far-field radiation pattern (3D, no waveports)
-.venv/bin/python -m fes run data/RadCube.poly \
-    +f 1e9 +poly +rad 37 73 +Ex 1 +kz 1
 ```
 
 Programmatic use:
@@ -203,8 +201,9 @@ fes/
 ├── paths.py          # model/mesh discovery (FES_DATA, caches)
 ├── core/
 │   ├── assemblers/   # em_e_fd, em_ez_fd, em_e_tl_eig, em_e_qs
-│   ├── *_kernels.py     # reference kernels (shape, quadrature, DOF, matrices)
-│   ├── options.py       # legacy and documented argv parsers
+│   ├── shape.py, shape3d.py, quadrature.py, element_matrix.py, dof.py
+│   │                 # reference kernels
+│   ├── options.py    # legacy and documented argv parsers
 │   └── assembly.py, shape_functions.py, ...  # legacy Python path
 ├── mesh/             # .poly I/O, Triangle/TetGen backends, topology, caches
 ├── post/             # mesh, field and radiation VTK writers
@@ -216,9 +215,11 @@ tools/                # reference capture scripts, mesher builds
 tests/                # unit and integration gates
 setup.py              # pip-installable package
 configure             # virtual environment setup
-data/                 # shared .poly models and .h<N>.mat{,.npz} mesh caches
-dep/                  # vendored native deps; Triangle/TetGen sources feed tools/build_*.py
+data/                 # shared .poly models (mesh caches are generated locally)
 ```
+
+The native mesher sources are not vendored: `tools/build_triangle.py` and
+`tools/build_tetgen.py` expect them under `dep/` (gitignored).
 
 ### Key features
 

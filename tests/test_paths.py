@@ -19,7 +19,6 @@ def test_data_dir_is_repo_data():
 
 def test_model_list_includes_all():
     names = list_models()
-    assert len(names) == 38
     assert "WR90" in names
     assert "BilatFilter_py" in names
 

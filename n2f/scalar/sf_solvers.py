@@ -51,14 +51,14 @@ def sf_nf_solver(wavelength, excit_phasor, rmag, n_dot_rv):
     for scalar point sources.
     """
     k_wn = 2 * np.pi / wavelength  # wavenumber
-    
+
     # Computing psi, the near field
     psi = np.sum(excit_phasor[:, np.newaxis] * (np.exp(-1j * k_wn * rmag) / (4 * np.pi * rmag)), axis=0)
-    
+
     # Computing delPsi, the near field normal derivative
-    del_psi = np.sum(excit_phasor[:, np.newaxis] * 
+    del_psi = np.sum(excit_phasor[:, np.newaxis] *
                      (-(1j * k_wn + 1 / rmag) * np.exp(-1j * k_wn * rmag) / (4 * np.pi * rmag) * n_dot_rv), axis=0)
-    
+
     return psi, del_psi
 
 
@@ -92,9 +92,9 @@ def sf_nf2ff_solver(wavelength, theta, phi, surf_pos, n, dS, psi, del_psi):
         Far-field pattern matrix for specified angles
     """
     k_wn = 2 * np.pi / wavelength  # wavenumber
-    
+
     f_psi = np.zeros((len(phi), len(theta)))
-    
+
     for i in range(len(theta)):
         for j in range(len(phi)):
             # Unit direction vector for the far-field observation
@@ -102,16 +102,16 @@ def sf_nf2ff_solver(wavelength, theta, phi, surf_pos, n, dS, psi, del_psi):
             ry_v = np.sin(theta[i]) * np.sin(phi[j])
             rz_v = np.cos(theta[i])
             R = np.array([rx_v, ry_v, rz_v])
-            
+
             # Projection of surface normals onto the far-field direction
             n_dot_r = np.sum(n * R[:, np.newaxis], axis=0)
-            
+
             # Scalar Green's function for each surface point in the far-field direction
             green = 1 / (4 * np.pi) * np.exp(1j * k_wn * (R @ surf_pos))
-            
+
             # Surface integral for the far-field pattern component
             f_psi[j, i] = np.sum(green * ((1j * k_wn * n_dot_r) * psi - del_psi) * dS)
-    
+
     return f_psi
 
 
@@ -139,12 +139,12 @@ def sf_direct_ff_solver(wavelength, theta, phi, excit_phasor, array_pos):
         Far-field pattern from the point source array
     """
     k_wn = 2 * np.pi / wavelength  # wavenumber
-    
+
     f_psi_ref = np.zeros((len(phi), len(theta)))
-    
+
     # Reshape theta for proper broadcasting: (N_theta, 1) to broadcast with (N_a,)
     theta_reshaped = theta[:, np.newaxis]
-    
+
     for i in range(len(phi)):
         phase = k_wn * (array_pos[0, :] * np.sin(theta_reshaped) * np.cos(phi[i]) +
                         array_pos[1, :] * np.sin(theta_reshaped) * np.sin(phi[i]) +
@@ -152,5 +152,5 @@ def sf_direct_ff_solver(wavelength, theta, phi, excit_phasor, array_pos):
         # phase has shape (N_theta, N_a), excit_phasor has shape (N_a,)
         # multiply element-wise and sum over sources
         f_psi_ref[i, :] = np.sum(excit_phasor / (4 * np.pi) * np.exp(1j * phase), axis=1)
-    
+
     return f_psi_ref
