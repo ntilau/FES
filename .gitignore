@@ -1,0 +1,28 @@
+### OS / editors
+*.DS_Store
+.vscode/
+
+### Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+
+### Generated output files
+*.log
+*.o
+*.s?p
+# Bundled RFM example data is source, not generated output.
+!rfm/data/*.s2p
+*.fes
+*.sol
+*.vtk
+*.vtp
+*.png
+*.jpg
+*.bmp
+*_modes.txt
+*build/
+dep/
+matrix_WR90.txt

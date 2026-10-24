@@ -1,0 +1,8 @@
+target-version = "py310"
+line-length = 88
+
+# Phase 1 keeps lint to correctness errors (syntax, undefined names, bad
+# comparisons).  Style and typing modernization are a later cleanup so the
+# port can land incrementally.
+[lint]
+select = ["E9", "F63", "F7", "F82"]

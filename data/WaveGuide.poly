@@ -1,0 +1,31 @@
+#Formula EM_EZ_FD
+# NODES: num_nodes  dim  num_attributes  num_markers
+# idx  x  y  z  marker
+4 2 1 1
+1 -11.43 11.43 0 11
+2 11.43 11.43 0 12
+3 11.43 -11.43 0 12
+4 -11.43 -11.43 0 11
+
+# SEGMENTS: num_segments  num_markers
+# idx  v1  v2  marker
+4 1
+1 1 2 1
+2 3 2 12
+3 4 3 1
+4 1 4 11
+
+# HOLES: num_holes
+0
+
+# REGIONS: num_regions
+# idx  x  y  label  max_area
+1
+1 0 0 1
+
+#Regions 1
+wg 1 1 1 0 vacuum
+#Boundaries 3
+TopBot 1 PerfectE
+Port1 11 WavePort 1
+Port2 12 WavePort 1

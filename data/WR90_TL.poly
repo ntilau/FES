@@ -1,0 +1,26 @@
+#Formula EM_E_TL_EIG
+#
+# WR90_TL.poly -- 2D cross-section of WR90 rectangular waveguide
+#
+# a = 22.86 mm, b = 10.16 mm
+# Part 1 - node list
+4 2 0 0
+1 -11.43e-3 -5.08e-3
+2 11.43e-3 -5.08e-3
+3 11.43e-3 5.08e-3
+4 -11.43e-3 5.08e-3
+# Part 2 - segment list
+4 1
+1 1 2 1
+2 2 3 1
+3 3 4 1
+4 4 1 1
+# Part 3 - hole list
+0
+# Part 4 - region list
+1
+1 0.0 0.0 1 5e-6
+#Regions 1
+WG1 1 1 1 0 vacuum
+#Boundaries 1
+PEC 1 PerfectE

@@ -1,0 +1,36 @@
+#Formula EM_E_TL_EIG
+# NODES: num_nodes  dim  num_attributes  num_markers
+# idx  x  y  z  marker
+4 2 0 0
+1 -1 1 0 0
+2 1 1 0 0
+3 1 -1 0 0
+4 -1 -1 0 0
+
+# SEGMENTS: num_segments  num_markers
+# idx  v1  v2  marker
+4 1
+1 2 1 1
+2 3 2 3
+3 4 3 1
+4 1 4 2
+
+# HOLES: num_holes
+0
+
+# REGIONS: num_regions
+# idx  x  y  label
+1
+1 0 0 1
+
+domain 1 1 1 0 vacuum
+TopBot 1 PerfectE
+Left 2 PerfectE
+Right 3 PerfectE
+
+#Regions 1
+domain 1 1 1 0 vacuum
+#Boundaries 3
+PEC 1 PerfectE
+Left 2 PerfectE
+Right 3 PerfectE
