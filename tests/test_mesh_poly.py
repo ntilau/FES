@@ -139,7 +139,7 @@ def test_read_poly_persist_writes_a_reusable_cache(tmp_path: Path) -> None:
     shutil.copy(source, tmp_path / source.name)
 
     generated = read_poly("ModelHeatEquation", data_dir=tmp_path, persist=True)
-    assert (tmp_path / "ModelHeatEquation.h1.mat.npz").is_file()
+    assert (tmp_path / "ModelHeatEquation.npz").is_file()
 
     # The cache serves the second call; ``scale`` still applies to it.
     cached = read_poly("ModelHeatEquation", data_dir=tmp_path, scale=2.0)
@@ -190,7 +190,7 @@ def test_cli_mesh_reports_counts_and_writes(tmp_path: Path) -> None:
     from fes.cli import main
 
     assert main(["mesh", "ModelHeatEquation", "--out", str(tmp_path)]) == 0
-    assert (tmp_path / "ModelHeatEquation.h1.mat.npz").is_file()
+    assert (tmp_path / "ModelHeatEquation.npz").is_file()
 
 
 @pytest.mark.triangle
