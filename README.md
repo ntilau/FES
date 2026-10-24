@@ -7,10 +7,6 @@ the E-field formulation with H(curl) conforming elements. It supports S-paramete
 extraction, eigenmode analysis, electrostatics, incident plane waves, and
 far-field radiation patterns.
 
-> **Release status (v0.2):** this is the Python-only repository. The C++ and
-> MATLAB backends were removed from `main`; the Python port reproduces the
-> previous solver's results numerically.
-
 ## Installation
 
 FES requires Python 3.9 or newer.
