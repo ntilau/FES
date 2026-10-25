@@ -62,6 +62,7 @@ local `<name>.npz` cache, which is gitignored.
 | **DNN-GP surrogate** | `python -c "from fes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"` |
 | **Modal-matching benchmark** | `python -m mm Riblet --no-plot` |
 | **Near-field → far-field** | `from n2f import sf_nf2ff_solver` (see `docs/bundled_modules.md`) |
+| **Vector near-field → far-field** | `from n2f import vf_nf_solver, vf_nf2ff_solver, vf_n2f_op_fields` (see `n2f/README.md`) |
 | **RFM / vector fitting** | `from rfm import read_touchstone, vector_fit` (see `rfm/README.md`) |
 
 ## Quick Start

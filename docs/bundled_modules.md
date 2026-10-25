@@ -151,8 +151,8 @@ meshers or ML extras required):
   checking/enforcement, the unimplemented-method guards, and plotting smoke
   tests.
 
-Two vector routines are marked `xfail` because the upstream code is not
-runnable as bundled: `vf_nf_solver` accumulates complex fields into real
-arrays, and `vf_n2f_op_fields` builds operators of the wrong width. The
-scalar `sf_nf2ff_solver` likewise stores its result in a real array, dropping
-a small imaginary part; the tests compare against its real part.
+The previously recorded vector defects (`vf_nf_solver` accumulating complex
+fields into real arrays, and `vf_n2f_op_fields` building operators of the
+wrong width) are fixed and covered by `tests/test_n2f.py`. The scalar
+`sf_nf2ff_solver` likewise stores its result in a real array, dropping a small
+imaginary part; the tests compare against its real part.

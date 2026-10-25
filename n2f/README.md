@@ -108,18 +108,16 @@ Main exports (all available directly from `n2f`):
 
 ## Known limitations
 
-These defects are present in the bundled upstream code and are recorded as
-`xfail` in `tests/test_n2f.py`:
-
-- `vf_nf_solver` accumulates complex fields into real-valued arrays and raises
-  a casting error under NumPy 2.
-- `vf_n2f_op_fields` assembles operator blocks with the wrong width and raises
-  a broadcasting `ValueError`.
 - `sf_nf2ff_solver` (and `sf_direct_ff_solver`) store the complex integral in a
-  real array, silently discarding a small imaginary part.
+  real array, silently discarding a small imaginary part. The scalar
+  `sf_nf2ff_operator` path is unaffected: applying the operator reproduces the
+  real part of `sf_nf2ff_solver` to machine precision.
 
-The scalar `sf_nf2ff_operator` path is unaffected: applying the operator
-reproduces the real part of `sf_nf2ff_solver` to machine precision.
+The previously recorded vector defects (`vf_nf_solver` accumulating complex
+fields into real arrays, and `vf_n2f_op_fields` building operators of the
+wrong width) are fixed and covered by
+`tests/test_n2f.py::test_vf_near_field_solver` and
+`tests/test_n2f.py::test_vf_n2f_operator`.
 
 ## Tests
 
