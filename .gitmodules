@@ -1,0 +1,6 @@
+[submodule "dep/src/triangle"]
+	path = dep/src/triangle
+	url = https://github.com/libigl/triangle.git
+[submodule "dep/src/tetgen"]
+	path = dep/src/tetgen
+	url = https://github.com/libigl/tetgen.git

@@ -87,6 +87,24 @@ else
     echo "Mesh files:  none (generate with 'fes mesh <model>' or download separately)"
 fi
 
+# 6. Build native mesh libraries (Triangle / TetGen) if vendored
+if [ -d "$HERE/dep/src/triangle" ] && [ -f "$HERE/tools/build_triangle.py" ]; then
+    echo "Building Triangle mesh library ..."
+    if "$VENV/bin/python" "$HERE/tools/build_triangle.py" >/dev/null 2>&1; then
+        echo "  Triangle: built"
+    else
+        echo "  Triangle: build failed (2D meshing unavailable)"
+    fi
+fi
+if [ -d "$HERE/dep/src/tetgen" ] && [ -f "$HERE/tools/build_tetgen.py" ]; then
+    echo "Building TetGen mesh library ..."
+    if "$VENV/bin/python" "$HERE/tools/build_tetgen.py" >/dev/null 2>&1; then
+        echo "  TetGen: built"
+    else
+        echo "  TetGen: build failed (3D meshing unavailable)"
+    fi
+fi
+
 # Verify at least one project can import
 PYVER="$("$VENV/bin/python" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 echo "Python:      $PYVER"
