@@ -54,7 +54,7 @@ def build(
     source_dir = Path(source_dir)
     shim = Path(shim)
     output = Path(output) if output is not None else default_output()
-    compiler = compiler or shutil.which("c++") or shutil.which("clang++")
+    compiler = compiler or shutil.which("c++") or shutil.which("g++") or shutil.which("clang++")
 
     for path in (source_dir / "tetgen.cxx", source_dir / "predicates.cxx", shim):
         if not path.is_file():

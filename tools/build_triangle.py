@@ -106,7 +106,7 @@ def build(
     source = Path(source)
     include = Path(include)
     output = Path(output) if output is not None else default_output()
-    compiler = compiler or shutil.which("c++") or shutil.which("clang++")
+    compiler = compiler or shutil.which("c++") or shutil.which("g++") or shutil.which("clang++")
 
     if not source.is_file():
         raise FileNotFoundError(
