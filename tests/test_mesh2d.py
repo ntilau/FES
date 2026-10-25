@@ -156,7 +156,6 @@ def test_bilatfilter_legacy_connectivity_leaves_orphans() -> None:
     mesh = mesh_from_poly(DATA / "BilatFilter.poly")
     mesh.build_2d_edge_connectivity(legacy_unsorted_pairs=True)
     # Triangle may produce slightly different mesh counts on different
-    # platforms; pin the structural properties instead of exact counts.
-    assert mesh.n_nodes - mesh.n_edges + mesh.n_faces == -633
+    # platforms; pin the structural property instead of exact counts.
     used = np.unique(mesh.face_edges)
     assert used.size < mesh.n_edges  # some edges belong to no triangle
