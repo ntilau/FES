@@ -14,7 +14,6 @@ FES requires Python 3.9 or newer.
 ```bash
 make setup                     # create .venv and install the package (editable)
 ./configure                    # same as make setup
-./configure --minimal          # FEM-only: skip ML/visualization extras
 ```
 
 After setup, activate the virtual environment so you can run `python`,
@@ -46,7 +45,6 @@ local `<name>.npz` cache, which is gitignored.
 | Task | Command |
 |------|---------|
 | **Install** | `make setup` |
-| **Install FEM-only** | `./configure --minimal` |
 | **Activate venv** | `source .venv/bin/activate` |
 | **Run tests** | `make test` (or `pytest tests/ -q` after activating) |
 | **CI-equivalent tests** | `pytest -q` |

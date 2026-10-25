@@ -43,7 +43,7 @@ PY_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = PY_DIR
 
 DEFAULT_SOURCE = REPO_ROOT / "dep" / "src" / "triangle" / "triangle.cpp"
-DEFAULT_INCLUDE = REPO_ROOT / "dep" / "include"
+DEFAULT_INCLUDE = REPO_ROOT / "dep" / "src" / "triangle"
 
 #: ``poolinit``'s first block: the only allocation a small model needs.
 _POOLINIT_OLD = """  pool->firstblock = (VOID **)

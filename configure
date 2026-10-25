@@ -6,21 +6,31 @@ set -euo pipefail
 # dependencies, and verifies the installation.
 #
 # Usage:
-#   ./configure                    # standard install
-#   ./configure --dev              # include dev / ML extras
-#   ./configure --minimal          # FEM-only, skip ML libs
+#   ./configure                    # install the package and dependencies
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 VENV="$HERE/.venv"
 
-MODE="${1:-standard}"
+# Resolve a Python interpreter: prefer Python 3.12, fall back to system python3.
+PYTHON=""
+for cand in python3.12 python3; do
+    if command -v "$cand" >/dev/null 2>&1; then
+        PYTHON="$cand"
+        break
+    fi
+done
+if [ -z "$PYTHON" ]; then
+    echo "Error: no python3 interpreter found (need python3.12 or python3)" >&2
+    exit 1
+fi
 
-echo "=== FES setup ==="
+PYVER="$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+echo "=== FES setup (python: $PYVER via $PYTHON) ==="
 
 # 1. Create virtual environment
 if [ ! -d "$VENV" ]; then
     echo "Creating virtual environment ..."
-    python3 -m venv "$VENV"
+    "$PYTHON" -m venv "$VENV"
 fi
 
 # 2. Install package
@@ -39,32 +49,16 @@ install_extras() {
     fi
 }
 
-case "$MODE" in
-    --minimal)
-        echo "Installing package (FEM-only, no extras) ..."
-        "$VENV/bin/python" -m pip install --quiet -e "$HERE"
-        ;;
-    --dev|*)
-        echo "Installing package + visualization + test deps ..."
-        if ! install_extras -e "$HERE[viz]" pytest; then
-            "$VENV/bin/python" -m pip install --quiet -e "$HERE"
-            "$VENV/bin/python" -m pip install --quiet pytest
-        fi
-        ;;
-esac
+if ! install_extras -e "$HERE[viz]" pytest; then
+    "$VENV/bin/python" -m pip install --quiet -e "$HERE"
+    "$VENV/bin/python" -m pip install --quiet pytest
+fi
 
 # 3. Optional ML extras
-case "$MODE" in
-    --minimal)
-        echo "Skipping ML / visualization extras (FEM-only mode)."
-        ;;
-    *)
-        echo "Installing ML / DNN-GP dependencies ..."
-        if ! install_extras torch gpytorch scikit-learn; then
-            echo "         DNN-GP surrogate projects unavailable until these install." >&2
-        fi
-        ;;
-esac
+echo "Installing ML / DNN-GP dependencies ..."
+if ! install_extras torch gpytorch scikit-learn; then
+    echo "         DNN-GP surrogate projects unavailable until these install." >&2
+fi
 
 # 4. Verify
 echo "Verifying installation ..."
@@ -87,7 +81,13 @@ else
     echo "Mesh files:  none (generate with 'fes mesh <model>' or download separately)"
 fi
 
-# 6. Build native mesh libraries (Triangle / TetGen) if vendored
+# 6. Initialize submodules if the vendored sources aren't present yet.
+if [ -d "$HERE/dep/src" ] && ! ls "$HERE/dep/src/triangle/triangle.cpp" "$HERE/dep/src/tetgen/tetgen.cxx" >/dev/null 2>&1; then
+    echo "Initializing submodules ..."
+    git -C "$HERE" submodule update --init >/dev/null 2>&1 || true
+fi
+
+# 7. Build native mesh libraries (Triangle / TetGen) if vendored
 if [ -d "$HERE/dep/src/triangle" ] && [ -f "$HERE/tools/build_triangle.py" ]; then
     echo "Building Triangle mesh library ..."
     if "$VENV/bin/python" "$HERE/tools/build_triangle.py" >/dev/null 2>&1; then
