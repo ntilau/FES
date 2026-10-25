@@ -2,7 +2,7 @@
 
 The v0.1 C++ binary meshes 3D ``.poly`` files by calling ``tetgenio::load_poly``
 and ``tetrahedralize("pqAfeeQ", ...)`` from the TetGen sources vendored in
-``dep/src/tetgen``.  Reproducing its meshes bit-for-bit means compiling the
+``dep/tetgen``.  Reproducing its meshes bit-for-bit means compiling the
 same source, so this script does that and adds a small C shim
 (``tools/tetgen_shim.cpp``) because TetGen's interface is C++ and ctypes
 cannot own a ``tetgenio``.
@@ -13,7 +13,7 @@ Usage::
     python tools/build_tetgen.py --compiler clang++ -o build/libfetgen.dylib
 
 TetGen itself is compiled unmodified with ``-DTETLIBRARY`` (the same define as
-``dep/src/tetgen/CMakeLists.txt``); only the shim (a separate translation unit)
+``dep/tetgen/CMakeLists.txt``); only the shim (a separate translation unit)
 is ours.  The library is optional tooling: the Python package runs without it
 and mesh-generation tests skip when it is absent.
 """
@@ -29,7 +29,7 @@ from pathlib import Path
 PY_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = PY_DIR
 
-DEFAULT_SOURCE_DIR = REPO_ROOT / "dep" / "src" / "tetgen"
+DEFAULT_SOURCE_DIR = REPO_ROOT / "dep" / "tetgen"
 DEFAULT_SHIM = PY_DIR / "tools" / "tetgen_shim.cpp"
 
 
@@ -59,7 +59,7 @@ def build(
     for path in (source_dir / "tetgen.cxx", source_dir / "predicates.cxx", shim):
         if not path.is_file():
             raise FileNotFoundError(
-                f"{path} not found; the v0.1 tree ships TetGen under dep/src/tetgen/"
+                f"{path} not found; the v0.1 tree ships TetGen under dep/tetgen/"
             )
     if not compiler:
         raise FileNotFoundError("no C++ compiler found; pass --compiler")

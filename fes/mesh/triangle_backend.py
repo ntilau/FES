@@ -11,7 +11,7 @@ shared library (``libtriangle.dylib`` / ``.so``), or build one into
 
     python tools/build_triangle.py
 
-That script patches one thing in ``dep/src/triangle/triangle.cpp``: memory
+That script patches one thing in ``dep/triangle/triangle.cpp``: memory
 pools are zero-filled.  Triangle leaves the ``vertex->triangle`` slot of
 *unused* (duplicate) vertices uninitialised, and the v0.1 C++ binary only worked
 because its allocator handed back fresh zero pages; in a Python process the
@@ -168,7 +168,7 @@ def library_path() -> Path:
 
     raise TriangleUnavailable(
         "Triangle shared library not found; set FES_TRIANGLE or build "
-        "build/libtriangle.dylib from dep/src/triangle/triangle.cpp"
+        "build/libtriangle.dylib from dep/triangle/triangle.cpp"
     )
 
 

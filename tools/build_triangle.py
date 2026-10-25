@@ -1,7 +1,7 @@
 """Build the Triangle shared library used by ``fes.mesh.triangle_backend``.
 
 Triangle is not vendored with the repository.  The v0.1 C++ binary linked Triangle
-1.6 compiled from ``dep/src/triangle/triangle.cpp``, so reproducing its meshes
+1.6 compiled from ``dep/triangle/triangle.cpp``, so reproducing its meshes
 means building that same source.  This script does so, applying one documented
 deviation: memory pools are zero-filled.
 
@@ -42,8 +42,8 @@ from pathlib import Path
 PY_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = PY_DIR
 
-DEFAULT_SOURCE = REPO_ROOT / "dep" / "src" / "triangle" / "triangle.cpp"
-DEFAULT_INCLUDE = REPO_ROOT / "dep" / "src" / "triangle"
+DEFAULT_SOURCE = REPO_ROOT / "dep" / "triangle" / "triangle.cpp"
+DEFAULT_INCLUDE = REPO_ROOT / "dep" / "triangle"
 
 #: ``poolinit``'s first block: the only allocation a small model needs.
 _POOLINIT_OLD = """  pool->firstblock = (VOID **)
@@ -111,7 +111,7 @@ def build(
     if not source.is_file():
         raise FileNotFoundError(
             f"Triangle source not found at {source}; the v0.1 tree ships it "
-            "under dep/src/triangle/ (see docs/install.md)"
+            "under dep/triangle/ (see docs/install.md)"
         )
     if not compiler:
         raise FileNotFoundError("no C++ compiler found; pass --compiler")

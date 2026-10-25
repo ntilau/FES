@@ -82,13 +82,13 @@ else
 fi
 
 # 6. Initialize submodules if the vendored sources aren't present yet.
-if [ -d "$HERE/dep/src" ] && ! ls "$HERE/dep/src/triangle/triangle.cpp" "$HERE/dep/src/tetgen/tetgen.cxx" >/dev/null 2>&1; then
+if [ -d "$HERE/dep" ] && ! ls "$HERE/dep/triangle/triangle.cpp" "$HERE/dep/tetgen/tetgen.cxx" >/dev/null 2>&1; then
     echo "Initializing submodules ..."
     git -C "$HERE" submodule update --init >/dev/null 2>&1 || true
 fi
 
 # 7. Build native mesh libraries (Triangle / TetGen) if vendored
-if [ -d "$HERE/dep/src/triangle" ] && [ -f "$HERE/tools/build_triangle.py" ]; then
+if [ -d "$HERE/dep/triangle" ] && [ -f "$HERE/tools/build_triangle.py" ]; then
     echo "Building Triangle mesh library ..."
     if "$VENV/bin/python" "$HERE/tools/build_triangle.py" >/dev/null 2>&1; then
         echo "  Triangle: built"
@@ -96,7 +96,7 @@ if [ -d "$HERE/dep/src/triangle" ] && [ -f "$HERE/tools/build_triangle.py" ]; th
         echo "  Triangle: build failed (2D meshing unavailable)"
     fi
 fi
-if [ -d "$HERE/dep/src/tetgen" ] && [ -f "$HERE/tools/build_tetgen.py" ]; then
+if [ -d "$HERE/dep/tetgen" ] && [ -f "$HERE/tools/build_tetgen.py" ]; then
     echo "Building TetGen mesh library ..."
     if "$VENV/bin/python" "$HERE/tools/build_tetgen.py" >/dev/null 2>&1; then
         echo "  TetGen: built"
