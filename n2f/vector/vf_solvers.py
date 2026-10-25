@@ -68,8 +68,8 @@ def vf_nf_solver(k0, z0, array_pos, surf_pos, n, dS, J, M):
     Pr : float
         Total radiated power [W]
     """
-    E = np.zeros(surf_pos.shape)
-    H = np.zeros(surf_pos.shape)
+    E = np.zeros(surf_pos.shape, dtype=complex)
+    H = np.zeros(surf_pos.shape, dtype=complex)
 
     for i in range(array_pos.shape[1]):
         # Vector from the i-th source to each surface sampling point
