@@ -48,6 +48,7 @@ def vf_n2f_op_fields(k0, z0, surf_pos, surf_n, dS, theta_ff, phi_ff):
         t_z = -np.sin(theta_ff[:, j])
         p_x = -np.sin(phi_ff[:, j])
         p_y = np.cos(phi_ff[:, j])
+        p_z = np.zeros_like(theta_ff[:, j])
 
         green = -1j * k0 / (4 * np.pi) * np.exp(1j * k0 * (
             rff_vx[:, np.newaxis] * surf_pos[0, :] +
@@ -81,14 +82,18 @@ def vf_n2f_op_fields(k0, z0, surf_pos, surf_n, dS, theta_ff, phi_ff):
             green * (-(p_x[:, np.newaxis] * surf_n[2, :]) * (rff_vz[:, np.newaxis] * dS) +
                      (p_x[:, np.newaxis] * surf_n[1, :]) * (-rff_vy[:, np.newaxis] * dS)),
             green * (-(p_y[:, np.newaxis] * surf_n[2, :]) * np.zeros_like(rff_vz[:, np.newaxis]) +
-                     (p_y[:, np.newaxis] * surf_n[1, :]) * (rff_vx[:, np.newaxis] * dS))
+                     (p_y[:, np.newaxis] * surf_n[1, :]) * (rff_vx[:, np.newaxis] * dS)),
+            green * (-(p_z[:, np.newaxis] * surf_n[2, :]) * (-rff_vx[:, np.newaxis] * dS) +
+                     (p_z[:, np.newaxis] * surf_n[1, :]) * np.zeros_like(rff_vy[:, np.newaxis]))
         ])
 
         opp_h_component = np.vstack([
             green * ((p_x[:, np.newaxis] * surf_n[2, :]) * z0 * (-rff_vy[:, np.newaxis] * rff_vx[:, np.newaxis] * dS) +
                      (p_y[:, np.newaxis] * surf_n[2, :]) * z0 * ((1 - rff_vy[:, np.newaxis] * rff_vy[:, np.newaxis]) * dS)),
             green * ((p_x[:, np.newaxis] * surf_n[0, :]) * z0 * (-rff_vz[:, np.newaxis] * rff_vx[:, np.newaxis] * dS) +
-                     (p_y[:, np.newaxis] * surf_n[0, :]) * z0 * (-rff_vz[:, np.newaxis] * rff_vy[:, np.newaxis] * dS))
+                     (p_y[:, np.newaxis] * surf_n[0, :]) * z0 * (-rff_vz[:, np.newaxis] * rff_vy[:, np.newaxis] * dS)),
+            green * ((p_x[:, np.newaxis] * surf_n[1, :]) * z0 * ((1 - rff_vx[:, np.newaxis] * rff_vx[:, np.newaxis]) * dS) +
+                     (p_y[:, np.newaxis] * surf_n[1, :]) * z0 * (-rff_vx[:, np.newaxis] * rff_vy[:, np.newaxis] * dS))
         ])
 
         opp[:, :, j] = np.hstack([opp_h_component.reshape(theta_ff.shape[0], -1),

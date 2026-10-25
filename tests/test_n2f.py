@@ -527,11 +527,6 @@ def test_vf_direct_far_field_and_gain() -> None:
     assert np.all(gain_t >= 0) and np.all(gain_p >= 0)
 
 
-@pytest.mark.xfail(
-    reason="upstream vf_nf_solver accumulates complex fields into real arrays",
-    raises=TypeError,
-    strict=False,
-)
 def test_vf_near_field_solver() -> None:
     array_pos = n2f.build_array(1.0, 2, 0.25, 2, 0.25)
     z0, k0, _ = n2f.utils.get_free_space_electrical_params(1e9)
@@ -541,11 +536,6 @@ def test_vf_near_field_solver() -> None:
     n2f.vf_nf_solver(k0, z0, array_pos, box_pos, box_n, dS, J, M)
 
 
-@pytest.mark.xfail(
-    reason="upstream vf_n2f_op_fields assembles operators of the wrong width",
-    raises=ValueError,
-    strict=False,
-)
 def test_vf_n2f_operator() -> None:
     array_pos = n2f.build_array(1.0, 3, 0.5, 3, 0.5)
     z0, k0, _ = n2f.utils.get_free_space_electrical_params(1e9)
