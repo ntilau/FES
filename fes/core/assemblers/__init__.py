@@ -12,6 +12,8 @@ The v0.1 C++ sources are frozen; the modules here are the replacement for them.
 from __future__ import annotations
 
 from .em_e_fd import FDPort, FDSystem, assemble_em_e_fd
+from .em_e_fd_dd import assemble_em_e_fd_dd
+from .em_e_fd_nl import assemble_em_e_fd_nl
 from .em_e_qs import QSSystem, assemble_em_e_qs
 from .em_e_tl_eig import TLEigSystem, assemble_em_e_tl_eig
 from .em_ez_fd import TMzSystem, WavePort, assemble_em_ez_fd
@@ -26,6 +28,8 @@ __all__ = [
     "TMzSystem",
     "WavePort",
     "assemble_em_e_fd",
+    "assemble_em_e_fd_dd",
+    "assemble_em_e_fd_nl",
     "assemble_em_e_qs",
     "assemble_em_e_tl_eig",
     "assemble_em_ez_fd",

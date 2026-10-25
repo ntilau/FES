@@ -6,7 +6,6 @@ from fes.api import (
     DRIVERS,
     FORMULATION_PHASE,
     FormulationUnavailableError,
-    NotPortedError,
     effective_assembly,
     load_drivers,
     load_model,
@@ -84,10 +83,11 @@ def test_dry_run_returns_plan():
     assert plan.command == "run"
 
 
-def test_unported_formulation_raises_with_phase():
-    with pytest.raises(NotPortedError) as caught:
-        run("WR90", argv=["+f", "1e10", "+formula", "em_e_fd_dd"])
-    assert caught.value.phase == FORMULATION_PHASE["em_e_fd_dd"]
+def test_em_e_fd_nl_is_ported():
+    # em_e_fd_nl (Phase 10) now has a driver; without +nl options it falls
+    # back to the linear em_e_fd solve.
+    result = run("WR90", argv=["+f", "1e10", "+formula", "em_e_fd_nl", "+p", "2"])
+    assert result.systems[0].S is not None
 
 
 def test_em_h_qs_is_unavailable_like_the_oracle():
@@ -108,11 +108,9 @@ def test_em_h_qs_is_unavailable_like_the_oracle():
 def test_ported_formulations_have_a_driver():
     """The registry carries exactly the formulations that have a driver.
 
-    Phases 2, 6, 7 and 11 landed drivers.  Domain decomposition (Phase 9) and
-    harmonic balance (Phase 10) are still unported; their oracle paths do not
-    currently produce a gateable corpus.
+    Phases 2, 6, 7, 9, 10 and 11 landed drivers.
     """
-    ported = {"em_ez_fd", "em_e_fd", "em_e_tl_eig", "em_e_qs"}
+    ported = {"em_ez_fd", "em_e_fd", "em_e_fd_dd", "em_e_fd_nl", "em_e_tl_eig", "em_e_qs"}
     load_drivers()
     for name in FORMULATION_PHASE:
         if name in ported:

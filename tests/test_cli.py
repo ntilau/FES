@@ -6,7 +6,6 @@ import pytest
 
 from fes.cli import (
     EXIT_IO,
-    EXIT_NOT_PORTED,
     EXIT_OK,
     EXIT_USAGE,
     main,
@@ -88,9 +87,8 @@ def test_legacy_positional_frequency(capsys):
 
 def test_run_without_driver_reports_not_ported(capsys):
     # Electrostatics has a driver since Phase 11; domain decomposition
-    # (Phase 9) and harmonic balance (Phase 10) remain unported.
-    assert main(["run", "WR90", "+f", "1e10", "+formula", "em_e_fd_dd"]) == EXIT_NOT_PORTED
-    assert "not ported yet" in capsys.readouterr().err
+    # (Phase 9) is now ported via em_e_fd_dd.
+    assert main(["run", "WR90", "+f", "1e10", "+formula", "em_e_fd_dd", "+p", "2"]) == EXIT_OK
 
 
 def test_em_h_qs_rejected(capsys):

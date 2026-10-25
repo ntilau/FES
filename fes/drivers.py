@@ -31,6 +31,8 @@ from .core.assemblers import (
     TLEigSystem,
     TMzSystem,
     assemble_em_e_fd,
+    assemble_em_e_fd_dd,
+    assemble_em_e_fd_nl,
     assemble_em_e_qs,
     assemble_em_e_tl_eig,
     assemble_em_ez_fd,
@@ -49,6 +51,8 @@ __all__ = [
     "merge_touchstone",
     "read_touchstone",
     "run_em_e_fd",
+    "run_em_e_fd_dd",
+    "run_em_e_fd_nl",
     "run_em_e_qs",
     "run_em_e_tl_eig",
     "run_em_ez_fd",
@@ -327,11 +331,6 @@ def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
     options = plan.options
     result = _new_result(plan)
 
-    if options.nl:
-        result.notes.append("+nl harmonic balance is not ported yet (Phase 10)")
-    if options.n_dd or options.dd or options.ddn or options.dds:
-        result.notes.append("domain decomposition is not ported yet (Phase 9)")
-
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
 
     output_dir = _prepare_output(plan, mesh)
@@ -343,6 +342,114 @@ def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
             power=options.power,
             e_inc=options.E if options.einc else None,
             k_inc=options.k if options.einc else None,
+        )
+        result.systems.append(system)
+        if options.field:
+            write_field_vtk(
+                mesh,
+                system.Sol,
+                freq,
+                output_dir / plan.project,
+                assembly=plan.assembly,
+                order=options.p_ord,
+            )
+        if options.rad:
+            write_radiation_vtk(
+                mesh,
+                system.Sol,
+                freq,
+                output_dir / plan.project,
+                order=options.p_ord,
+                n_theta=options.n_theta,
+                n_phi=options.n_phi,
+                e_inc=options.E if options.einc else None,
+            )
+        n_ports = int(system.wave_ports_num)
+        _write_sparams(result, plan, output_dir, freq, system, n_ports)
+
+    return result
+
+
+def run_em_e_fd_dd(plan: api.RunPlan) -> SolverResult:
+    """Driver for the 3D H(curl) curl-curl formulation with domain decomposition.
+
+    Like :func:`run_em_e_fd` but solves the reduced system via Schur-complement
+    domain decomposition, partitioning the mesh into *n_dd* subdomains and
+    iterating on the interface with Jacobi or Gauss-Seidel relaxation.
+    """
+    options = plan.options
+    result = _new_result(plan)
+
+    if options.nl:
+        result.notes.append("+nl harmonic balance is not ported yet (Phase 10)")
+
+    mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+
+    output_dir = _prepare_output(plan, mesh)
+    for freq in result.frequencies:
+        system = assemble_em_e_fd_dd(
+            mesh,
+            freq,
+            options.p_ord,
+            power=options.power,
+            e_inc=options.E if options.einc else None,
+            k_inc=options.k if options.einc else None,
+            n_dd=options.n_dd or 1,
+            preconditioner=options.dd_preconditioner or "gs",
+        )
+        result.systems.append(system)
+        if options.field:
+            write_field_vtk(
+                mesh,
+                system.Sol,
+                freq,
+                output_dir / plan.project,
+                assembly=plan.assembly,
+                order=options.p_ord,
+            )
+        if options.rad:
+            write_radiation_vtk(
+                mesh,
+                system.Sol,
+                freq,
+                output_dir / plan.project,
+                order=options.p_ord,
+                n_theta=options.n_theta,
+                n_phi=options.n_phi,
+                e_inc=options.E if options.einc else None,
+            )
+        n_ports = int(system.wave_ports_num)
+        _write_sparams(result, plan, output_dir, freq, system, n_ports)
+
+    return result
+
+
+def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
+    """Driver for the 3D H(curl) curl-curl formulation with Kerr nonlinearity.
+
+    Like :func:`run_em_e_fd` but solves the nonlinear system via fixed-point
+    iteration on the Kerr-shifted permittivity.  The ``+nl`` flag selects the
+    nonlinear material, number of harmonics, Kerr coefficient and relaxation
+    factor.
+    """
+    options = plan.options
+    result = _new_result(plan)
+
+    mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+
+    output_dir = _prepare_output(plan, mesh)
+    for freq in result.frequencies:
+        system = assemble_em_e_fd_nl(
+            mesh,
+            freq,
+            options.p_ord,
+            power=options.power,
+            e_inc=options.E if options.einc else None,
+            k_inc=options.k if options.einc else None,
+            n_harm=options.n_harm,
+            nl_mtrl_name=options.nl_mtrl_name,
+            kerr=options.kerr,
+            relax=options.relax,
         )
         result.systems.append(system)
         if options.field:
@@ -433,6 +540,8 @@ def install() -> None:
     """Register the available drivers in :data:`fes.api.DRIVERS`."""
     api.DRIVERS.setdefault("em_ez_fd", run_em_ez_fd)
     api.DRIVERS.setdefault("em_e_fd", run_em_e_fd)
+    api.DRIVERS.setdefault("em_e_fd_dd", run_em_e_fd_dd)
+    api.DRIVERS.setdefault("em_e_fd_nl", run_em_e_fd_nl)
     api.DRIVERS.setdefault("em_e_tl_eig", run_em_e_tl_eig)
     api.DRIVERS.setdefault("em_e_qs", run_em_e_qs)
 
