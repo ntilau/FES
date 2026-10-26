@@ -22,8 +22,8 @@ from typing import List, Optional
 
 import numpy as np
 
-from ..constants import MU0, PI
-from ..core.dof import vector_dof_map
+from ..constants import C0, MU0, PI
+from ..core.dof import scalar_dof_map, vector_dof_map
 from ..core.element_matrix import tetrahedron_jacobian
 from ..core.shape3d import shape_3d
 
@@ -201,6 +201,75 @@ def _evaluate_curl_h(mesh, full: np.ndarray, order: int, freq: float) -> np.ndar
     return node_val
 
 
+# ── AV field reconstruction ───────────────────────────────────────────────
+
+
+def _evaluate_av_e(
+    mesh, sol_v: np.ndarray, sol_a: np.ndarray, order: int, freq: float,
+    dofnum_s_offset: int = 0,
+) -> np.ndarray:
+    """E = -grad(V) - i*omega*A at mesh nodes, node-averaged.
+
+    *sol_v* is the scalar (V) part, indexed by scalar DOF numbers.
+    *sol_a* is the vector (A) part, indexed by vector DOF numbers
+    (i.e. already offset by dofnum_s).
+    """
+    n_nodes = mesh.n_nodes
+    omega = 2.0 * PI * freq
+    node_val = np.zeros((n_nodes, 3), dtype=complex)
+    sum_times = np.zeros(n_nodes)
+
+    for tit in range(mesh.n_tetras):
+        s_dofs = scalar_dof_map(mesh, order, tit)
+        v_dofs = vector_dof_map(mesh, order, tit)
+        _, inv_j = tetrahedron_jacobian(mesh.tet_geo(tit))
+        shp = shape_3d(order, _LOC_NODE, inv_j)
+        v_local = sol_v[s_dofs]
+        a_local = sol_a[v_dofs]
+        for i in range(4):
+            node = int(mesh.tetras[tit, i])
+            # grad(V) at reference node i: dNs[i].T @ v_local
+            grad_v = shp.dNs[i].T @ v_local
+            # A at reference node i: Nv[i].T @ a_local
+            a_val = shp.Nv[i].T @ a_local
+            node_val[node] += -grad_v - 1j * omega * a_val
+            sum_times[node] += 1.0
+
+    node_val *= _SQRT2
+    with np.errstate(divide="ignore", invalid="ignore"):
+        node_val /= sum_times[:, None]
+    return node_val
+
+
+def _evaluate_av_h(
+    mesh, sol_a: np.ndarray, order: int, freq: float,
+) -> np.ndarray:
+    """H = (1/mur) * curl(A) at mesh nodes, node-averaged.
+
+    *sol_a* is the vector (A) part, indexed by vector DOF numbers.
+    """
+    n_nodes = mesh.n_nodes
+    node_val = np.zeros((n_nodes, 3), dtype=complex)
+    sum_times = np.zeros(n_nodes)
+
+    for tit in range(mesh.n_tetras):
+        material = mesh.material_for_tet(tit)
+        mur = float(material.mur) if material is not None else 1.0
+        v_dofs = vector_dof_map(mesh, order, tit)
+        _, inv_j = tetrahedron_jacobian(mesh.tet_geo(tit))
+        t_sol = sol_a[v_dofs]
+        shp = shape_3d(order, _LOC_NODE, inv_j)
+        for i in range(4):
+            node = int(mesh.tetras[tit, i])
+            node_val[node] += (1.0 / mur) * (shp.dNv[i].T @ t_sol)
+            sum_times[node] += 1.0
+
+    node_val *= _SQRT2
+    with np.errstate(divide="ignore", invalid="ignore"):
+        node_val /= sum_times[:, None]
+    return node_val
+
+
 def write_field_vtk(
     mesh,
     sol: np.ndarray,
@@ -209,15 +278,19 @@ def write_field_vtk(
     *,
     assembly: str,
     order: int,
+    dofnum_s: int = 0,
 ) -> Path:
     """Write ``<field_name>_<freq>.vtk`` exactly like ``field::field``.
 
     *sol* is the full DOF solution, shaped ``(n_dof, n_columns)``: for 2D
     ``em_ez_fd`` that is the expanded TFE solution
     (:func:`fes.core.assemblers.em_ez_fd.extract_solution_full`); for 3D
-    ``em_e_fd`` it is :attr:`~fes.core.assemblers.em_e_fd.FDSystem.Sol`.
+    ``em_e_fd`` it is :attr:`~fes.core.assemblers.em_e_fd.FDSystem.Sol`;
+    for 3D ``em_av_fd`` it is :attr:`~fes.core.assemblers.em_av_fd.AVSystem.Sol`
+    with *dofnum_s* giving the split between the scalar (V) and vector (A)
+    parts.
     """
-    if assembly not in ("em_ez_fd", "em_e_fd", "em_e_qs"):
+    if assembly not in ("em_ez_fd", "em_e_fd", "em_e_qs", "em_av_fd"):
         raise NotImplementedError(
             f"field export for {assembly!r} is not ported yet"
         )
@@ -231,11 +304,6 @@ def write_field_vtk(
     first = True
 
     if assembly == "em_e_qs":
-        # ``field.cpp``'s QS branch loops over ``msh->nTetras``, which is zero
-        # for a 2D mesh, so ``SumTimes`` stays zero and the final
-        # ``NodeVal.row(i) /= SumTimes(i)`` divides 0 by 0.  Every component
-        # becomes NaN, and the oracle prints it as ``nan``.  Only the first
-        # block opens ``POINT_DATA`` (``first``).
         node_val = np.full((mesh.n_nodes, 3), complex(np.nan, np.nan))
         out.append(f"POINT_DATA {mesh.n_nodes}\n")
         out.append(f"SCALARS {freq_text}_Phi_0_[V] float 1\n")
@@ -247,6 +315,34 @@ def write_field_vtk(
         for count, node_val in _tmz_node_values(mesh, sol):
             _append_efield(out, freq_text, node_val, count, first)
             first = False
+    elif assembly == "em_av_fd":
+        # Split [V, A] solution: sol[:dofnum_s, :] is V, sol[dofnum_s:, :] is A.
+        sol_v = sol[:dofnum_s, :]
+        sol_a = sol[dofnum_s:, :]
+        full_v = np.sum(sol_v, axis=1)
+        full_a = np.sum(sol_a, axis=1)
+        _append_efield(
+            out, freq_text, _evaluate_av_e(mesh, full_v, full_a, order, freq), 0, first
+        )
+        first = False
+        columns = int(sol.shape[1])
+        if columns < 10:
+            for jj in range(columns):
+                _append_efield(
+                    out,
+                    freq_text,
+                    _evaluate_av_e(mesh, sol_v[:, jj], sol_a[:, jj], order, freq),
+                    jj + 1,
+                    first,
+                )
+                _append_hfield(
+                    out,
+                    freq_text,
+                    _evaluate_av_h(mesh, sol_a[:, jj], order, freq),
+                    jj + 1,
+                    first,
+                )
+                first = False
     else:
         full = np.sum(sol, axis=1)
         _append_efield(

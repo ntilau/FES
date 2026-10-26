@@ -108,15 +108,25 @@ def test_em_h_qs_is_unavailable_like_the_oracle():
 def test_ported_formulations_have_a_driver():
     """The registry carries exactly the formulations that have a driver.
 
-    Phases 2, 6, 7, 9, 10 and 11 landed drivers.
+    Phases 2, 6, 7, 9, 10, 11 and 12 landed drivers.
     """
-    ported = {"em_ez_fd", "em_e_fd", "em_e_fd_dd", "em_e_fd_nl", "em_e_tl_eig", "em_e_qs"}
+    ported = {"em_av_fd", "em_ez_fd", "em_e_fd", "em_e_fd_dd", "em_e_fd_nl", "em_e_tl_eig", "em_e_qs"}
     load_drivers()
     for name in FORMULATION_PHASE:
         if name in ported:
             assert name in DRIVERS, name
         else:
             assert name not in DRIVERS, name
+
+
+def test_em_av_fd_is_ported():
+    """em_av_fd (Phase 12) now has a driver; without waveports it raises
+    ``Null Right Hand Side`` like em_e_fd.  WR90 carries WavePort boundaries,
+    so at order 1 the port mode computation fails with ValueError instead
+    ("not enough dofs on wave_ports")."""
+    from fes.core.assemblers.errors import NullRightHandSideError
+    with pytest.raises((NullRightHandSideError, ValueError)):
+        run("WR90", argv=["+f", "1e10", "+formula", "em_av_fd", "+p", "1"])
 
 
 def test_sweep_plan():

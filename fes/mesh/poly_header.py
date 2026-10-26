@@ -31,6 +31,10 @@ _BC_TYPES = {
     "waveport": "WavePort",
     "lumped_port": "LumpedPort",
     "lumpedport": "LumpedPort",
+    "const_e": "ConstE",
+    "conste": "ConstE",
+    "const_h": "ConstH",
+    "consth": "ConstH",
 }
 
 
@@ -72,6 +76,12 @@ class Boundary:
     #: ``bc::bc()`` initialises this to 1, and the C++ parser only assigns it
     #: when the ``#Boundaries`` line carries a fourth field.
     num_modes: int = 1
+    #: For ``ConstE`` boundaries: the specified tangential E field (Ex, Ey, Ez).
+    e_value: Optional[Tuple[float, float, float]] = None
+    #: For ``ConstH`` boundaries: the specified tangential H field (Hx, Hy, Hz).
+    h_value: Optional[Tuple[float, float, float]] = None
+    #: For ``ConstH`` boundaries: the outward normal vector (nx, ny, nz).
+    normal_vec: Optional[Tuple[float, float, float]] = None
 
     def as_dict(self) -> dict:
         return {
@@ -79,6 +89,9 @@ class Boundary:
             "label": self.label,
             "type": self.type,
             "num_modes": self.num_modes,
+            "e_value": self.e_value,
+            "h_value": self.h_value,
+            "normal_vec": self.normal_vec,
         }
 
 
@@ -192,6 +205,24 @@ def read_poly_metadata(filename: str | Path) -> ModelInfo:
                 if len(parts) > 3:
                     try:
                         boundary.num_modes = int(parts[3])
+                    except ValueError:
+                        pass
+                # Parse optional field values for ConstE/ConstH boundaries.
+                if boundary.type == "ConstE" and len(parts) >= 7:
+                    try:
+                        boundary.e_value = (
+                            float(parts[4]), float(parts[5]), float(parts[6]),
+                        )
+                    except ValueError:
+                        pass
+                elif boundary.type == "ConstH" and len(parts) >= 10:
+                    try:
+                        boundary.h_value = (
+                            float(parts[4]), float(parts[5]), float(parts[6]),
+                        )
+                        boundary.normal_vec = (
+                            float(parts[7]), float(parts[8]), float(parts[9]),
+                        )
                     except ValueError:
                         pass
                 info.boundaries.append(boundary)

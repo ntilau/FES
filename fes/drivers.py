@@ -27,9 +27,11 @@ import numpy as np
 
 from . import api
 from .core.assemblers import (
+    AVSystem,
     FDSystem,
     TLEigSystem,
     TMzSystem,
+    assemble_em_av_fd,
     assemble_em_e_fd,
     assemble_em_e_fd_dd,
     assemble_em_e_fd_nl,
@@ -50,6 +52,7 @@ __all__ = [
     "install",
     "merge_touchstone",
     "read_touchstone",
+    "run_em_av_fd",
     "run_em_e_fd",
     "run_em_e_fd_dd",
     "run_em_e_fd_nl",
@@ -168,6 +171,8 @@ class SolverResult:
         system = self.systems[0]
         if isinstance(system, FDSystem):
             return int(system.wave_ports_num)
+        if isinstance(system, AVSystem):
+            return int(system.wave_ports_num)
         return int(system.n_modes)
 
     @property
@@ -176,6 +181,8 @@ class SolverResult:
             return 0
         system = self.systems[0]
         if isinstance(system, FDSystem):
+            return int(system.dofnum)
+        if isinstance(system, AVSystem):
             return int(system.dofnum)
         return int(system.dof)
 
@@ -316,6 +323,58 @@ def run_em_ez_fd(plan: api.RunPlan) -> SolverResult:
                 n_phi=options.n_phi,
             )
         _write_sparams(result, plan, output_dir, freq, system, system.n_modes)
+
+    return result
+
+
+def run_em_av_fd(plan: api.RunPlan) -> SolverResult:
+    """Driver for the 3D H(curl) x H(grad) A-V formulation.
+
+    Like :func:`run_em_e_fd` but assembles the mixed vector-potential /
+    scalar-potential system with the gauge-fixing projector.  The reference
+    C++ re-meshes the PLC with TetGen on every run and never caches the
+    result, so the mesh is generated here and reused for the whole frequency
+    list.
+    """
+    options = plan.options
+    result = _new_result(plan)
+
+    mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+
+    output_dir = _prepare_output(plan, mesh)
+    for freq in result.frequencies:
+        system = assemble_em_av_fd(
+            mesh,
+            freq,
+            options.p_ord,
+            power=options.power,
+            e_inc=options.E if options.einc else None,
+            k_inc=options.k if options.einc else None,
+        )
+        result.systems.append(system)
+        if options.field:
+            write_field_vtk(
+                mesh,
+                system.Sol,
+                freq,
+                output_dir / plan.project,
+                assembly=plan.assembly,
+                order=options.p_ord,
+                dofnum_s=system.dofnum_s,
+            )
+        if options.rad:
+            write_radiation_vtk(
+                mesh,
+                system.Sol,
+                freq,
+                output_dir / plan.project,
+                order=options.p_ord,
+                n_theta=options.n_theta,
+                n_phi=options.n_phi,
+                e_inc=options.E if options.einc else None,
+            )
+        n_ports = int(system.wave_ports_num)
+        _write_sparams(result, plan, output_dir, freq, system, n_ports)
 
     return result
 
@@ -538,6 +597,7 @@ def run_em_e_qs(plan: api.RunPlan) -> SolverResult:
 
 def install() -> None:
     """Register the available drivers in :data:`fes.api.DRIVERS`."""
+    api.DRIVERS.setdefault("em_av_fd", run_em_av_fd)
     api.DRIVERS.setdefault("em_ez_fd", run_em_ez_fd)
     api.DRIVERS.setdefault("em_e_fd", run_em_e_fd)
     api.DRIVERS.setdefault("em_e_fd_dd", run_em_e_fd_dd)

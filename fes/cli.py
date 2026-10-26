@@ -123,7 +123,7 @@ Usage:
 Common flags:
   +f FREQ              frequency in Hz (0 selects electrostatics)
   +fr LF HF N          discrete frequency sweep
-  +formula NAME        em_e_fd | em_ez_fd | em_e_tl_eig | em_e_qs |
+  +formula NAME        em_av_fd | em_e_fd | em_ez_fd | em_e_tl_eig | em_e_qs |
                        em_e_fd_dd | em_e_fd_nl | em_h_qs
   +p N                 polynomial order (1-4)
   +h N                 uniform mesh refinement level
@@ -336,6 +336,8 @@ def _run_command(
         if not _is_null_rhs(exc):
             raise
         return _null_rhs_abort(exc)
+    except ValueError as exc:
+        return _error(str(exc))
 
 
 def _cmd_run(rest: Sequence[str], switches: Dict[str, object], command: str = "run") -> int:

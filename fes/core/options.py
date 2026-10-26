@@ -28,6 +28,7 @@ from dataclasses import dataclass, field as _dc_field
 from typing import Dict, List, Sequence
 
 ASSEMBLY_TYPES = (
+    "em_av_fd",
     "em_e_fd",
     "em_e_fd_dd",
     "em_e_fd_nl",

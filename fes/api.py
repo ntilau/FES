@@ -24,6 +24,7 @@ from .paths import model_path
 
 #: Formulation → phase that supplies its Python driver.
 FORMULATION_PHASE = {
+    "em_av_fd": 12,
     "em_ez_fd": 2,
     "em_e_fd": 6,
     "em_e_tl_eig": 7,
