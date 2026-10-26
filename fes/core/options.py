@@ -171,6 +171,14 @@ class Options:
     nl_mtrl_name: str = ""
     kerr: float = 0.0
     dd_preconditioner: str = "gs"
+    #: User-specified shift for the eigenmode solver (0.0 = use default).
+    shift: float = 0.0
+    #: Orthogonalisation to suppress spurious modes (``+o``/``-o``).
+    ortho: bool = True
+    #: ARPACK tolerance for the sparse eigenmode solver path (0.0 = default).
+    eig_tol: float = 0.0
+    #: Eigen solver path: ``"auto"``, ``"dense"``, ``"arpack"`` or ``"arnoldi"``.
+    eig_solver: str = "auto"
     positional_freqs: List[float] = _dc_field(default_factory=list)
     extra_positionals: List[str] = _dc_field(default_factory=list)
     extra: Dict[str, str] = _dc_field(default_factory=dict)
@@ -530,7 +538,7 @@ def parse_argv(argv: Sequence[str], legacy: bool = False) -> Options:
             opt.n_jor_gs = token == "+gs"
             index += 1
             continue
-        if token in ("+tfe", "-tfe", "+sparam", "-sparam"):
+        if token in ("+tfe", "-tfe", "+sparam", "-sparam", "+ortho", "-ortho"):
             key = token[1:]
             opt.cli_override[key] = "1" if token[0] == "+" else "0"
             index += 1
@@ -562,7 +570,8 @@ def parse_argv(argv: Sequence[str], legacy: bool = False) -> Options:
 
         # ── single-value flags that C++ handled generically ─────────────
         if token in ("+formula", "+assembly", "+solver", "+f", "+p", "+h",
-                     "+poly_cmd", "+href", "+href_cmd", "+n_modes"):
+                     "+poly_cmd", "+href", "+href_cmd", "+n_modes", "+shift",
+                     "+tol", "+eigsolver"):
             values = _need(tokens, index + 1, 1, token)
             value = values[0]
             if token in ("+formula", "+assembly"):
@@ -583,6 +592,12 @@ def parse_argv(argv: Sequence[str], legacy: bool = False) -> Options:
                 opt.poly_cmd = value
             elif token == "+n_modes":
                 opt.n_modes = cpp_stoull(value)
+            elif token == "+shift":
+                opt.shift = cpp_stod(value)
+            elif token == "+tol":
+                opt.eig_tol = cpp_stod(value)
+            elif token == "+eigsolver":
+                opt.eig_solver = value
             index += 2
             continue
 
@@ -644,6 +659,8 @@ def parse_argv(argv: Sequence[str], legacy: bool = False) -> Options:
         opt.dd = _as_bool(opt.cli_override["dd"])
     if "href" in opt.cli_override:
         opt.href_cmd = opt.cli_override["href"]
+    if "ortho" in opt.cli_override:
+        opt.ortho = _as_bool(opt.cli_override["ortho"])
     return opt
 
 

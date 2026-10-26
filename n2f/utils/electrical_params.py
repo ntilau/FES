@@ -85,8 +85,6 @@ def get_reduced_output_system_matrices(nbr_coeffs, nbr_smpls, k0, z0, box_pos,
     # NOTE: This function requires loading matrix files (.mm format)
     # which is not a standard part of numpy/scipy.
     # The external dependencies would need to be added:
-    # comp2Ext = scipy.io.mmread('lte_fileset/comp2Ext1.mm')
-    # num2UnNum = scipy.io.mmread('lte_fileset/num2UnNum1.mm')
     # etc.
 
     # For now, we return placeholder outputs

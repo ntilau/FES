@@ -134,6 +134,11 @@ Common flags:
   +gmres TOL [RESTART]  iterative solver
   +dd N                domain decomposition into N subdomains
   +nl H MAT KERR RELAX Kerr nonlinear harmonic balance
+  +n_modes N           number of eigenmodes to compute (eigen)
+  +ortho / -ortho      enable/disable orthogonalisation (eigen, default on)
+  +shift F             user shift for eigenmode solver (eigen)
+  +tol T               ARPACK tolerance for eigenmode solver (eigen)
+  +eigsolver NAME      eigen solver path: auto, dense, arpack, arnoldi (eigen)
   +einc Ex,Ey,Ez,kx,ky,kz  incident plane wave
   +field               write VTK field data
   +rad NT NP            write a radiation pattern

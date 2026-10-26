@@ -554,7 +554,16 @@ def run_em_e_tl_eig(plan: api.RunPlan) -> SolverResult:
     _prepare_output(plan, mesh)
     for freq in result.frequencies:
         result.systems.append(
-            assemble_em_e_tl_eig(mesh, freq, options.p_ord)
+            assemble_em_e_tl_eig(
+                mesh,
+                freq,
+                options.p_ord,
+                n_modes=options.n_modes or None,
+                shift=options.shift or None,
+                ortho=options.ortho,
+                eig_tol=options.eig_tol,
+                solver=options.eig_solver,
+            )
         )
     return result
 

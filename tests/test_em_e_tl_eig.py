@@ -172,3 +172,103 @@ def test_sparse_path_matches_the_dense_operator(monkeypatch) -> None:
         sparse.mode_beta, dense.mode_beta, rtol=1e-9, atol=0
     )
 
+
+# ── user-facing controls ──
+
+
+@pytest.mark.triangle
+def test_n_modes_overrides_the_default_count() -> None:
+    """``n_modes`` overrides ``min(5, n/2 + 1)``; first N modes match the default."""
+    mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
+    default = assemble_em_e_tl_eig(mesh, 10e9, 2)
+    limited = assemble_em_e_tl_eig(mesh, 10e9, 2, n_modes=2)
+    assert default.n_modes == 5
+    assert limited.n_modes == 2
+    np.testing.assert_allclose(limited.mode_beta, default.mode_beta[:2], rtol=1e-9)
+
+
+@pytest.mark.triangle
+def test_n_modes_is_clamped_to_valid_range() -> None:
+    """``n_modes`` above the maximum is clamped; zero or negative falls back to default."""
+    mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
+    default = assemble_em_e_tl_eig(mesh, 10e9, 2)
+    assert default.n_modes == min(5, (default.free_edges.size + default.n_node_dofs) // 2 + 1)
+    # n_modes=0 means "use default".
+    fallback = assemble_em_e_tl_eig(mesh, 10e9, 2, n_modes=0)
+    assert fallback.n_modes == default.n_modes
+    # n_modes larger than numtot//2+1 is clamped to numtot//2+1.
+    oversized = assemble_em_e_tl_eig(mesh, 10e9, 2, n_modes=1000)
+    assert oversized.n_modes == (default.free_edges.size + default.n_node_dofs) // 2 + 1
+
+
+@pytest.mark.triangle
+def test_custom_shift_changes_the_spectrum() -> None:
+    """A user-specified shift overrides ``-k0^2 * maxepsr * maxmur``."""
+    mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
+    default = assemble_em_e_tl_eig(mesh, 10e9, 2)
+    assert default.shift == pytest.approx(-default.k0**2)
+    shifted = assemble_em_e_tl_eig(mesh, 10e9, 2, shift=-50.0)
+    assert shifted.shift == pytest.approx(-50.0)
+    assert shifted.shift != default.shift
+    # Modes should differ when the shift changes.
+    assert not np.allclose(default.mode_beta, shifted.mode_beta, atol=1e-6)
+
+
+def test_ortho_false_skips_the_projection() -> None:
+    """``ortho=False`` skips the OO = diag(I, 0) projection."""
+    mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
+    ortho_on = assemble_em_e_tl_eig(mesh, 10e9, 2, ortho=True)
+    ortho_off = assemble_em_e_tl_eig(mesh, 10e9, 2, ortho=False)
+    assert ortho_on.n_modes == ortho_off.n_modes
+    # Results should differ when orthogonalisation is disabled.
+    assert not np.allclose(ortho_on.mode_beta, ortho_off.mode_beta, atol=1e-6)
+
+
+@pytest.mark.triangle
+def test_eig_tol_forwarded_to_arpack(monkeypatch) -> None:
+    """``eig_tol`` is passed to the ARPACK sparse solver."""
+    mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
+    monkeypatch.setattr(module, "DENSE_LIMIT", 0)
+    system = assemble_em_e_tl_eig(mesh, 10e9, 2, eig_tol=1e-8)
+    assert system.solver == "arpack"
+    assert system.n_modes > 0
+
+
+# ── arnoldi shift-invert path ───────────────────────────────────────────────
+
+
+@pytest.mark.triangle
+def test_arnoldi_solver_matches_dense(monkeypatch) -> None:
+    """The hand-written Arnoldi shift-invert reproduces the dense spectrum."""
+    mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
+    dense = assemble_em_e_tl_eig(mesh, 10e9, 2)
+    arnoldi = assemble_em_e_tl_eig(mesh, 10e9, 2, solver="arnoldi")
+    assert arnoldi.solver == "arnoldi"
+    np.testing.assert_allclose(
+        arnoldi.mode_beta, dense.mode_beta, rtol=1e-6, atol=1e-9
+    )
+
+
+@pytest.mark.triangle
+def test_arnoldi_solver_respects_n_modes() -> None:
+    """``solver='arnoldi'`` respects ``n_modes``."""
+    mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
+    system = assemble_em_e_tl_eig(mesh, 10e9, 2, solver="arnoldi", n_modes=2)
+    assert system.solver == "arnoldi"
+    assert system.n_modes == 2
+
+
+@pytest.mark.triangle
+def test_arnoldi_solver_auto_falls_back_to_dense(monkeypatch) -> None:
+    """``solver='auto'`` with small systems uses dense, not arnoldi."""
+    mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
+    system = assemble_em_e_tl_eig(mesh, 10e9, 2, solver="auto")
+    assert system.solver == "dense"
+
+
+def test_unknown_solver_raises() -> None:
+    """An unknown ``solver`` value raises ``ValueError``."""
+    mesh = _square_mesh()
+    with pytest.raises(ValueError, match="unknown solver"):
+        assemble_em_e_tl_eig(mesh, 1e9, 2, solver="bogus")
+

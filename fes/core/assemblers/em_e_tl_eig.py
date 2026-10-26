@@ -46,17 +46,42 @@ the pencil produce the physical modes, and it is reproduced verbatim here.
 Selection
 ---------
 
-ARPACK returns the ``num_modes`` Ritz values with the largest ``|theta|``, i.e.
-the eigenvalues closest to the shift.  This module resolves the operator
-densely instead (BLAS-independent, as in :mod:`em_e_fd`) for systems small
-enough to be dense, and falls back to ARPACK for large ones.  The subsequent
-ordering is the reference's: ``zneupd`` sorts ascending by real part then
-imaginary part, the constructor reverses the list, and the assembler performs a
-stable ``|beta|``-descending sort.
+Three solver paths are available:
 
+* ``"dense"`` — builds the full operator and calls ``scipy.linalg.eigvals``.
+  BLAS-independent, used for systems small enough to be dense.
+* ``"arpack"`` — calls ``scipy.sparse.linalg.eigs`` on a ``LinearOperator``
+  wrapping an LU factorised shift-inverted operator; ARPACK's own Arnoldi.
+* ``"arnoldi"`` — hand-written Arnoldi shift-invert, factorising the
+  shift-inverted matrix once with SuperLU and iterating the Krylov
+  subspace manually.
+
+The default is ``"auto"``: dense for ``numtot <= DENSE_LIMIT``, arpack above.
+Set ``solver`` explicitly to ``"dense"``, ``"arpack"`` or ``"arnoldi"`` to force a path.
 The dense path cannot represent the ``Coaxial`` cross-section (156k DOFs, and
-the reason the frozen binary is killed by the OOM killer); the sparse ARPACK
-path exists for those systems.
+the reason the frozen binary is killed by the OOM killer); the sparse paths
+exist for those systems.
+
+User-facing controls
+--------------------
+
+``+n_modes N``
+    Number of eigenmodes to compute.  Defaults to the reference's
+    ``min(5, n/2 + 1)``; when set to a positive value it overrides that
+    (clamped to ``[1, n/2 + 1]``).
+
+``+shift F``
+    User-specified shift (``gamma^2``) for the shift-inverted operator.
+    Defaults to ``-k0^2 * maxepsr * maxmur`` when not given.
+
+``+ortho`` / ``-ortho``
+    Enable or disable the Cangellaris orthogonalisation projection
+    (``OO = diag(I_numt, 0)``) that suppresses spurious modes
+    (``k=0`` and ``div D = 0``).  Defaults to on.
+
+``+tol T``
+    ARPACK tolerance for the sparse solver path.  Defaults to ``0.0``
+    (ARPACK's default).
 """
 
 from __future__ import annotations
@@ -102,7 +127,8 @@ class TLEigSystem:
     shift: float
     #: Complex ``sqrt(lambda)`` per mode, already ordered like the oracle.
     mode_beta: np.ndarray = field(default_factory=lambda: np.zeros(0, complex))
-    #: ``"dense"`` (oracle replay) or ``"arpack"`` (large system).
+    #: ``"dense"`` (oracle replay), ``"arpack"`` (ARPACK shift-invert) or
+    #: ``"arnoldi"`` (hand-written Arnoldi shift-invert).
     solver: str = "dense"
     #: Sparse blocks, kept for inspection and for the parity fixtures.
     St: Optional[sp.csr_matrix] = None
@@ -273,23 +299,29 @@ def _finalize_modes(theta: np.ndarray, shift: float, num_modes: int) -> np.ndarr
     return be[np.argsort(-np.abs(be), kind="stable")]
 
 
-def _solve_dense(A, B, numt: int, numz: int, shift: float, num_modes: int):
+def _solve_dense(A, B, numt: int, numz: int, shift: float, num_modes: int, ortho: bool = True):
     """Replay ``eigen.cpp`` on a dense pencil.
 
     ``OO`` is ``diag(I_numt, 0)`` because the lower-left block
     ``solve(-TT[zz,zz], TT[zv])`` is the SVD least-squares solution of a zero
-    system; see the module docstring.
+    system; see the module docstring.  When ``ortho`` is False, ``OO`` is the
+    identity (no spurious-mode suppression projection).
     """
     n = numt + numz
     A_s = A / shift - B
-    OO = np.zeros((n, n), dtype=complex)
-    OO[:numt, :numt] = np.eye(numt)
-    operator = OO @ scipy.linalg.solve(A_s, B / shift)
+    if ortho:
+        OO = np.zeros((n, n), dtype=complex)
+        OO[:numt, :numt] = np.eye(numt)
+        operator = OO @ scipy.linalg.solve(A_s, B / shift)
+    else:
+        operator = scipy.linalg.solve(A_s, B / shift)
     theta = scipy.linalg.eigvals(operator)
     return _finalize_modes(theta, shift, num_modes)
 
 
-def _solve_sparse(A, B, numt: int, numz: int, shift: float, num_modes: int):
+def _solve_sparse(
+    A, B, numt: int, numz: int, shift: float, num_modes: int, ortho: bool = True, eig_tol: float = 0.0
+):
     """Resolve the same operator with ARPACK for systems too large to be dense."""
     n = numt + numz
     A_s = (A / shift - B).tocsc()
@@ -299,7 +331,8 @@ def _solve_sparse(A, B, numt: int, numz: int, shift: float, num_modes: int):
         x = np.asarray(x, dtype=complex).reshape(n)
         y = np.asarray(B @ x, dtype=complex).reshape(n) / shift
         y = lu.solve(y)
-        y[numt:] = 0.0  # OO = diag(I_numt, 0)
+        if ortho:
+            y[numt:] = 0.0  # OO = diag(I_numt, 0)
         return y
 
     operator = scipy.sparse.linalg.LinearOperator(
@@ -311,9 +344,93 @@ def _solve_sparse(A, B, numt: int, numz: int, shift: float, num_modes: int):
         k=num_modes,
         which="LM",
         ncv=ncv,
-        tol=0.0,
+        tol=eig_tol,
         return_eigenvectors=False,
     )
+    return _finalize_modes(theta, shift, num_modes)
+
+
+def _arnoldi_shift_invert(
+    A, B, numt: int, numz: int, shift: float, num_modes: int, ortho: bool = True, tol: float = 1e-10, max_iter: Optional[int] = None
+):
+    """Hand-written Arnoldi shift-invert solver.
+
+    Factorises ``A_s = A/kk - TT`` once with SuperLU, then iterates the Krylov
+    subspace
+
+    .. math::
+
+        \\mathcal{K}_m(op, v_1), \\qquad op(x) = OO \\, (A_s^{-1} (TT x / kk))
+
+    until the Ritz values of the Hessenberg matrix converge.  Each Ritz value
+    ``theta`` of ``op`` is converted by ``zneupd`` into ``d = sigma + 1/theta``,
+    matching the dense/ARPACK paths exactly.
+
+    Parameters
+    ----------
+    A, B : sparse or dense
+        The pencil matrices (already restricted to free DOFs).
+    numt, numz : int
+        Numbers of free edge (H(curl)) and node (H(grad)) DOFs.
+    shift : float
+        The shift ``sigma`` for the shift-inverted operator.
+    num_modes : int
+        Number of eigenmodes to compute.
+    ortho : bool
+        Whether to apply the ``OO = diag(I_numt, 0)`` projection.
+    tol : float
+        Convergence tolerance for the Arnoldi iteration (lucky breakdown).
+    max_iter : int | None
+        Maximum Arnoldi iterations; defaults to ``min(4 * num_modes, n - 1)``.
+    """
+    n = numt + numz
+    A_s = (A / shift - B).tocsc()
+    lu = scipy.sparse.linalg.splu(A_s)
+
+    def matvec(x: np.ndarray) -> np.ndarray:
+        x = np.asarray(x, dtype=complex).reshape(n)
+        y = np.asarray(B @ x, dtype=complex).reshape(n) / shift
+        y = lu.solve(y)
+        if ortho:
+            y[numt:] = 0.0  # OO = diag(I_numt, 0)
+        return y
+
+    # Random starting vector, deterministic seed for reproducibility.
+    rng = np.random.default_rng(0)
+    v = rng.standard_normal(n) + 1j * rng.standard_normal(n)
+    v = v / np.linalg.norm(v)
+
+    max_iter = max_iter or min(4 * num_modes, n - 1)
+    max_iter = min(max_iter, n - 1)
+    if max_iter < 1:
+        max_iter = 1
+
+    V = np.zeros((n, max_iter + 1), dtype=complex)
+    H = np.zeros((max_iter + 1, max_iter), dtype=complex)
+    V[:, 0] = v
+
+    j = 0
+    while j < max_iter:
+        w = matvec(V[:, j])
+        for i in range(j + 1):
+            H[i, j] = np.vdot(V[:, i], w)
+            w = w - H[i, j] * V[:, i]
+        H[j + 1, j] = np.linalg.norm(w)
+        if H[j + 1, j] < tol:
+            break  # lucky breakdown — Krylov subspace is invariant
+        V[:, j + 1] = w / H[j + 1, j]
+        j += 1
+
+    # Ritz values from the Hessenberg matrix H_m (upper m x m block).
+    Hm = H[:j, :j]
+    theta = np.linalg.eigvals(Hm)
+
+    # Select the num_modes Ritz values with largest |theta| (closest to shift),
+    # matching ARPACK's which="LM".
+    if theta.size > num_modes:
+        order = np.argsort(-np.abs(theta), kind="stable")[:num_modes]
+        theta = theta[order]
+
     return _finalize_modes(theta, shift, num_modes)
 
 
@@ -323,6 +440,11 @@ def assemble_em_e_tl_eig(
     order: int = 1,
     *,
     solve: bool = True,
+    n_modes: Optional[int] = None,
+    shift: Optional[float] = None,
+    ortho: bool = True,
+    eig_tol: float = 0.0,
+    solver: str = "auto",
 ) -> TLEigSystem:
     """Assemble and (by default) solve the transmission-line eigenproblem.
 
@@ -386,7 +508,7 @@ def assemble_em_e_tl_eig(
         n_node_dofs=n_nodes,
         free_edges=free_v,
         dirichlet=dirichlet,
-        shift=-kk * maxepsr * maxmur,
+        shift=shift if shift is not None else -kk * maxepsr * maxmur,
         St=St,
         Tt=Tt,
         Tt2=Tt2,
@@ -399,7 +521,10 @@ def assemble_em_e_tl_eig(
     if numt == 0 or numtot < 2 or not solve:
         return system
 
-    num_modes = min(5, numtot // 2 + 1)
+    if n_modes is not None and n_modes > 0:
+        num_modes = min(max(int(n_modes), 1), numtot // 2 + 1)
+    else:
+        num_modes = min(5, numtot // 2 + 1)
     if num_modes < 1:
         num_modes = 1
 
@@ -411,7 +536,27 @@ def assemble_em_e_tl_eig(
     A_vv = Stf - kk * Ttf
     B_vv = Tt2f
 
-    if numtot <= DENSE_LIMIT:
+    if solver == "auto":
+        use_dense = numtot <= DENSE_LIMIT
+    elif solver == "dense":
+        use_dense = True
+    elif solver == "arpack":
+        use_dense = False
+    elif solver == "arnoldi":
+        use_dense = False
+    else:
+        raise ValueError(
+            f"unknown solver {solver!r}; use 'auto', 'dense', 'arpack' or 'arnoldi'"
+        )
+
+    if solver == "arnoldi":
+        A_blocks = (A_vv.tocsc(), Azz.tocsc(), B_vv.tocsc(), Gf.tocsc(), Gf.T.tocsc())
+        A, B = _pencil(A_blocks, numt, numz)
+        system.mode_beta = _arnoldi_shift_invert(
+            A, B, numt, numz, system.shift, num_modes, ortho=ortho, tol=eig_tol
+        )
+        system.solver = "arnoldi"
+    elif use_dense:
         A_blocks = (
             A_vv.toarray(),
             Azz.toarray(),
@@ -420,11 +565,11 @@ def assemble_em_e_tl_eig(
             Gf.toarray().T,  # ``Gf.st()``: plain transpose
         )
         A, B = _pencil(A_blocks, numt, numz)
-        system.mode_beta = _solve_dense(A, B, numt, numz, system.shift, num_modes)
+        system.mode_beta = _solve_dense(A, B, numt, numz, system.shift, num_modes, ortho=ortho)
         system.solver = "dense"
     else:
         A_blocks = (A_vv.tocsc(), Azz.tocsc(), B_vv.tocsc(), Gf.tocsc(), Gf.T.tocsc())
         A, B = _pencil(A_blocks, numt, numz)
-        system.mode_beta = _solve_sparse(A, B, numt, numz, system.shift, num_modes)
+        system.mode_beta = _solve_sparse(A, B, numt, numz, system.shift, num_modes, ortho=ortho, eig_tol=eig_tol)
         system.solver = "arpack"
     return system
