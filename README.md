@@ -110,7 +110,7 @@ success, `1` usage error, `2` formulation not ported, `3` I/O error.
 | `sweep <model> +fr LF HF N` | Solve a discrete frequency sweep |
 | `mesh <model>` | Import and mesh only; write a 2D mesh cache (3D is never cached) |
 | `sparam <model> +f FREQ` | Extract S-parameters |
-| `eigen <model> [+n_modes N]` | Cross-section eigenmode analysis (`em_e_tl_eig`) |
+| `eigen <model> [+n_modes N]` | Cross-section eigenmode analysis (`em_e_eig_tl`) |
 | `info <model> [--json]` | Print model metadata (dimension, formula, solids, boundaries) |
 | `models [--json]` | List models in the data directory |
 
@@ -123,6 +123,7 @@ CLI flags (`+formula NAME`, `+em_e_fd`, ...) override the file tag.
 |---------|-------------|
 | `em_e_fd` | 3D frequency-domain EM (curl-curl, default) |
 | `em_ez_fd` | 2D TMz (scalar Helmholtz on a Triangle mesh) |
+| `em_e_eig_tl` | 2D cross-section / 3D waveport eigenmodes (LTE name) |
 | `em_e_tl_eig` | 2D cross-section / 3D waveport eigenmodes |
 | `em_e_qs` | Electrostatic quasistatic (`f = 0`, use `+volt bnd V`) |
 
@@ -145,7 +146,8 @@ every input tried, so there is no reference result to compare against.
 | | **Formulation** | |
 | `+formula NAME` | — | Select formulation by snake_case name |
 | `+em_e_fd` | — | 3D frequency-domain EM (curl-curl) |
-| `+em_e_tl_eig` | — | Waveport eigenmodes / 2D cross-section eigenmode |
+| `+em_e_eig_tl` | — | Waveport eigenmodes / 2D cross-section eigenmode (LTE name) |
+| `+em_e_tl_eig` | — | Waveport eigenmodes / 2D cross-section eigenmode (v0.1 name) |
 | `+em_ez_fd` | — | 2D TMz (scalar Helmholtz) |
 | `+em_e_qs` | — | Electrostatic quasistatic |
 | | **Frequency** | |
@@ -209,7 +211,7 @@ fes/
 ├── drivers.py        # per-formulation drivers and Touchstone I/O
 ├── paths.py          # model/mesh discovery (FES_DATA, caches)
 ├── core/
-│   ├── assemblers/   # em_e_fd, em_ez_fd, em_e_tl_eig, em_e_qs
+│   ├── assemblers/   # em_e_fd, em_ez_fd, em_e_tl_eig, em_e_eig_tl, em_e_qs
 │   ├── shape.py, shape3d.py, quadrature.py, element_matrix.py, dof.py
 │   │                 # reference kernels
 │   ├── options.py    # legacy and documented argv parsers
@@ -291,7 +293,7 @@ region attributes by their line order. The `#Boundaries` line *does* carry the
 boundary label used by the mesh markers. Boundary types: `PerfectE` (PEC),
 `PerfectH` (PMC), `Radiation`, `WavePort`, `LumpedPort`.
 
-`#Formula` values: `EM_E_FD` (3D), `EM_EZ_FD` (2D TMz), `EM_E_TL_EIG`
+`#Formula` values: `EM_E_FD` (3D), `EM_EZ_FD` (2D TMz), `EM_E_TL_EIG` / `EM_E_EIG_TL`
 (eigenmode), `EM_E_QS` (electrostatic). A CLI formulation flag overrides the
 file.
 

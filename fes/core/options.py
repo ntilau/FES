@@ -29,6 +29,7 @@ from typing import Dict, List, Sequence
 
 ASSEMBLY_TYPES = (
     "em_av_fd",
+    "em_e_eig_tl",
     "em_e_fd",
     "em_e_fd_dd",
     "em_e_fd_nl",
@@ -43,6 +44,7 @@ SOLVER_TYPES = ("direct", "gmres")
 #: Alternate spellings accepted by ``+formula``.  C++ falls back to em_e_fd for
 #: anything unknown, so unknown names are accepted rather than rejected.
 _FORMULA_ALIASES = {
+    "em_e_eig_tl": "em_e_tl_eig",
     "em_e_fd_schur": "em_e_fd_dd",
     "em_e_fd_dd_schur": "em_e_fd_dd",
 }

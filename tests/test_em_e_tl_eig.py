@@ -60,8 +60,8 @@ def test_wr90_tl_dof_bookkeeping() -> None:
     # k0 = 2 pi f / c0 with the reference constants.
     assert system.k0 == pytest.approx(2 * np.pi * 10e9 / 299792458.0)
     assert system.k0 == pytest.approx(209.5845, rel=1e-6)
-    # Vacuum: shift = -k0^2 epsr_max mur_max.
-    assert system.shift == pytest.approx(-system.k0**2)
+    # Vacuum: shift = -0.5 * k0^2 * epsr_max * mur_max.
+    assert system.shift == pytest.approx(-0.5 * system.k0**2)
 
 
 def test_bc_type_map_last_label_wins() -> None:
@@ -206,7 +206,7 @@ def test_custom_shift_changes_the_spectrum() -> None:
     """A user-specified shift overrides ``-k0^2 * maxepsr * maxmur``."""
     mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
     default = assemble_em_e_tl_eig(mesh, 10e9, 2)
-    assert default.shift == pytest.approx(-default.k0**2)
+    assert default.shift == pytest.approx(-0.5 * default.k0**2)
     shifted = assemble_em_e_tl_eig(mesh, 10e9, 2, shift=-50.0)
     assert shifted.shift == pytest.approx(-50.0)
     assert shifted.shift != default.shift

@@ -119,7 +119,7 @@ def test_sweep_requires_range(capsys):
 
 def test_eigen_forces_eigenmode_formula(capsys):
     assert main(["eigen", "WR90", "+f", "1e10", "--dry-run"]) == EXIT_OK
-    assert "assembly:   em_e_tl_eig  (CLI)" in capsys.readouterr().out
+    assert "assembly:   em_e_eig_tl  (CLI)" in capsys.readouterr().out
 
 
 def test_mesh_dry_run_for_electrostatic_model(capsys):

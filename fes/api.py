@@ -26,6 +26,7 @@ from .paths import model_path
 FORMULATION_PHASE = {
     "em_av_fd": 12,
     "em_ez_fd": 2,
+    "em_e_eig_tl": 7,
     "em_e_fd": 6,
     "em_e_tl_eig": 7,
     "em_e_fd_dd": 9,

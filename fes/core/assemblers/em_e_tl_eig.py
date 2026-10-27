@@ -18,8 +18,25 @@ and the first ``min(5, n/2 + 1)`` modes are reported as
     \\alpha = \\operatorname{Re}\\sqrt{\\lambda}, \\qquad
     k_c = \\sqrt{|k_0^2 - \\beta^2 + \\alpha^2|}.
 
+Extended T-matrix structure
+---------------------------
+
+The extended T-matrix assembles the T (mass) matrix with a non-zero
+longitudinal (EZ/EZ) block ``-k_0^2 \\cdot T_z``.  FES's original port set
+the EZ/EZ block of T to zero, which leaves the longitudinal field
+unrepresented in the mass matrix and causes higher-order modes to diverge as
+the polynomial order increases.
+
+The keyword-only control ``use_t_block`` (default ``True``) selects the
+behaviour:
+
+* ``True``: the EZ/EZ block of T is ``-k_0^2 \\cdot T_z``, giving the
+  longitudinal field a proper mass-matrix presence.
+* ``False``: the EZ/EZ block of T is zero, reproducing the original
+  v0.1 port exactly.
+
 Reproducing the reference's eigen pipeline
----------------------------------------
+------------------------------------------
 
 The reference C++ hands ARPACK a *hand-written* shift-inverted operator.  With
 ``SS = A``, ``TT = B`` and ``kk = shift`` (the parameter is named ``kk`` in
@@ -82,6 +99,10 @@ User-facing controls
 ``+tol T``
     ARPACK tolerance for the sparse solver path.  Defaults to ``0.0``
     (ARPACK's default).
+
+``+t_block`` / ``-t_block``
+    Enable or disable the extended T-matrix structure (non-zero
+    EZ/EZ block).  Defaults to on.
 """
 
 from __future__ import annotations
@@ -234,50 +255,65 @@ def _assemble_blocks(mesh, order: int):
 
 
 def _dirichlet_dofs(mesh, order: int, bc_types: Dict[int, str]) -> np.ndarray:
-    """PEC edge DOFs, including the ``lev * nMeshEdges + s`` higher levels.
+    """PEC edge DOFs, including the higher levels.
 
-    The level numbering is the oracle's, even for order 3 where it no longer
-    matches ``face_dof_map``'s H(curl) numbering; the set is reproduced
-    verbatim so the free-DOF subspace is identical.
+    Edge DOFs at level ``L`` (0-based) use the same numbering as
+    ``face_dof_map``'s H(curl) block:
+
+    * level 0: ``edge_id``
+    * level 1: ``n_edges + edge_id``
+    * level 2: ``2*n_edges + 2*n_faces + edge_id``
+    * level 3: ``3*n_edges + 6*n_faces + edge_id``
+
+    This matches ``face_dof_map``'s ordering where face DOFs are interleaved
+    between edge levels at orders 3 and 4.
     """
     n_mesh_edges = mesh.n_edges
+    n_faces = mesh.n_faces
     dofs = set()
     for edge_id in range(n_mesh_edges):
         marker = int(mesh.edge_labels[edge_id])
         if bc_types.get(marker) != "PerfectE":
             continue
         for level in range(order):
-            dofs.add(level * n_mesh_edges + edge_id)
+            # Edge DOF at level L: L*n_edges + L*(L-1)*n_faces + edge_id
+            dofs.add(level * n_mesh_edges + level * (level - 1) * n_faces + edge_id)
     return np.array(sorted(dofs), dtype=np.int64)
 
 
 def _pencil(A_blocks, numt: int, numz: int):
     """Return ``(A, B)`` as dense arrays or sparse matrices, matching storage."""
-    if isinstance(A_blocks[0], sp.spmatrix):
-        A_vv, A_zz, B_vv, B_vz, B_zv = A_blocks
-        n = numt + numz
+    A_vv, A_zz, B_vv, B_vz, B_zv, B_zz = A_blocks
+    n = numt + numz
+    if isinstance(A_vv, sp.spmatrix):
         A = sp.bmat(
             [[A_vv, None], [None, A_zz]], format="csc", dtype=complex
         )
         B = sp.bmat(
-            [[B_vv, B_vz], [B_zv, None]], format="csc", dtype=complex
+            [[B_vv, B_vz], [B_zv, B_zz]], format="csc", dtype=complex
         )
-        return A, B
-
-    A_vv, A_zz, B_vv, B_vz, B_zv = A_blocks
-    n = numt + numz
-    A = np.zeros((n, n), dtype=complex)
-    B = np.zeros((n, n), dtype=complex)
-    A[:numt, :numt] = A_vv
-    A[numt:, numt:] = A_zz
-    B[:numt, :numt] = B_vv
-    B[:numt, numt:] = B_vz
-    B[numt:, :numt] = B_zv
+    else:
+        A = np.zeros((n, n), dtype=complex)
+        B = np.zeros((n, n), dtype=complex)
+        A[:numt, :numt] = A_vv
+        A[numt:, numt:] = A_zz
+        B[:numt, :numt] = B_vv
+        B[:numt, numt:] = B_vz
+        B[numt:, :numt] = B_zv
+        B[numt:, numt:] = B_zz
     return A, B
 
 
-def _finalize_modes(theta: np.ndarray, shift: float, num_modes: int) -> np.ndarray:
-    """Apply ``zneupd``'s transform, sqrt and the oracle's two sorts."""
+def _finalize_modes(
+    theta: np.ndarray, shift: float, num_modes: int, prev_beta: Optional[np.ndarray] = None
+) -> np.ndarray:
+    """Apply ``zneupd``'s transform, sqrt and the oracle's two sorts.
+
+    When ``prev_beta`` is given (modes from the previous frequency), modes are
+    matched to the previous frequency by closest |beta| instead of re-sorting
+    by |beta| descending.  This prevents mode indices from swapping between
+    adjacent frequency points during a sweep.
+    """
     theta = np.asarray(theta, dtype=complex)
     if theta.size > num_modes:
         order = np.argsort(-np.abs(theta), kind="stable")[:num_modes]
@@ -295,11 +331,31 @@ def _finalize_modes(theta: np.ndarray, shift: float, num_modes: int) -> np.ndarr
     be = be[np.lexsort((be.real, be.imag))]
     # ``eigen`` constructor: ``mode_beta(i) = Evals(nmodes - 1 - i)``.
     be = be[::-1]
-    # ``assemble_em_e_tl_eig``: stable |beta| descending.
-    return be[np.argsort(-np.abs(be), kind="stable")]
+
+    if prev_beta is not None and prev_beta.size == be.size:
+        # Track modes across frequency: match each previous mode to the
+        # current mode with the closest |beta|, preserving position order.
+        prev_abs = np.abs(np.asarray(prev_beta, dtype=complex))
+        curr_abs = np.abs(be)
+        used = np.zeros(be.size, dtype=bool)
+        ordered = np.zeros_like(be)
+        for i in range(be.size):
+            diffs = np.where(used, np.inf, np.abs(curr_abs - prev_abs[i]))
+            j = int(np.argmin(diffs))
+            ordered[i] = be[j]
+            used[j] = True
+        be = ordered
+    else:
+        # ``assemble_em_e_tl_eig``: stable |beta| descending.
+        be = be[np.argsort(-np.abs(be), kind="stable")]
+
+    return be
 
 
-def _solve_dense(A, B, numt: int, numz: int, shift: float, num_modes: int, ortho: bool = True):
+def _solve_dense(
+    A, B, numt: int, numz: int, shift: float, num_modes: int,
+    ortho: bool = True, prev_beta: Optional[np.ndarray] = None,
+):
     """Replay ``eigen.cpp`` on a dense pencil.
 
     ``OO`` is ``diag(I_numt, 0)`` because the lower-left block
@@ -316,11 +372,12 @@ def _solve_dense(A, B, numt: int, numz: int, shift: float, num_modes: int, ortho
     else:
         operator = scipy.linalg.solve(A_s, B / shift)
     theta = scipy.linalg.eigvals(operator)
-    return _finalize_modes(theta, shift, num_modes)
+    return _finalize_modes(theta, shift, num_modes, prev_beta=prev_beta)
 
 
 def _solve_sparse(
-    A, B, numt: int, numz: int, shift: float, num_modes: int, ortho: bool = True, eig_tol: float = 0.0
+    A, B, numt: int, numz: int, shift: float, num_modes: int,
+    ortho: bool = True, eig_tol: float = 0.0, prev_beta: Optional[np.ndarray] = None,
 ):
     """Resolve the same operator with ARPACK for systems too large to be dense."""
     n = numt + numz
@@ -347,11 +404,13 @@ def _solve_sparse(
         tol=eig_tol,
         return_eigenvectors=False,
     )
-    return _finalize_modes(theta, shift, num_modes)
+    return _finalize_modes(theta, shift, num_modes, prev_beta=prev_beta)
 
 
 def _arnoldi_shift_invert(
-    A, B, numt: int, numz: int, shift: float, num_modes: int, ortho: bool = True, tol: float = 1e-10, max_iter: Optional[int] = None
+    A, B, numt: int, numz: int, shift: float, num_modes: int,
+    ortho: bool = True, tol: float = 1e-10, max_iter: Optional[int] = None,
+    prev_beta: Optional[np.ndarray] = None,
 ):
     """Hand-written Arnoldi shift-invert solver.
 
@@ -431,7 +490,7 @@ def _arnoldi_shift_invert(
         order = np.argsort(-np.abs(theta), kind="stable")[:num_modes]
         theta = theta[order]
 
-    return _finalize_modes(theta, shift, num_modes)
+    return _finalize_modes(theta, shift, num_modes, prev_beta=prev_beta)
 
 
 def assemble_em_e_tl_eig(
@@ -445,6 +504,9 @@ def assemble_em_e_tl_eig(
     ortho: bool = True,
     eig_tol: float = 0.0,
     solver: str = "auto",
+    prev_beta: Optional[np.ndarray] = None,
+    use_t_block: Optional[bool] = None,
+    t_block: Optional[bool] = None,
 ) -> TLEigSystem:
     """Assemble and (by default) solve the transmission-line eigenproblem.
 
@@ -457,6 +519,31 @@ def assemble_em_e_tl_eig(
         Frequency in Hz; ``k0`` uses the oracle's ``c0``.
     order : int
         Polynomial order, 1-3 (``quad(order + 1)`` is the v0.1 ceiling).
+    solve : bool
+        Run the eigen-solve; when False the system is returned unsolved.
+    n_modes : int | None
+        Number of eigenmodes to compute; overrides ``min(5, n/2 + 1)``.
+    shift : float | None
+        User-specified shift; defaults to ``-0.5 * k0^2 * maxepsr * maxmur``,
+        which targets propagation constants near ``k0 / sqrt(2)`` — a
+        reasonable centre for the fundamental waveguide mode.  Must be
+        non-zero for the shift-invert solver.
+    ortho : bool
+        Apply the Cangellaris orthogonalisation projection (default on).
+    eig_tol : float
+        ARPACK tolerance for the sparse solver path.
+    solver : str
+        ``"auto"``, ``"dense"``, ``"arpack"`` or ``"arnoldi"``.
+    prev_beta : np.ndarray | None
+        Modal betas from the previous frequency.  When given, modes are
+        matched by closest |beta| across frequencies so mode indices do not
+        swap between adjacent sweep points.
+    use_t_block : bool | None
+        Use the extended T-matrix structure: non-zero EZ/EZ block
+        ``-k_0^2 \\cdot T_z``.  When None, falls back to ``t_block`` then
+        to True.
+    t_block : bool | None
+        Alias for ``use_t_block``.
 
     Raises
     ------
@@ -508,7 +595,7 @@ def assemble_em_e_tl_eig(
         n_node_dofs=n_nodes,
         free_edges=free_v,
         dirichlet=dirichlet,
-        shift=shift if shift is not None else -kk * maxepsr * maxmur,
+        shift=shift if shift is not None else -0.5 * kk * maxepsr * maxmur,
         St=St,
         Tt=Tt,
         Tt2=Tt2,
@@ -521,6 +608,14 @@ def assemble_em_e_tl_eig(
     if numt == 0 or numtot < 2 or not solve:
         return system
 
+    # A zero shift causes division by zero in A / shift inside the
+    # shift-invert operator; reject it with a clear error.
+    if system.shift == 0:
+        raise ValueError(
+            "shift must be non-zero for the shift-invert eigen-solver; "
+            f"got shift={system.shift}"
+        )
+
     if n_modes is not None and n_modes > 0:
         num_modes = min(max(int(n_modes), 1), numtot // 2 + 1)
     else:
@@ -528,13 +623,31 @@ def assemble_em_e_tl_eig(
     if num_modes < 1:
         num_modes = 1
 
+    # Resolve the t-block flag: explicit use_t_block wins, then
+    # t_block alias, then default True.
+    if use_t_block is None:
+        use_t_block = t_block if t_block is not None else True
+
     Stf = St[free_v][:, free_v]
     Ttf = Tt[free_v][:, free_v]
-    Tt2f = Tt2[free_v][:, free_v]
-    Gf = G[free_v]
-    Azz = Sz - kk * Tz
     A_vv = Stf - kk * Ttf
-    B_vv = Tt2f
+    Azz = Sz - kk * Tz  # (n_nodes, n_nodes); scalar DOFs are not Dirichlet
+
+    if use_t_block:
+        # ---- Extended T-matrix structure ----
+        # B[ET,ET] = Tt2 (edge mass / mur), B[ET,EZ] = G, B[EZ,ET] = G^T,
+        # B[EZ,EZ] = -k0^2 * Tz (longitudinal mass, non-zero).
+        B_vv = Tt2[free_v][:, free_v]
+        B_vz = G[free_v]
+        B_zv = G.T[:, free_v]
+        B_zz = -kk * Tz
+    else:
+        # ---- Legacy v0.1 port structure ----
+        # B[EZ,EZ] = 0 (the original port's choice).
+        B_vv = Tt2[free_v][:, free_v]
+        B_vz = G[free_v]
+        B_zv = G.T[:, free_v]
+        B_zz = sp.csc_matrix((numz, numz), dtype=complex) if sp.issparse(Tz) else np.zeros((numz, numz), dtype=complex)
 
     if solver == "auto":
         use_dense = numtot <= DENSE_LIMIT
@@ -549,27 +662,42 @@ def assemble_em_e_tl_eig(
             f"unknown solver {solver!r}; use 'auto', 'dense', 'arpack' or 'arnoldi'"
         )
 
+    # The dense path needs dense arrays; sparse paths keep CSC matrices.
+    if use_dense:
+        A_vv_d = A_vv.toarray() if sp.issparse(A_vv) else A_vv
+        Azz_d = Azz.toarray() if sp.issparse(Azz) else Azz
+        B_vv_d = B_vv.toarray() if sp.issparse(B_vv) else B_vv
+        B_vz_d = B_vz.toarray() if sp.issparse(B_vz) else B_vz
+        B_zv_d = B_zv.toarray() if sp.issparse(B_zv) else B_zv
+        B_zz_d = B_zz.toarray() if sp.issparse(B_zz) else B_zz
+        A_blocks = (A_vv_d, Azz_d, B_vv_d, B_vz_d, B_zv_d, B_zz_d)
+    else:
+        A_blocks = (
+            A_vv.tocsc() if sp.issparse(A_vv) else A_vv,
+            Azz.tocsc() if sp.issparse(Azz) else Azz,
+            B_vv.tocsc() if sp.issparse(B_vv) else B_vv,
+            B_vz.tocsc() if sp.issparse(B_vz) else B_vz,
+            B_zv.tocsc() if sp.issparse(B_zv) else B_zv,
+            B_zz.tocsc() if sp.issparse(B_zz) else B_zz,
+        )
+    A, B = _pencil(A_blocks, numt, numz)
+
     if solver == "arnoldi":
-        A_blocks = (A_vv.tocsc(), Azz.tocsc(), B_vv.tocsc(), Gf.tocsc(), Gf.T.tocsc())
-        A, B = _pencil(A_blocks, numt, numz)
         system.mode_beta = _arnoldi_shift_invert(
-            A, B, numt, numz, system.shift, num_modes, ortho=ortho, tol=eig_tol
+            A, B, numt, numz, system.shift, num_modes,
+            ortho=ortho, tol=eig_tol, prev_beta=prev_beta,
         )
         system.solver = "arnoldi"
     elif use_dense:
-        A_blocks = (
-            A_vv.toarray(),
-            Azz.toarray(),
-            B_vv.toarray(),
-            Gf.toarray(),
-            Gf.toarray().T,  # ``Gf.st()``: plain transpose
+        system.mode_beta = _solve_dense(
+            A, B, numt, numz, system.shift, num_modes,
+            ortho=ortho, prev_beta=prev_beta,
         )
-        A, B = _pencil(A_blocks, numt, numz)
-        system.mode_beta = _solve_dense(A, B, numt, numz, system.shift, num_modes, ortho=ortho)
         system.solver = "dense"
     else:
-        A_blocks = (A_vv.tocsc(), Azz.tocsc(), B_vv.tocsc(), Gf.tocsc(), Gf.T.tocsc())
-        A, B = _pencil(A_blocks, numt, numz)
-        system.mode_beta = _solve_sparse(A, B, numt, numz, system.shift, num_modes, ortho=ortho, eig_tol=eig_tol)
+        system.mode_beta = _solve_sparse(
+            A, B, numt, numz, system.shift, num_modes,
+            ortho=ortho, eig_tol=eig_tol, prev_beta=prev_beta,
+        )
         system.solver = "arpack"
     return system

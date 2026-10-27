@@ -552,19 +552,21 @@ def run_em_e_tl_eig(plan: api.RunPlan) -> SolverResult:
         plan.model.path, _mesh_switches(plan), h_ord=options.h_ord
     )
     _prepare_output(plan, mesh)
+    prev_beta: Optional[np.ndarray] = None
     for freq in result.frequencies:
-        result.systems.append(
-            assemble_em_e_tl_eig(
-                mesh,
-                freq,
-                options.p_ord,
-                n_modes=options.n_modes or None,
-                shift=options.shift or None,
-                ortho=options.ortho,
-                eig_tol=options.eig_tol,
-                solver=options.eig_solver,
-            )
+        system = assemble_em_e_tl_eig(
+            mesh,
+            freq,
+            options.p_ord,
+            n_modes=options.n_modes or None,
+            shift=options.shift or None,
+            ortho=options.ortho,
+            eig_tol=options.eig_tol,
+            solver=options.eig_solver,
+            prev_beta=prev_beta,
         )
+        prev_beta = system.mode_beta
+        result.systems.append(system)
     return result
 
 
@@ -612,6 +614,7 @@ def install() -> None:
     api.DRIVERS.setdefault("em_e_fd_dd", run_em_e_fd_dd)
     api.DRIVERS.setdefault("em_e_fd_nl", run_em_e_fd_nl)
     api.DRIVERS.setdefault("em_e_tl_eig", run_em_e_tl_eig)
+    api.DRIVERS.setdefault("em_e_eig_tl", run_em_e_tl_eig)
     api.DRIVERS.setdefault("em_e_qs", run_em_e_qs)
 
 

@@ -123,7 +123,7 @@ Usage:
 Common flags:
   +f FREQ              frequency in Hz (0 selects electrostatics)
   +fr LF HF N          discrete frequency sweep
-  +formula NAME        em_av_fd | em_e_fd | em_ez_fd | em_e_tl_eig | em_e_qs |
+  +formula NAME        em_av_fd | em_e_eig_tl | em_e_fd | em_ez_fd | em_e_tl_eig | em_e_qs |
                        em_e_fd_dd | em_e_fd_nl | em_h_qs
   +p N                 polynomial order (1-4)
   +h N                 uniform mesh refinement level
@@ -314,7 +314,7 @@ def _run_command(
                 EXIT_USAGE,
             )
         if command == "eigen" and not options.formula_explicit:
-            options.assembly = "em_e_tl_eig"
+            options.assembly = "em_e_eig_tl"
             options.formula_explicit = True
         plan = plan_run(
             options=options,

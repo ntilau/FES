@@ -14,7 +14,7 @@ from fes.api import (
     run,
     sweep,
 )
-from fes.core.options import UsageError, parse_argv
+from fes.core.options import UsageError, normalize_assembly, parse_argv
 
 
 def test_plan_uses_cli_frequency_and_order():
@@ -110,13 +110,29 @@ def test_ported_formulations_have_a_driver():
 
     Phases 2, 6, 7, 9, 10, 11 and 12 landed drivers.
     """
-    ported = {"em_av_fd", "em_ez_fd", "em_e_fd", "em_e_fd_dd", "em_e_fd_nl", "em_e_tl_eig", "em_e_qs"}
+    ported = {"em_av_fd", "em_ez_fd", "em_e_eig_tl", "em_e_fd", "em_e_fd_dd", "em_e_fd_nl", "em_e_tl_eig", "em_e_qs"}
     load_drivers()
     for name in FORMULATION_PHASE:
         if name in ported:
             assert name in DRIVERS, name
         else:
             assert name not in DRIVERS, name
+
+
+def test_em_e_eig_tl_normalizes_to_em_e_tl_eig():
+    """``em_e_eig_tl`` is an alias for ``em_e_tl_eig`` everywhere it matters."""
+    assert normalize_assembly("em_e_eig_tl") == "em_e_tl_eig"
+    assert normalize_assembly("EM_E_EIG_TL") == "em_e_tl_eig"
+    # ``+em_e_eig_tl`` shorthand keeps the user's spelling (not normalized),
+    # but resolves to the same driver.
+    options = parse_argv(["WR90_TL", "+f", "1e10", "+em_e_eig_tl", "+p", "2"])
+    assert options.assembly == "em_e_eig_tl"
+    assert options.formula_explicit is True
+    plan = plan_run(options=options, command="run")
+    assert plan.assembly == "em_e_eig_tl"
+    load_drivers()
+    assert "em_e_eig_tl" in DRIVERS
+    assert DRIVERS["em_e_eig_tl"] is DRIVERS["em_e_tl_eig"]
 
 
 def test_em_av_fd_is_ported():
