@@ -663,9 +663,9 @@ def _reduce_and_solve(
     # even for complex matrices (``fn_xtrans.hpp`` returns ``op_htrans``);
     # only ``.st()`` is the plain transpose, and the port-mode normalisation in
     # ``compute_waveport_modes`` is the one place the reference uses ``.st()``.
-    attred = meig @ a_wp + meig @ a_wp.conj().T + meig @ ad_wp
-    top_left = attred @ meig.conj().T + macoeff
-    atired = meig @ a_wp_nn + meig @ a_nn_wp.conj().T
+    attred = meig @ a_wp + meig @ a_wp.T + meig @ ad_wp
+    top_left = attred @ meig.T + macoeff
+    atired = meig @ a_wp_nn + meig @ a_nn_wp.T
 
     # Top-left (lower triangle, j <= i) and top-right coupling blocks.
     for i in range(wpn):
