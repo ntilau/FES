@@ -39,5 +39,5 @@
 WG1 1 1 0 0 vacuum
 #Boundaries 3
 PEC1 1 PerfectE
-WP1 11 WavePort 3
-WP2 12 WavePort 3
+WP1 11 WavePort 5
+WP2 12 WavePort 5

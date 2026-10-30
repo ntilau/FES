@@ -145,6 +145,30 @@ def test_explicit_formula_disables_file_formula():
     assert legacy.formula_explicit is True
 
 
+def test_matlab_flag():
+    options = parse_argv(["WR90", "+matlab"])
+    assert options.matlab is True
+    assert options.sparam is False
+    assert options.matlab_dir is None
+
+    options = parse_argv(["WR90", "+matlab", "@../FESOld/"])
+    assert options.matlab is True
+    assert options.sparam is False
+    assert options.matlab_dir == "../FESOld/"
+
+    options = parse_argv(["WR90", "+matlab", "/tmp/mats", "+p", "3"])
+    assert options.matlab_dir == "/tmp/mats"
+    assert options.p_ord == 3
+
+    legacy = parse_legacy(["WR90", "+matlab"])
+    assert legacy.matlab is True
+    assert legacy.sparam is False
+
+    legacy = parse_legacy(["WR90", "+matlab", "@../FESOld/"])
+    assert legacy.matlab is True
+    assert legacy.matlab_dir == "../FESOld/"
+
+
 def test_normalize_helpers():
     assert normalize_assembly("EM_EZ_FD") == "em_ez_fd"
     assert normalize_assembly("em_e_fd_schur") == "em_e_fd_dd"

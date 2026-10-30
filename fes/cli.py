@@ -141,6 +141,9 @@ Common flags:
   +eigsolver NAME      eigen solver path: auto, dense, arpack, arnoldi (eigen)
   +einc Ex,Ey,Ez,kx,ky,kz  incident plane wave
   +field               write VTK field data
+  +matlab [DIR]        dump the assembled system matrices (A.mm, B.mm) in
+                       Matrix Market format instead of solving; DIR defaults
+                       to the output directory, a leading '@' is stripped
   +rad NT NP            write a radiation pattern
   -sparam              disable S-parameter output
   -tfe                 disable transfinite port elements

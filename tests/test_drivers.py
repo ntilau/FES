@@ -96,6 +96,53 @@ def test_run_writes_touchstone(tmp_path: Path) -> None:
     assert len(read_touchstone(path)) == 1
 
 
+@pytest.mark.triangle
+def test_matlab_mode_dumps_system_matrices(tmp_path: Path) -> None:
+    """``+matlab`` writes A.mm/B.mm and skips solve, fields and S-parameters."""
+    options = parse_argv(
+        [
+            str(REPO / "data" / "BilatFilter.poly"),
+            "+f",
+            "150e9",
+            "+p",
+            "2",
+            "+matlab",
+            str(tmp_path),
+        ]
+    )
+    plan = api.plan_run(options=options, command="run")
+    plan.output_dir = str(tmp_path)
+    api.load_drivers()
+    result = api.DRIVERS[plan.assembly](plan)
+    assert (tmp_path / "A.mm").is_file()
+    assert (tmp_path / "B.mm").is_file()
+    assert not (tmp_path / "BilatFilter.s2p").is_file()
+    assert not (tmp_path / "BilatFilter.vtk").is_file()
+    assert any("A.mm" in note for note in result.notes)
+    assert any("B.mm" in note for note in result.notes)
+
+    # The dumped matrices match a normal (non-matlab) assembly.
+    other = tmp_path / "solve"
+    other.mkdir()
+    plan2 = api.plan_run(
+        options=parse_argv(
+            [str(REPO / "data" / "BilatFilter.poly"), "+f", "150e9", "+p", "2"]
+        ),
+        command="run",
+    )
+    plan2.output_dir = str(other)
+    result2 = api.DRIVERS[plan2.assembly](plan2)
+    from scipy.io import mmread
+
+    np.testing.assert_allclose(
+        np.asarray(result2.systems[0].A.toarray()),
+        np.asarray(mmread(tmp_path / "A.mm").toarray()),
+    )
+    np.testing.assert_allclose(
+        np.asarray(result2.systems[0].B), np.asarray(mmread(tmp_path / "B.mm"))
+    )
+
+
 @pytest.mark.tetgen
 def test_run_em_e_fd_writes_a_six_port_touchstone(tmp_path: Path) -> None:
     options = parse_argv([str(REPO / "data" / "WR90.poly"), "+f", "1e10", "+p", "2"])

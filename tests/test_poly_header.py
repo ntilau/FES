@@ -22,7 +22,7 @@ def test_wr90_metadata():
         "WavePort",
     ]
     # ``bc::bc()`` defaults the mode count to 1; only ports spell it out here.
-    assert [boundary.num_modes for boundary in model.boundaries] == [1, 3, 3]
+    assert [boundary.num_modes for boundary in model.boundaries] == [1, 5, 5]
     assert model.bbox is not None
     assert model.bbox[0][0] == -0.01143
 

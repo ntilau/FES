@@ -19,11 +19,13 @@ The drivers mirror the ``main.cpp`` flow of the original C++ version:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np
+from scipy.io import mmwrite
 
 from . import api
 from .core.assemblers import (
@@ -241,12 +243,14 @@ def _solve_system(
     mesh,
     freq: float,
     plan: api.RunPlan,
+    solve: bool = True,
 ) -> TMzSystem:
     return assemble_em_ez_fd(
         mesh,
         freq,
         plan.options.p_ord,
         power=plan.options.power,
+        solve=solve,
     )
 
 
@@ -257,6 +261,31 @@ def _new_result(plan: api.RunPlan) -> SolverResult:
         assembly=plan.assembly,
         frequencies=list(plan.frequencies or [plan.options.freq]),
     )
+
+
+def _dump_matrices(plan: api.RunPlan, system, output_dir: Path) -> List[Path]:
+    """Write the assembled system matrices in Matrix Market format.
+
+    Mirrors the reference C++ ``+matlab`` mode (``EqSys::SaveSystem``: the
+    system matrix and right-hand side are written as ``A.mm`` and ``B.mm`` so
+    they can be reloaded in MATLAB/Octave and compared against the frozen C++
+    binaries' output).  SciPy's ``mmwrite`` appends ``.mtx`` regardless, so
+    each matrix is written to a scratch name and renamed to the exact
+    ``*.mm`` name the reference uses.  Returns the files written.
+    """
+    directory = Path(plan.options.matlab_dir or plan.output_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    written: List[Path] = []
+    for name, matrix in (("A", system.A), ("B", system.B)):
+        if matrix is None:
+            continue
+        target = directory / f"{name}.mm"
+        scratch = directory / f".{name}.mm.scratch"
+        mmwrite(scratch, matrix)
+        produced = Path(str(scratch) + ".mtx")
+        os.replace(produced, target)
+        written.append(target)
+    return written
 
 
 def _prepare_output(plan: api.RunPlan, mesh) -> Path:
@@ -297,10 +326,21 @@ def run_em_ez_fd(plan: api.RunPlan) -> SolverResult:
         plan.model.path, _mesh_switches(plan), h_ord=options.h_ord
     )
 
-    output_dir = _prepare_output(plan, mesh)
+    if options.matlab:
+        output_dir = Path(plan.options.matlab_dir or plan.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
-        system = _solve_system(mesh, freq, plan)
+        system = _solve_system(mesh, freq, plan, solve=not options.matlab)
         result.systems.append(system)
+        if options.matlab:
+            # ``+matlab`` dumps the system and skips solve/post-processing,
+            # mirroring the reference C++ ``Option::MATLAB`` mode.
+            result.notes.extend(
+                f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
+            )
+            continue
         if options.field:
             write_field_vtk(
                 mesh,
@@ -341,7 +381,11 @@ def run_em_av_fd(plan: api.RunPlan) -> SolverResult:
 
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
 
-    output_dir = _prepare_output(plan, mesh)
+    if options.matlab:
+        output_dir = Path(plan.options.matlab_dir or plan.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
         system = assemble_em_av_fd(
             mesh,
@@ -350,8 +394,14 @@ def run_em_av_fd(plan: api.RunPlan) -> SolverResult:
             power=options.power,
             e_inc=options.E if options.einc else None,
             k_inc=options.k if options.einc else None,
+            solve=not options.matlab,
         )
         result.systems.append(system)
+        if options.matlab:
+            result.notes.extend(
+                f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
+            )
+            continue
         if options.field:
             write_field_vtk(
                 mesh,
@@ -392,7 +442,11 @@ def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
 
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
 
-    output_dir = _prepare_output(plan, mesh)
+    if options.matlab:
+        output_dir = Path(plan.options.matlab_dir or plan.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
         system = assemble_em_e_fd(
             mesh,
@@ -401,8 +455,14 @@ def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
             power=options.power,
             e_inc=options.E if options.einc else None,
             k_inc=options.k if options.einc else None,
+            solve=not options.matlab,
         )
         result.systems.append(system)
+        if options.matlab:
+            result.notes.extend(
+                f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
+            )
+            continue
         if options.field:
             write_field_vtk(
                 mesh,
@@ -444,7 +504,11 @@ def run_em_e_fd_dd(plan: api.RunPlan) -> SolverResult:
 
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
 
-    output_dir = _prepare_output(plan, mesh)
+    if options.matlab:
+        output_dir = Path(plan.options.matlab_dir or plan.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
         system = assemble_em_e_fd_dd(
             mesh,
@@ -455,8 +519,14 @@ def run_em_e_fd_dd(plan: api.RunPlan) -> SolverResult:
             k_inc=options.k if options.einc else None,
             n_dd=options.n_dd or 1,
             preconditioner=options.dd_preconditioner or "gs",
+            solve=not options.matlab,
         )
         result.systems.append(system)
+        if options.matlab:
+            result.notes.extend(
+                f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
+            )
+            continue
         if options.field:
             write_field_vtk(
                 mesh,
@@ -496,7 +566,11 @@ def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
 
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
 
-    output_dir = _prepare_output(plan, mesh)
+    if options.matlab:
+        output_dir = Path(plan.options.matlab_dir or plan.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
         system = assemble_em_e_fd_nl(
             mesh,
@@ -509,8 +583,14 @@ def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
             nl_mtrl_name=options.nl_mtrl_name,
             kerr=options.kerr,
             relax=options.relax,
+            solve=not options.matlab,
         )
         result.systems.append(system)
+        if options.matlab:
+            result.notes.extend(
+                f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
+            )
+            continue
         if options.field:
             write_field_vtk(
                 mesh,
@@ -585,15 +665,25 @@ def run_em_e_qs(plan: api.RunPlan) -> SolverResult:
     mesh = mesh_from_poly(
         plan.model.path, _mesh_switches(plan), h_ord=options.h_ord
     )
-    output_dir = _prepare_output(plan, mesh)
+    if options.matlab:
+        output_dir = Path(plan.options.matlab_dir or plan.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
         system = assemble_em_e_qs(
             mesh,
             options.p_ord,
             options.Vbnd,
             freq=freq,
+            solve=not options.matlab,
         )
         result.systems.append(system)
+        if options.matlab:
+            result.notes.extend(
+                f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
+            )
+            continue
         if options.field:
             write_field_vtk(
                 mesh,

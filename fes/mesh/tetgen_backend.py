@@ -48,10 +48,11 @@ __all__ = [
     "tetrahedralize_poly",
 ]
 
-#: The oracle's switches: PLC, quality, region attributes, all faces, all
-#: edges, quiet.  ``pre_processor.cpp`` prepends nothing when ``+poly`` has no
-#: argument and appends ``AfeeQ`` to an explicit switch string.
-SWITCH_DEFAULT_3D = "pqAfeeQ"
+#: The oracle's switches: PLC, quality, region attributes, max-volume
+#: constraint, all faces, all edges, quiet.  The lowercase ``a`` applies the
+#: maximum volume from the region section of the ``.poly`` file; without it
+#: TetGen ignores the volume bound and returns a coarse mesh.
+SWITCH_DEFAULT_3D = "pqAeafeeQ"
 
 
 class TetGenUnavailable(RuntimeError):

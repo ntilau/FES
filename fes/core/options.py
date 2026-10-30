@@ -25,7 +25,7 @@ import math
 import re
 import warnings
 from dataclasses import dataclass, field as _dc_field
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 ASSEMBLY_TYPES = (
     "em_av_fd",
@@ -181,6 +181,15 @@ class Options:
     eig_tol: float = 0.0
     #: Eigen solver path: ``"auto"``, ``"dense"``, ``"arpack"`` or ``"arnoldi"``.
     eig_solver: str = "auto"
+    #: Dump the assembled system matrices (``A.mm``, ``B.mm``) in Matrix
+    #: Market format instead of solving (``+matlab``; mirrors the C++
+    #: ``Option::MATLAB`` mode that writes the system for comparison in
+    #: MATLAB/Octave).
+    matlab: bool = False
+    #: Directory for the dumped matrices (default: the run output directory).
+    #: A leading ``@`` on the CLI value is stripped, so ``+matlab @../FESOld/``
+    #: writes into ``../FESOld/`` next to the old C++ binaries.
+    matlab_dir: Optional[str] = None
     positional_freqs: List[float] = _dc_field(default_factory=list)
     extra_positionals: List[str] = _dc_field(default_factory=list)
     extra: Dict[str, str] = _dc_field(default_factory=dict)
@@ -260,6 +269,14 @@ def parse_legacy(argv: Sequence[str]) -> Options:
             opt.cli_override["volt:" + tokens[index + 1]] = tokens[index + 2]
             index += 3
             continue
+        # +matlab [<dir>] — dump system matrices in Matrix Market format.
+        if token == "+matlab":
+            opt.cli_override["matlab"] = "1"
+            index += 1
+            if index < len(tokens) and tokens[index][0] not in "+-":
+                opt.cli_override["matlab_dir"] = tokens[index]
+                index += 1
+            continue
         # project name: first non-flag token
         if token[0] not in "+-":
             if not opt.name:
@@ -324,6 +341,15 @@ def _apply_legacy(opt: Options) -> None:
         opt.ddn = get_b("ddn")
     if ov("dds"):
         opt.dds = get_b("dds")
+    if ov("matlab"):
+        opt.matlab = get_b("matlab")
+        if opt.matlab:
+            opt.sparam = False
+    if ov("matlab_dir"):
+        directory = get_s("matlab_dir")
+        if directory.startswith("@"):
+            directory = directory[1:]
+        opt.matlab_dir = directory
     if ov("nl"):
         opt.nl = get_b("nl")
     if ov("n_jor_gs"):
@@ -556,6 +582,17 @@ def parse_argv(argv: Sequence[str], legacy: bool = False) -> Options:
         if token == "-field":
             opt.field = False
             index += 1
+            continue
+        if token == "+matlab":
+            opt.matlab = True
+            opt.sparam = False
+            index += 1
+            if index < len(tokens) and _is_value(tokens[index]):
+                directory = tokens[index]
+                if directory.startswith("@"):
+                    directory = directory[1:]
+                opt.matlab_dir = directory
+                index += 1
             continue
         if token == "+dbg":
             opt.dbg = True
