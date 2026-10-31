@@ -10,7 +10,7 @@ cannot own a ``tetgenio``.
 Usage::
 
     python tools/build_tetgen.py
-    python tools/build_tetgen.py --compiler clang++ -o build/libfetgen.dylib
+    python tools/build_tetgen.py --compiler clang++ -o build/libtetgen.dylib
 
 TetGen itself is compiled unmodified with ``-DTETLIBRARY`` (the same define as
 ``dep/tetgen/CMakeLists.txt``); only the shim (a separate translation unit)
@@ -36,11 +36,11 @@ DEFAULT_SHIM = PY_DIR / "tools" / "tetgen_shim.cpp"
 def default_output() -> Path:
     """Return the platform's shared-library name inside ``build``."""
     if sys.platform == "darwin":
-        name = "libfetgen.dylib"
+        name = "libtetgen.dylib"
     elif sys.platform.startswith("win"):
-        name = "fetgen.dll"
+        name = "tetgen.dll"
     else:
-        name = "libfetgen.so"
+        name = "libtetgen.so"
     return PY_DIR / "build" / name
 
 

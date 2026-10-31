@@ -72,7 +72,7 @@ from ..element_matrix import (
     element_matrices_face,
 )
 
-__all__ = ["FDPort", "FDSystem", "assemble_em_e_fd"]
+__all__ = ["FDPort", "FDSystem", "assemble_em_e_fd", "compute_waveguide_modes"]
 
 #: ``DBL_MIN``, the reference's starting value for ``maxepsr``/``maxmur``.
 _DBL_MIN = float.fromhex("0x0.0000000000001p-1022")
@@ -293,44 +293,117 @@ def _port_eigenpairs(tmpA: np.ndarray, tmpB: np.ndarray, numt: int,
     return values, vectors
 
 
+def _port_reduced_pencil(tmpA: np.ndarray, tmpB: np.ndarray, numt: int,
+                         numz: int) -> tuple:
+    """Reduce the port pencil to edge-only DOFs via the Schur complement.
+
+    Eliminates the scalar face DOFs with the Zhu-Cangellaris Schur complement
+
+        B_schur = Tt2 - G @ inv(Sz - kk*Tz) @ G.T
+
+    and returns the reduced edge pencil ``(A_tt, B_schur)`` where
+    ``A_tt = St - kk*Tt``.  Works for ``numz == 0`` too, in which case
+    ``B_schur`` is just ``Tt2``.
+    """
+    Tt2 = tmpB[:numt, :numt]
+    G = tmpB[:numt, numt:]
+    A_tt = tmpA[:numt, :numt]
+    if numz > 0:
+        D = tmpB[numt:, numt:]
+        B_schur = Tt2 - G @ solve(D, G.conj().T)
+    else:
+        B_schur = Tt2
+    return A_tt, B_schur
+
+
+def _port_eigenpairs_dense(A_tt: np.ndarray, B_schur: np.ndarray) -> tuple:
+    """Dense generalized eigensolve of the reduced edge pencil ``A_tt v = l B_schur v``.
+
+    Returns every pencil eigenvalue; the caller selects the physical port modes
+    (``kc^2 > 0``) and orders them TE10-first.  Used by default because it is
+    deterministic and bit-comparable with the reference C++ binary.
+    """
+    lam, vectors = scipy.linalg.eig(A_tt, B_schur)
+    return np.asarray(lam, dtype=complex), np.asarray(vectors, dtype=complex)
+
+
+def _port_eigenpairs_arpack(A_tt, B_schur, shift: float, nmodes: int,
+                            eig_tol: float = 0.0):
+    """Shift-invert ARPACK for the port pencil ``A_tt v = l B_schur v``.
+
+    Factorises ``A_tt/shift - B_schur`` once with SuperLU and asks ARPACK for
+    the Ritz values of ``op = (A_tt/shift - B_schur)^{-1} (B_schur/shift)``
+    with largest magnitude, i.e. the pencil eigenvalues nearest *shift* -- the
+    lowest-cutoff waveguide modes, since ``shift = -k0^2 * maxepsr * maxmur``
+    sits at the bottom of the spectrum.  Each Ritz value ``theta`` is converted
+    to ``l = shift + 1/theta``, mirroring ``zneupd``.
+
+    Returns ``(lam, vectors)`` with edge-only ``vectors`` of shape
+    ``(numt, k)``, or ``None`` when ARPACK does not converge (the caller falls
+    back to the dense solve).
+    """
+    n = A_tt.shape[0]
+    if n < 2:
+        return None
+    A_tt = A_tt.tocsc() if sp.issparse(A_tt) else sp.csc_matrix(A_tt)
+    B_schur = B_schur.tocsc() if sp.issparse(B_schur) else sp.csc_matrix(B_schur)
+    A_s = (A_tt / shift - B_schur).tocsc()
+    try:
+        lu = scipy.sparse.linalg.splu(A_s)
+    except RuntimeError:
+        return None
+
+    def matvec(x: np.ndarray) -> np.ndarray:
+        x = np.asarray(x, dtype=complex).reshape(n)
+        y = np.asarray(B_schur @ x, dtype=complex).reshape(n) / shift
+        return lu.solve(y)
+
+    operator = scipy.sparse.linalg.LinearOperator(
+        (n, n), matvec=matvec, dtype=complex
+    )
+    # Deterministic start vector (mirrors the hand-written Arnoldi path), so the
+    # Ritz values are reproducible across runs and builds.
+    rng = np.random.default_rng(0)
+    v0 = rng.standard_normal(n) + 1j * rng.standard_normal(n)
+    v0 = v0 / np.linalg.norm(v0)
+    k = min(max(nmodes * 6, 16), n - 1)
+    if k < 1:
+        return None
+    ncv = min(2 * k + 1, n - 1)
+    if ncv <= k:
+        return None
+    try:
+        theta, vectors = scipy.sparse.linalg.eigs(
+            operator,
+            k=k,
+            which="LM",
+            ncv=ncv,
+            tol=eig_tol,
+            v0=v0,
+            return_eigenvectors=True,
+        )
+    except scipy.sparse.linalg.ArpackNoConvergence:
+        return None
+    if vectors is None:
+        return None
+    theta = np.asarray(theta, dtype=complex)
+    lam = shift + 1.0 / theta
+    vectors = np.asarray(vectors, dtype=complex)
+    return lam, vectors
+
+
 def _port_eigenpairs_oo(tmpA: np.ndarray, tmpB: np.ndarray, numt: int,
                         numz: int, kk: float, shift: float,
                         nmodes: int) -> tuple:
     """Resolve port modes via Schur-complement reduction (numz > 0).
 
-    Eliminates the scalar face DOFs with the Zhu-Cangellaris Schur complement:
-
-        B_schur = Tt2 - G @ inv(Sz - kk*Tz) @ G.T
-
-    then solves the reduced edge pencil
-
-        (St - kk*Tt) v = lambda * B_schur v
-
-    directly with a dense generalized eigensolve.  This is mathematically
-    equivalent to the shift-invert + Zhu-Cangellaris operator used by the
-    reference, but returns true pencil eigenvectors (residual ~1e-9) instead
-    of eigenvectors of the non-symmetric OPc operator (residual ~1e5).
-
-    Returns ``(lam, vectors, B_schur)`` where ``lam`` are the pencil
-    eigenvalues (``kc^2 = kk + lam``), ``vectors`` are edge-only eigenvectors
-    of shape ``(numt, n)``, and ``B_schur`` is the Schur-complement matrix used
-    for B-orthonormalisation by the caller.  The caller selects physical port
-    modes by cutoff wavenumber ``kc^2 > 0`` and orders them TE10-first.
+    Thin wrapper around :func:`_port_reduced_pencil` plus the dense
+    generalized eigensolve, kept for call-site compatibility.  *kk*, *shift*
+    and *nmodes* are accepted (and ignored) to match the historical signature;
+    the full spectrum is returned and the caller selects physical modes.
     """
-    # Extract blocks from tmpB
-    Tt2 = tmpB[:numt, :numt]
-    G = tmpB[:numt, numt:]
-    D = tmpB[numt:, numt:]
-
-    # Schur complement: eliminate scalar DOFs
-    B_schur = Tt2 - G @ solve(D, G.conj().T)
-
-    # A_tt is the top-left block of tmpA (= St - kk*Tt)
-    A_tt = tmpA[:numt, :numt]
-
-    # Dense generalized eigensolve of the reduced edge pencil
-    lam, vectors = scipy.linalg.eig(A_tt, B_schur)
-
+    A_tt, B_schur = _port_reduced_pencil(tmpA, tmpB, numt, numz)
+    lam, vectors = _port_eigenpairs_dense(A_tt, B_schur)
     return lam, vectors, B_schur
 
 
@@ -344,8 +417,21 @@ def _port_modes(
     dirichlet_s: np.ndarray,
     dirichlet_v: np.ndarray,
     dofnum: int,
+    *,
+    n_modes: Optional[int] = None,
+    shift: Optional[float] = None,
+    eig_tol: float = 0.0,
+    solver: str = "auto",
 ) -> FDPort:
-    """``assembler::compute_waveport_modes`` for a single boundary."""
+    """``assembler::compute_waveport_modes`` for a single boundary.
+
+    *solver* selects how the reduced port pencil is solved: ``"arpack"``
+    (shift-invert ARPACK on the SuperLU-factorised operator, the default) or
+    ``"dense"`` (full generalized eigensolve, bit-comparable with the reference
+    C++ binary).  ``"auto"`` is an alias for ``"arpack"``.  *n_modes* overrides
+    the port's ``num_modes`` and *shift* overrides the derived shift
+    ``-k0^2*maxepsr*maxmur``.
+    """
     faces = [int(fid) for fid in mesh.faces_for_boundary(bc)]
     cdofs = [face_dof_map(mesh, order, fid) for fid in faces]
 
@@ -421,18 +507,30 @@ def _port_modes(
     if numtot < 5:
         raise ValueError("Not enough dofs on wave_ports")
 
-    shift = -kk * maxepsr * maxmur
-    nmodes = max(int(bc.num_modes), 1)
-
-    if numz > 0:
-        lam, vectors, B_schur = _port_eigenpairs_oo(
-            tmpA, tmpB, numt, numz, kk, shift, nmodes)
-        # pencil eigenvalue lambda; kc^2 = kk + lambda
-        lam = np.asarray(lam, dtype=complex)
+    if shift is None:
+        shift = -kk * maxepsr * maxmur
+    if n_modes is not None:
+        nmodes = min(max(int(n_modes), 1), numtot)
     else:
-        lam, vectors = _port_eigenpairs(tmpA, tmpB, numt, shift, nmodes)
-        lam = np.asarray(lam, dtype=complex)
-        B_schur = tmpB[:numt, :numt]
+        nmodes = max(int(bc.num_modes), 1)
+
+    A_tt, B_schur = _port_reduced_pencil(tmpA, tmpB, numt, numz)
+
+    lam = vectors = None
+    if solver in ("arpack", "auto"):
+        result = _port_eigenpairs_arpack(A_tt, B_schur, shift, nmodes, eig_tol)
+        if result is not None:
+            cand_lam, cand_vec = result
+            cand_phys = np.count_nonzero(np.real(kk + cand_lam) > 0.0)
+            if int(cand_phys) >= nmodes:
+                lam, vectors = cand_lam, cand_vec
+    # Dense fallback when ARPACK does not converge or yields too few physical
+    # modes (the shift sits at the bottom of the spectrum, so spurious
+    # negative-kc^2 modes can crowd out the physical ones).
+    if lam is None:
+        lam, vectors = _port_eigenpairs_dense(A_tt, B_schur)
+    lam = np.asarray(lam, dtype=complex)
+    vectors = np.asarray(vectors, dtype=complex)
 
     # Cutoff wavenumber squared: kc^2 = kk + lambda = k0^2 + (kc^2 - k0^2).
     # Keep only physical waveguide modes (kc^2 > 0); the indefinite pencil
@@ -498,6 +596,76 @@ def _port_modes(
     )
 
 
+def compute_waveguide_modes(
+    mesh,
+    freq: float,
+    order: int = 1,
+    *,
+    n_modes: Optional[int] = None,
+    shift: Optional[float] = None,
+    eig_tol: float = 0.0,
+    solver: str = "auto",
+) -> List[dict]:
+    """Compute the waveguide port eigenmodes of a 3D model.
+
+    For every ``WavePort`` boundary, builds the per-port tangential pencil
+    (``St - k0^2 Tt`` vs ``Tt2`` with the scalar-face DOFs eliminated by the
+    Zhu-Cangellaris Schur complement) and solves for the propagation
+    constants, cutoff wavenumbers and cutoff frequencies.  The eigenproblem is
+    solved with ARPACK shift-invert by default (``solver="auto"``) with a dense
+    fallback.
+
+    Returns a list of dicts, one per port, with keys ``name``, ``label``,
+    ``num_modes``, ``mode_beta``, ``kc``, ``cutoff``, ``propagating`` and
+    ``k0``.
+    """
+    _ensure_topology(mesh)
+    order = int(order)
+    freq = float(freq)
+    k0 = 2.0 * PI * freq / C0
+    kk = k0 * k0
+    dofnum = vector_dof_count(mesh, order)
+    doftoLeave = np.ones(dofnum, dtype=bool)
+    dirdofs, dirdofv = _dirichlet(mesh, order, doftoLeave)
+
+    ports = []
+    for bc in mesh.boundaries:
+        if bc.type != "WavePort":
+            continue
+        port = _port_modes(
+            mesh,
+            bc,
+            order,
+            k0,
+            kk,
+            freq,
+            dirdofs,
+            dirdofv,
+            dofnum,
+            n_modes=n_modes,
+            shift=shift,
+            eig_tol=eig_tol,
+            solver=solver,
+        )
+        beta = np.asarray(port.mode_beta, dtype=complex)
+        kc = np.sqrt(np.abs(kk - beta * beta)).real
+        cutoff = kc * C0 / (2.0 * PI)
+        propagating = (np.abs(beta.imag) < _GAMMA_TOL) & (beta.real > 0.0)
+        ports.append(
+            {
+                "name": port.name,
+                "label": int(port.label),
+                "num_modes": int(port.num_modes),
+                "mode_beta": beta,
+                "kc": kc,
+                "cutoff": cutoff,
+                "propagating": np.asarray(propagating, dtype=bool),
+                "k0": k0,
+            }
+        )
+    return ports
+
+
 # ── driver ──────────────────────────────────────────────────────────────────
 
 
@@ -510,6 +678,8 @@ def assemble_em_e_fd(
     solve: bool = True,
     e_inc: Optional[Sequence[float]] = None,
     k_inc: Optional[Sequence[float]] = None,
+    solver: str = "auto",
+    eig_tol: float = 0.0,
 ) -> FDSystem:
     """Assemble and (by default) solve the 3D H(curl) curl-curl system.
 
@@ -517,6 +687,10 @@ def assemble_em_e_fd(
     the reference's units (the electric-field vector and the propagation
     direction).  As in ``assemble_em_e_fd.cpp`` the incident-wave branch runs
     only when the model has no waveports; with ports the TFE reduction wins.
+
+    ``solver``/``eig_tol`` select how each wave-port eigenproblem is solved:
+    ``"arpack"`` (shift-invert ARPACK, the default) or ``"dense"`` (matches the
+    reference C++); ``"auto"`` is an alias for ``"arpack"``.
     """
     order = int(order)
     freq = float(freq)
@@ -537,7 +711,8 @@ def assemble_em_e_fd(
         if bc.type not in ("WavePort", "LumpedPort"):
             continue
         port = _port_modes(
-            mesh, bc, order, k0, kk, freq, dirdofs, dirdofv, dofnum
+            mesh, bc, order, k0, kk, freq, dirdofs, dirdofv, dofnum,
+            solver=solver, eig_tol=eig_tol,
         )
         doftoLeave[port.edges] = False
         ports.append(port)

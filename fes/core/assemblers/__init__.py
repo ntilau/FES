@@ -12,7 +12,12 @@ The v0.1 C++ sources are frozen; the modules here are the replacement for them.
 from __future__ import annotations
 
 from .em_av_fd import AVSystem, assemble_em_av_fd
-from .em_e_fd import FDPort, FDSystem, assemble_em_e_fd
+from .em_e_fd import (
+    FDPort,
+    FDSystem,
+    assemble_em_e_fd,
+    compute_waveguide_modes,
+)
 from .em_e_fd_dd import assemble_em_e_fd_dd
 from .em_e_fd_nl import assemble_em_e_fd_nl
 from .em_e_qs import QSSystem, assemble_em_e_qs
@@ -25,6 +30,7 @@ __all__ = [
     "FDPort",
     "FDSystem",
     "NullRightHandSideError",
+    "compute_waveguide_modes",
     "QSSystem",
     "TLEigSystem",
     "TMzSystem",

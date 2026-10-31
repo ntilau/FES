@@ -88,7 +88,7 @@ class TetGenMesh:
 
 
 def _candidate_names() -> list[str]:
-    return ["libfetgen.dylib", "libfetgen.so", "fetgen.dll"]
+    return ["libtetgen.dylib", "libtetgen.so", "tetgen.dll"]
 
 
 def library_path() -> Path:
@@ -113,13 +113,13 @@ def library_path() -> Path:
             if candidate.is_file():
                 return candidate.resolve()
 
-    found = ctypes.util.find_library("fetgen")
+    found = ctypes.util.find_library("tetgen")
     if found:
         return Path(found)
 
     raise TetGenUnavailable(
         "TetGen shared library not found; set FES_TETGEN_LIB or build "
-        "build/libfetgen.dylib with tools/build_tetgen.py"
+        "build/libtetgen.dylib with tools/build_tetgen.py"
     )
 
 

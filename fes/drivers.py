@@ -40,6 +40,7 @@ from .core.assemblers import (
     assemble_em_e_qs,
     assemble_em_e_tl_eig,
     assemble_em_ez_fd,
+    compute_waveguide_modes,
 )
 from .core.assemblers.em_ez_fd import extract_solution_full
 from .mesh.mesh2d import mesh_from_poly
@@ -198,7 +199,8 @@ class SolverResult:
             f"{len(self.frequencies)} frequency(ies), {self.n_modes} mode(s), "
             f"{self.dof} DOF (p={self.systems[0].order})"
             if self.systems
-            else f"{self.project}: {self.assembly} (no system)",
+            else f"{self.project}: {self.assembly} "
+            f"{len(self.frequencies)} frequency(ies) (port eigenmodes only)",
         ]
         for system in self.systems:
             if isinstance(system, TLEigSystem):
@@ -456,6 +458,8 @@ def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
             e_inc=options.E if options.einc else None,
             k_inc=options.k if options.einc else None,
             solve=not options.matlab,
+            solver=options.eig_solver,
+            eig_tol=options.eig_tol,
         )
         result.systems.append(system)
         if options.matlab:
@@ -617,6 +621,41 @@ def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
     return result
 
 
+def _run_em_e_fd_eigen(
+    plan: api.RunPlan, mesh, options, result: SolverResult
+) -> SolverResult:
+    """Waveguide port eigenmode analysis for a 3D wave-port model.
+
+    Computes the port propagation constants, cutoff wavenumbers and cutoff
+    frequencies for every ``WavePort`` boundary using
+    :func:`compute_waveguide_modes` (ARPACK shift-invert by default).  No
+    driven system is assembled and no Touchstone file is written; the mode
+    table is reported through the result's notes and summary.
+    """
+    for freq in result.frequencies:
+        modes = compute_waveguide_modes(
+            mesh,
+            freq,
+            options.p_ord,
+            n_modes=options.n_modes or None,
+            shift=options.shift or None,
+            eig_tol=options.eig_tol,
+            solver=options.eig_solver,
+        )
+        for port in modes:
+            tag = f"{port['name']} (label={port['label']})"
+            for m in range(port["num_modes"]):
+                beta = port["mode_beta"][m]
+                kc = port["kc"][m]
+                cutoff = port["cutoff"][m]
+                flag = " p" if bool(port["propagating"][m]) else ""
+                result.notes.append(
+                    f"{tag}: m{m} beta={beta:.6g} alpha={abs(beta.imag):.6g} "
+                    f"kc={kc:.6g} fc={cutoff / 1e9:.6g}GHz{flag}"
+                )
+    return result
+
+
 def run_em_e_tl_eig(plan: api.RunPlan) -> SolverResult:
     """Driver for the 2D transmission-line cross-section eigenproblem.
 
@@ -624,9 +663,18 @@ def run_em_e_tl_eig(plan: api.RunPlan) -> SolverResult:
     analysis once per frequency; ``equation_system`` skips solver and
     post-processing for this formulation, so the only file written next to the
     model is the mesh ``.vtk`` from the project constructor.
+
+    A 3D wave-port model is handled as a waveguide port eigenmode analysis
+    (``em_e_fd`` port machinery via ARPACK shift-invert): the driven system is
+    not assembled and no Touchstone file is written.
     """
     options = plan.options
     result = _new_result(plan)
+
+    if plan.model.dimension == 3:
+        mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+        result.assembly = "em_e_fd"
+        return _run_em_e_fd_eigen(plan, mesh, options, result)
 
     mesh = mesh_from_poly(
         plan.model.path, _mesh_switches(plan), h_ord=options.h_ord

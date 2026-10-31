@@ -4,7 +4,7 @@
 objects, and one test checks the generated ``WR90`` mesh's edge labels.
 
 The library is optional tooling; tests that call it carry the ``tetgen``
-marker and are skipped when ``build/libfetgen.*`` is absent (as in CI).
+marker and are skipped when ``build/libtetgen.*`` is absent (as in CI).
 """
 
 from __future__ import annotations
