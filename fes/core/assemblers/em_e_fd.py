@@ -135,8 +135,6 @@ class FDSystem:
     B_exc: Optional[np.ndarray] = None
     A_wp: Optional[np.ndarray] = None
     A_wp_nn: Optional[np.ndarray] = None
-    A_nn_wp: Optional[np.ndarray] = None
-    Ad_wp: Optional[np.ndarray] = None
     Attred: Optional[np.ndarray] = None
     Atired: Optional[np.ndarray] = None
     top_left: Optional[np.ndarray] = None
@@ -275,79 +273,65 @@ def _dirichlet(mesh, order: int, doftoLeave: np.ndarray):
 
 def _port_eigenpairs(tmpA: np.ndarray, tmpB: np.ndarray, numt: int,
                      shift: float, nmodes: int) -> tuple:
-    """Resolve ``num_modes`` modes of the generalized pencil ``tmpA x = l tmpB x``.
+    """Resolve all eigenpairs of the generalized pencil ``tmpA x = l tmpB x``.
 
-    Used when ``numz == 0`` (no scalar face DoFs): the reference's
-    ``eigen::znaupd`` runs ARPACK mode 3 with ``which="LM"`` on the shift-invert
-    operator, which on these small problems resolves the full pencil.
-
-    Modes whose H(curl) block is empty are skipped: the scalar sub-block of the
-    pencil carries a static mode at ``lambda = 0`` whose vector part is exactly
-    zero.  Selecting it would replace a column of ``mode_vec`` by zeros and
-    make the ``1/sqrt(beta)`` normalisation singular.
+    Used when ``numz == 0`` (no scalar face DoFs).  Returns every eigenpair
+    after removing static scalar modes (zero vector part); the caller
+    (:func:`_port_modes`) selects the physical port modes by cutoff wavenumber
+    and orders them TE10-first.  ``values`` are the pencil eigenvalues
+    ``lambda`` directly (dense generalized solve), with ``kc^2 = kk + lambda``.
     """
     values, vectors = scipy.linalg.eig(tmpA, tmpB)
-    distance = np.abs(values - shift)
+
+    # Filter modes with no vector part (static scalar mode at lambda = 0).
     content = np.linalg.norm(vectors[:numt, :], axis=0)
     total = np.linalg.norm(vectors, axis=0)
     has_vector_part = content > 1e-8 * np.maximum(total, np.finfo(float).tiny)
-    ranked = np.where(has_vector_part, distance, np.inf)
-    selected = np.argsort(ranked, kind="stable")[:nmodes]
-    return values[selected], vectors[:, selected]
+    values = values[has_vector_part]
+    vectors = vectors[:, has_vector_part]
+
+    return values, vectors
 
 
 def _port_eigenpairs_oo(tmpA: np.ndarray, tmpB: np.ndarray, numt: int,
                         numz: int, kk: float, shift: float,
                         nmodes: int) -> tuple:
-    """Resolve port modes with Zhu-Cangellaris orthogonalisation (numz > 0).
+    """Resolve port modes via Schur-complement reduction (numz > 0).
 
-    Replicates ``eigen::Eigen`` (Eigen.cpp) when ``numz > 0``:
+    Eliminates the scalar face DOFs with the Zhu-Cangellaris Schur complement:
 
-    1. ``OPc * (SS/kk - TT) = TT/kk``  →  ``OPc = (TT/kk) * (SS/kk - TT)^{-1}``
-    2. Zhu-Cangellaris: ``OPc = OO * OPc`` where
-       ``OO = [ I, 0; -D^{-1} C^T, 0 ]`` with ``D = TT[numt:,numt:]``,
-       ``C = TT[:numt,numt:]``.
-    3. Eigendecomposition of ``OPc``, sorted by |theta| descending
-       (ARPACK ``which="LM"``), then by |beta| descending.
+        B_schur = Tt2 - G @ inv(Sz - kk*Tz) @ G.T
 
-    The reference's ``modeBeta = sqrt(theta)`` and ``modeVec`` are the
-    eigenvectors of ``OPc``.
+    then solves the reduced edge pencil
+
+        (St - kk*Tt) v = lambda * B_schur v
+
+    directly with a dense generalized eigensolve.  This is mathematically
+    equivalent to the shift-invert + Zhu-Cangellaris operator used by the
+    reference, but returns true pencil eigenvectors (residual ~1e-9) instead
+    of eigenvectors of the non-symmetric OPc operator (residual ~1e5).
+
+    Returns ``(lam, vectors, B_schur)`` where ``lam`` are the pencil
+    eigenvalues (``kc^2 = kk + lam``), ``vectors`` are edge-only eigenvectors
+    of shape ``(numt, n)``, and ``B_schur`` is the Schur-complement matrix used
+    for B-orthonormalisation by the caller.  The caller selects physical port
+    modes by cutoff wavenumber ``kc^2 > 0`` and orders them TE10-first.
     """
-    numtot = numt + numz
+    # Extract blocks from tmpB
+    Tt2 = tmpB[:numt, :numt]
+    G = tmpB[:numt, numt:]
+    D = tmpB[numt:, numt:]
 
-    # Step 1: solve OPc * (tmpA/kk - tmpB) = tmpB/kk for OPc
-    M = tmpA / kk - tmpB
-    rhs = tmpB / kk
-    opc_t = solve(M.T, rhs.T)
-    opc = opc_t.T
+    # Schur complement: eliminate scalar DOFs
+    B_schur = Tt2 - G @ solve(D, G.conj().T)
 
-    # Step 2: Zhu-Cangellaris orthogonaliser OO
-    if numz > 0:
-        D = tmpB[numt:, numt:]
-        C = tmpB[:numt, numt:]
-        e = -solve(D, C.conj().T)  # E = -D^{-1} C^T
-        oo = np.zeros((numtot, numtot), dtype=complex)
-        oo[:numt, :numt] = np.eye(numt)
-        oo[numt:, :numt] = e
-        opc = oo @ opc
+    # A_tt is the top-left block of tmpA (= St - kk*Tt)
+    A_tt = tmpA[:numt, :numt]
 
-    # Step 3: eigendecomposition
-    theta, vectors = scipy.linalg.eig(opc)
+    # Dense generalized eigensolve of the reduced edge pencil
+    lam, vectors = scipy.linalg.eig(A_tt, B_schur)
 
-    # Sort by |theta| descending (ARPACK which="LM")
-    order_idx = np.argsort(-np.abs(theta), kind="stable")
-    theta = theta[order_idx]
-    vectors = vectors[:, order_idx]
-
-    # Filter modes with no vector part (static scalar mode at lambda = 0)
-    content = np.linalg.norm(vectors[:numt, :], axis=0)
-    total = np.linalg.norm(vectors, axis=0)
-    has_vector_part = content > 1e-8 * np.maximum(total, np.finfo(float).tiny)
-    theta = theta[has_vector_part]
-    vectors = vectors[:, has_vector_part]
-
-    selected = np.arange(min(nmodes, theta.size))
-    return theta[selected], vectors[:, selected]
+    return lam, vectors, B_schur
 
 
 def _port_modes(
@@ -441,40 +425,52 @@ def _port_modes(
     nmodes = max(int(bc.num_modes), 1)
 
     if numz > 0:
-        values, vectors = _port_eigenpairs_oo(
+        lam, vectors, B_schur = _port_eigenpairs_oo(
             tmpA, tmpB, numt, numz, kk, shift, nmodes)
+        # pencil eigenvalue lambda; kc^2 = kk + lambda
+        lam = np.asarray(lam, dtype=complex)
     else:
-        values, vectors = _port_eigenpairs(tmpA, tmpB, numt, shift, nmodes)
+        lam, vectors = _port_eigenpairs(tmpA, tmpB, numt, shift, nmodes)
+        lam = np.asarray(lam, dtype=complex)
+        B_schur = tmpB[:numt, :numt]
 
-    # The Zhu-Cangellaris transform returns theta eigenvalues of the
-    # transformed operator opc.  The physical propagation constant satisfies
-    # beta^2 = kk + 1/theta (derived from the shift-invert relationship
-    # theta = 1/(lambda - kk) where lambda = beta^2).
-    beta = np.sqrt(kk + 1.0 / np.asarray(values, dtype=complex))
+    # Cutoff wavenumber squared: kc^2 = kk + lambda = k0^2 + (kc^2 - k0^2).
+    # Keep only physical waveguide modes (kc^2 > 0); the indefinite pencil
+    # (St - k0^2 Tt, Tt2) also yields spurious negative-kc^2 eigenvalues.
+    kc2 = kk + lam
+    physical = np.real(kc2) > 0.0
+    lam = lam[physical]
+    vectors = np.asarray(vectors, dtype=complex)[:, physical]
+    kc2 = kc2[physical]
+
+    # Order TE10-first: ascending cutoff wavenumber, then take nmodes.
+    take = min(int(nmodes), kc2.size)
+    order_idx = np.argsort(np.real(kc2), kind="stable")[:take]
+    lam = lam[order_idx]
+    vectors = vectors[:, order_idx]
+    kc2 = kc2[order_idx]
+
+    # Propagation constant: beta^2 = k0^2 - kc^2 = -lambda.
+    beta = np.sqrt(kk - kc2)
     real = np.abs(beta.real)
     imag = np.abs(beta.imag)
     real[real < _GAMMA_TOL] = 0.0
     imag[imag < _GAMMA_TOL] = 0.0
     beta = real + 1j * imag
 
-    order_idx = np.argsort(-np.abs(beta), kind="stable")
-    beta = beta[order_idx]
-    vectors = np.asarray(vectors, dtype=complex)[:, order_idx]
-
     # B-orthonormalisation matching C++ (AssLin.cpp line 342-343):
     #   ModeVec = V[:numt,:] @ inv(sqrt(V.st() * B * V))
     # where sqrt is the matrix square root and .st() is the plain transpose
-    # (not conjugate).  Using V^T B V (complex symmetric) matches the oracle.
-    # This makes the selected eigenvectors orthonormal in the B inner product,
-    # as the reference requires for the TFE reduction.
-    gram = vectors.T @ tmpB @ vectors
+    # (not conjugate).  Using V^T B_schur V (complex symmetric) matches the
+    # oracle.  This makes the selected eigenvectors orthonormal in the B inner
+    # product, as the reference requires for the TFE reduction.
+    gram = vectors.T @ B_schur @ vectors
     scale = _inv(sqrtm(gram))
-    mode_vec = vectors[:numt, :] @ scale
+    mode_vec = vectors @ scale
 
     coeff = np.zeros((beta.size, beta.size), dtype=complex)
     np.fill_diagonal(coeff, np.sqrt(complex(0.0, k0 * Z0) / beta))
-    mode_vecf = tmpB @ (vectors @ coeff @ scale)
-    mode_vecf = mode_vecf[:numt, :]
+    mode_vecf = B_schur @ (vectors @ coeff @ scale)
 
     for m in range(mode_vec.shape[1]):
         pivot = int(np.argmax(np.abs(mode_vec[:, m].real)))
@@ -668,7 +664,7 @@ def _reduce_and_solve(
             impedance = Z0
         for m in range(port.n_modes):
             sqrt_beta = np.sqrt(
-                (k0 * impedance * power) / port.mode_beta[m]
+                complex(0.0, k0 * impedance * power) / port.mode_beta[m]
             )
             macoeff[idx, idx] = complex(0.0, k0 * impedance * power)
             b_exc[idx, idx] = complex(0.0, 2.0 * k0 * impedance * power)
@@ -682,11 +678,11 @@ def _reduce_and_solve(
     for port in result.ports:
         wp_ids = np.concatenate([wp_ids, np.asarray(port.mode_vecdof, dtype=np.int64)])
 
-    # Step 1: save the diagonal, then clear it.  The C++ reference (AssLin.cpp)
-    # copies the interior block *before* zeroing the diagonal (line 433 precedes
-    # lines 435-438), so interior diagonal entries are preserved in the reduced
-    # matrix.  Only the port sub-block extraction reads from the zeroed matrix.
-    diagonal = np.asarray(matrix.diagonal(), dtype=complex)
+    # Step 1: zero the diagonal.  The C++ reference (AssLin.cpp lines 443-446)
+    # saves the diagonal to Adiag, then zeroes it in sys->A.  Attred1 (used for
+    # top_left) reads from the zeroed matrix; Attred2 (which would add back the
+    # diagonal and transpose) is computed but discarded.  So a_wp has ZERO
+    # diagonal, matching C++.
     zeroed = matrix.tolil()
     zeroed.setdiag(0.0)
     zeroed = zeroed.tocsr()
@@ -694,60 +690,66 @@ def _reduce_and_solve(
 
     # Step 2: interior block, upper triangle (from the original matrix, diagonal
     # intact — matching C++ which copies the interior before zeroing).
+    # ``nonwave_ids`` is ascending, so ``wpn + wi <= wpn + wj`` iff ``wi <= wj``:
+    # the upper triangle of the index sub-block is exactly the reference's
+    # global-DOF-number test.
     parts = []
-    for wi in range(nnum):
-        rows = nonwave_ids[wi]
-        for wj in range(wi, nnum):
-            val = matrix[rows, nonwave_ids[wj]]
-            if val != 0:
-                parts.append(
-                    (np.array([wpn + wi]), np.array([wpn + wj]), np.array([val]))
-                )
+    interior = matrix[np.ix_(nonwave_ids, nonwave_ids)]
+    interior = sp.triu(interior, format="coo")
+    interior.eliminate_zeros()
+    parts.append((interior.row + wpn, interior.col + wpn, interior.data))
 
-    # Step 3: extract the port blocks from the zeroed matrix.  ``wnum`` counts
-    # the free port DOFs (``wave_portIds``), not the number of modes.
+    # Step 3: extract the port blocks from the zeroed matrix.  C++ reads
+    # A_zeroed[WPids, WPids] (upper triangle only, zero diagonal) for Attred1
+    # which is used for top_left.  The diagonal is NOT restored (Attred2 which
+    # would restore it is discarded).  For a_wp_nn, C++ reads A_zeroed[WPids,
+    # nnWPids] (upper triangle only); using the full symmetric matrix here would
+    # add transposed entries C++ does not have.
     wnum = int(wp_ids.size)
-    a_wp = np.zeros((wnum, wnum), dtype=complex)
-    a_wp_nn = np.zeros((wnum, nnum), dtype=complex)
-    a_nn_wp = np.zeros((nnum, wnum), dtype=complex)
-    for wi in range(wnum):
-        for wj in range(wi, wnum):
-            a_wp[wi, wj] = zeroed[wp_ids[wi], wp_ids[wj]]
-        for nj in range(nnum):
-            value = zeroed[wp_ids[wi], nonwave_ids[nj]]
-            if value != 0:
-                a_wp_nn[wi, nj] = value
-            value = zeroed[nonwave_ids[nj], wp_ids[wi]]
-            if value != 0:
-                a_nn_wp[nj, wi] = value
 
-    ad_wp = np.zeros((wnum, wnum), dtype=complex)
-    for wi in range(wnum):
-        ad_wp[wi, wi] = diagonal[wp_ids[wi]]
+    # C++ (AssLin.cpp lines 448-452) computes:
+    #   Attred1 = Meig * (A_zeroed[WPids,WPids] + A_zeroed[WPids,WPids]^T
+    #                   + Adiag[WPids,WPids]) * Meig^T
+    #   = Meig * _full_symmetric(A[WPids,WPids]) * Meig^T
+    # So a_wp must be the full symmetric expansion of the original port block
+    # (restoring both triangles and the diagonal), not just the zeroed upper
+    # triangle.
+    a_wp_orig = matrix[np.ix_(wp_ids, wp_ids)].toarray()
+    a_wp = a_wp_orig + a_wp_orig.T - np.diag(np.diag(a_wp_orig))
 
-    # TFE modal reduction.  The C++ reference (AssLin.cpp, lines 440-444 and
-    # 456-460) computes:
-    #   Attred1 = Meig * (A_zeroed[WPids, WPids] + A_zeroed[WPids, WPids]^T
-    #                   + Adiag[WPids, WPids])
-    #   Anew[0:wpn, 0:wpn] = Attred1 * Meig^T + MAcoeff
-    #   Atired1 = Meig * (A_zeroed[WPids, nnWPids] + A_zeroed[nnWPids, WPids]^T
-    #                   + Adiag[WPids, nnWPids])
-    #   Anew[0:wpn, wpn:]  = Atired1   (direct copy)
-    # Since A_zeroed is symmetric, A_zeroed[P, Q]^T = A_zeroed[Q, P].
-    # WPids and nnWPids are disjoint so Adiag[WPids, nnWPids] == 0.
-    attred = meig @ (a_wp + a_wp.T + ad_wp)
-    top_left = attred @ meig.T + macoeff
-    atired = meig @ (a_wp_nn + a_nn_wp.T)
+    # C++ (AssLin.cpp lines 464-466) computes:
+    #   Atired1 = Meig * A_zeroed[WPids, nnWPids]
+    # Reading one triangle only.  Since wp_ids and nonwave_ids are interleaved
+    # (not all port DOFs precede all interior DOFs), reading one triangle would
+    # miss entries stored at the transposed position.  A is symmetric so
+    # A[wp,nw] = A[nw,wp]; reading both triangles recovers the full block.
+    a_wp_nn = matrix[np.ix_(wp_ids, nonwave_ids)].toarray()
+    a_wp_nn += matrix[np.ix_(nonwave_ids, wp_ids)].T.toarray()
+
+    # TFE modal reduction.  The C++ reference (AssLin.cpp, lines 448-454) computes:
+    #   Attred1 = Meig * A_zeroed[WPids, WPids]          (one triangle only!)
+    #   Anew[0:wpn, 0:wpn] = lower_triangle(Attred1 * Meig^T) + MAcoeff
+    #   Atired1 = Meig * A_zeroed[WPids, nnWPids]
+    #   Anew[0:wpn, wpn:] = Atired1   (direct copy)
+    # Note: only Attred1 is used for the top-left (Attred2, which adds the
+    # transpose and Adiag, is computed but discarded).  Adiag[WPids, nnWPids]
+    # is zero since the index sets are disjoint.
+    attred = meig @ a_wp
+    # C++ uses plain transpose (gmm::transposed): Meig * A_zeroed[WPids,WPids] *
+    # Meig^T with plain Meig on both sides.  The result is complex symmetric
+    # (top_left[i,j] == top_left[j,i]), which is what _full_symmetric expects
+    # when it mirrors the stored triangle.  Using meig.conj() on the left would
+    # make top_left Hermitian (top_left[i,j] == conj(top_left[j,i])) instead,
+    # so _full_symmetric would write conjugated values into the upper triangle
+    # and corrupt the operator — breaking energy conservation.
+    top_left = (meig @ a_wp) @ meig.T + macoeff
+    atired = meig @ a_wp_nn
 
     # Top-left (lower triangle, j <= i) and top-right coupling blocks.
-    for i in range(wpn):
-        for j in range(i + 1):
-            parts.append((np.array([i]), np.array([j]), np.array([top_left[i, j]])))
-    for i in range(wpn):
-        for j in range(nnum):
-            parts.append(
-                (np.array([i]), np.array([wpn + j]), np.array([atired[i, j]]))
-            )
+    top_left_coo = sp.coo_matrix(np.tril(top_left))
+    parts.append((top_left_coo.row, top_left_coo.col, top_left_coo.data))
+    atired_coo = sp.coo_matrix(atired)
+    parts.append((atired_coo.row, atired_coo.col + wpn, atired_coo.data))
 
     reduced = _dense_to_sparse(parts, result.dofreal)
     reduced.eliminate_zeros()
@@ -758,14 +760,11 @@ def _reduce_and_solve(
     result.B_exc = b_exc
     result.A_wp = a_wp
     result.A_wp_nn = a_wp_nn
-    result.A_nn_wp = a_nn_wp
-    result.Ad_wp = ad_wp
     result.Attred = attred
     result.Atired = atired
     result.top_left = top_left
     result.B = np.zeros((result.dofreal, wpn), dtype=complex)
-    for i in range(wpn):
-        result.B[i, i] = b_exc[i, i]
+    result.B[np.diag_indices(wpn)] = np.diag(b_exc)
 
     if not solve:
         return result
