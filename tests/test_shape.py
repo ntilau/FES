@@ -50,11 +50,11 @@ def test_scalar_gradient_matches_finite_difference(order: int) -> None:
 
 @pytest.mark.parametrize("order", [1, 2, 3, 4])
 def test_vector_curl_matches_finite_difference(order: int) -> None:
-    """``dNv`` must equal the curl of ``Nv``, up to one sign quirk.
+    """``dNv`` must equal the curl of ``Nv``.
 
-    ``cpp/src/shape.cpp`` writes ``dNv(0,1) = -2`` while ``Nv.col(1)`` is
-    oriented so that its curl is ``+2``.  Every other column agrees with the
-    numerical curl, so column 1 is checked with the reference sign.
+    The basis functions are now ordered as in the C++ oracle (Shape.cpp),
+    so ``dNv`` matches the numerical curl for every column without any sign
+    quirk.
     """
     inv_j = np.array([[1.3, -0.4], [0.2, 0.9]])
     point = np.array([0.15, 0.25])
@@ -69,10 +69,8 @@ def test_vector_curl_matches_finite_difference(order: int) -> None:
     dnx_dy = (plus[1].Nv[0, :, 0] - minus[1].Nv[0, :, 0]) / (2.0 * h)
     numerical = dny_dx - dnx_dy
 
-    expected = numerical.copy()
-    expected[1] = -expected[1]
     np.testing.assert_allclose(
-        base.dNv[0], expected, rtol=1e-6, atol=1e-7,
+        base.dNv[0], numerical, rtol=1e-6, atol=1e-7,
         err_msg=f"curl order={order}",
     )
 

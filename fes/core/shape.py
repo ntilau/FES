@@ -196,10 +196,14 @@ def _vector_basis(order: int, l: np.ndarray, dl: np.ndarray,
     Nv = np.zeros((nq, numv, 2))
     dNv = np.zeros((nq, numv))
 
-    # Lowest-order edge functions, oriented as in the oracle.
-    Nv[:, 0] = l0[:, None] * g1 - l1[:, None] * g0
-    Nv[:, 1] = l2[:, None] * g0 - l0[:, None] * g2
-    Nv[:, 2] = l1[:, None] * g2 - l2[:, None] * g1
+    # Lowest-order edge functions, oriented as in the oracle (C++ Shape.cpp
+    # case 2 order 1):
+    #   Nv.col(0) = Ns(1)*dNs.col(2) - Ns(2)*dNs.col(1)  -> l1*g2 - l2*g1
+    #   Nv.col(1) = Ns(0)*dNs.col(2) - Ns(2)*dNs.col(0)  -> l0*g2 - l2*g0
+    #   Nv.col(2) = Ns(0)*dNs.col(1) - Ns(1)*dNs.col(0)  -> l0*g1 - l1*g0
+    Nv[:, 0] = l1[:, None] * g2 - l2[:, None] * g1
+    Nv[:, 1] = l0[:, None] * g2 - l2[:, None] * g0
+    Nv[:, 2] = l0[:, None] * g1 - l1[:, None] * g0
     dNv[:, 0] = 2.0
     dNv[:, 1] = -2.0
     dNv[:, 2] = 2.0
@@ -207,10 +211,11 @@ def _vector_basis(order: int, l: np.ndarray, dl: np.ndarray,
     if order == 1:
         return Nv, dNv * curl_factor
 
-    # Quadratic edge bubbles.
-    Nv[:, 3] = 4.0 * (l0[:, None] * g1 + l1[:, None] * g0)
+    # Quadratic edge bubbles (C++ order: col3=l1*g2+l2*g1, col4=l0*g2+l2*g0,
+    # col5=l0*g1+l1*g0).
+    Nv[:, 3] = 4.0 * (l1[:, None] * g2 + l2[:, None] * g1)
     Nv[:, 4] = 4.0 * (l0[:, None] * g2 + l2[:, None] * g0)
-    Nv[:, 5] = 4.0 * (l1[:, None] * g2 + l2[:, None] * g1)
+    Nv[:, 5] = 4.0 * (l0[:, None] * g1 + l1[:, None] * g0)
     # Quadratic face bubbles.
     Nv[:, 6] = (l0 * l1)[:, None] * g2 - (l0 * l2)[:, None] * g1
     Nv[:, 7] = (l0 * l1)[:, None] * g2 - (l1 * l2)[:, None] * g0
@@ -220,13 +225,14 @@ def _vector_basis(order: int, l: np.ndarray, dl: np.ndarray,
     if order == 2:
         return Nv, dNv * curl_factor
 
-    # Cubic edge functions.
-    Nv[:, 8] = l0[:, None] * (l0 - 2.0 * l1)[:, None] * g1 \
-        + l1[:, None] * (2.0 * l0 - l1)[:, None] * g0
+    # Cubic edge functions (C++ order: col8=l1*(l1-2l2)*g2+l2*(2l1-l2)*g1,
+    # col9=l0*(l0-2l2)*g2+l2*(2l0-l2)*g0, col10=l0*(l0-2l1)*g1+l1*(2l0-l1)*g0).
+    Nv[:, 8] = l1[:, None] * (l1 - 2.0 * l2)[:, None] * g2 \
+        + l2[:, None] * (2.0 * l1 - l2)[:, None] * g1
     Nv[:, 9] = l0[:, None] * (l0 - 2.0 * l2)[:, None] * g2 \
         + l2[:, None] * (2.0 * l0 - l2)[:, None] * g0
-    Nv[:, 10] = l1[:, None] * (l1 - 2.0 * l2)[:, None] * g2 \
-        + l2[:, None] * (2.0 * l1 - l2)[:, None] * g1
+    Nv[:, 10] = l0[:, None] * (l0 - 2.0 * l1)[:, None] * g1 \
+        + l1[:, None] * (2.0 * l0 - l1)[:, None] * g0
     # Cubic face bubble.
     Nv[:, 11] = (l1 * l0)[:, None] * g2 + (l0 * l2)[:, None] * g1 \
         + (l1 * l2)[:, None] * g0
