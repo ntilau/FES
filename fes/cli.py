@@ -27,6 +27,7 @@ from .api import (
     info,
     plan_run,
 )
+from .core.log import SolverLog
 from .core.options import Options, UsageError, parse_argv
 from .paths import data_dir, list_models
 
@@ -285,7 +286,12 @@ def _execute(plan: RunPlan, switches: Dict[str, object]) -> int:
             _print_plan(plan)
         return EXIT_OK
     # Imported lazily so the phase-1 CLI does not depend on numerical modules.
-    result = dispatch(plan)
+    log = SolverLog(plan.project, p_ord=plan.options.p_ord, h_ord=plan.options.h_ord)
+    log.header()
+    try:
+        result = dispatch(plan, log=log)
+    finally:
+        log.footer()
     if result is not None:
         print(result)
     return EXIT_OK

@@ -20,6 +20,7 @@ The drivers mirror the ``main.cpp`` flow of the original C++ version:
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -265,6 +266,19 @@ def _new_result(plan: api.RunPlan) -> SolverResult:
     )
 
 
+def _log_mesh(log, mesh, elapsed: float) -> None:
+    """Emit the reference's ``% Loading files:`` block for *mesh*."""
+    if log is None:
+        return
+    log.mesh_loaded(
+        int(mesh.n_nodes),
+        int(mesh.n_edges),
+        int(mesh.n_faces),
+        int(getattr(mesh, "n_tetras", 0)),
+        elapsed,
+    )
+
+
 def _dump_matrices(plan: api.RunPlan, system, output_dir: Path) -> List[Path]:
     """Write the assembled system matrices in Matrix Market format.
 
@@ -319,14 +333,16 @@ def _write_sparams(
     )
 
 
-def run_em_ez_fd(plan: api.RunPlan) -> SolverResult:
+def run_em_ez_fd(plan: api.RunPlan, log=None) -> SolverResult:
     """Driver for the 2D TMz scalar Helmholtz formulation."""
     options = plan.options
     result = _new_result(plan)
 
+    t_mesh = time.perf_counter()
     mesh = mesh_from_poly(
         plan.model.path, _mesh_switches(plan), h_ord=options.h_ord
     )
+    _log_mesh(log, mesh, time.perf_counter() - t_mesh)
 
     if options.matlab:
         output_dir = Path(plan.options.matlab_dir or plan.output_dir)
@@ -334,15 +350,27 @@ def run_em_ez_fd(plan: api.RunPlan) -> SolverResult:
     else:
         output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
+        if log is not None:
+            log.frequency(freq)
+            t_freq = time.perf_counter()
+        t_assemble = time.perf_counter()
         system = _solve_system(mesh, freq, plan, solve=not options.matlab)
         result.systems.append(system)
+        if log is not None:
+            log.assembly_and_solve(time.perf_counter() - t_assemble)
         if options.matlab:
             # ``+matlab`` dumps the system and skips solve/post-processing,
             # mirroring the reference C++ ``Option::MATLAB`` mode.
             result.notes.extend(
                 f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
             )
+            if log is not None:
+                log.frequency_total(time.perf_counter() - t_freq)
             continue
+        t_save = time.perf_counter()
+        if log is not None:
+            log.saving_begin()
+        t_fields = time.perf_counter()
         if options.field:
             write_field_vtk(
                 mesh,
@@ -364,12 +392,20 @@ def run_em_ez_fd(plan: api.RunPlan) -> SolverResult:
                 n_theta=options.n_theta,
                 n_phi=options.n_phi,
             )
+        t_fields = time.perf_counter() - t_fields
+        t_sparams = time.perf_counter()
         _write_sparams(result, plan, output_dir, freq, system, system.n_modes)
+        t_sparams = time.perf_counter() - t_sparams
+        if log is not None:
+            log.save_sparams(t_sparams)
+            log.save_fields(t_fields)
+            log.saving_total(time.perf_counter() - t_save)
+            log.frequency_total(time.perf_counter() - t_freq)
 
     return result
 
 
-def run_em_av_fd(plan: api.RunPlan) -> SolverResult:
+def run_em_av_fd(plan: api.RunPlan, log=None) -> SolverResult:
     """Driver for the 3D H(curl) x H(grad) A-V formulation.
 
     Like :func:`run_em_e_fd` but assembles the mixed vector-potential /
@@ -381,7 +417,9 @@ def run_em_av_fd(plan: api.RunPlan) -> SolverResult:
     options = plan.options
     result = _new_result(plan)
 
+    t_mesh = time.perf_counter()
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+    _log_mesh(log, mesh, time.perf_counter() - t_mesh)
 
     if options.matlab:
         output_dir = Path(plan.options.matlab_dir or plan.output_dir)
@@ -389,6 +427,10 @@ def run_em_av_fd(plan: api.RunPlan) -> SolverResult:
     else:
         output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
+        if log is not None:
+            log.frequency(freq)
+            t_freq = time.perf_counter()
+        t_assemble = time.perf_counter()
         system = assemble_em_av_fd(
             mesh,
             freq,
@@ -399,11 +441,19 @@ def run_em_av_fd(plan: api.RunPlan) -> SolverResult:
             solve=not options.matlab,
         )
         result.systems.append(system)
+        if log is not None:
+            log.assembly_and_solve(time.perf_counter() - t_assemble)
         if options.matlab:
             result.notes.extend(
                 f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
             )
+            if log is not None:
+                log.frequency_total(time.perf_counter() - t_freq)
             continue
+        t_save = time.perf_counter()
+        if log is not None:
+            log.saving_begin()
+        t_fields = time.perf_counter()
         if options.field:
             write_field_vtk(
                 mesh,
@@ -425,24 +475,38 @@ def run_em_av_fd(plan: api.RunPlan) -> SolverResult:
                 n_phi=options.n_phi,
                 e_inc=options.E if options.einc else None,
             )
+        t_fields = time.perf_counter() - t_fields
+        t_sparams = time.perf_counter()
         n_ports = int(system.wave_ports_num)
         _write_sparams(result, plan, output_dir, freq, system, n_ports)
+        t_sparams = time.perf_counter() - t_sparams
+        if log is not None:
+            log.save_sparams(t_sparams)
+            log.save_fields(t_fields)
+            log.saving_total(time.perf_counter() - t_save)
+            log.frequency_total(time.perf_counter() - t_freq)
 
     return result
 
 
-def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
+def run_em_e_fd(plan: api.RunPlan, log=None) -> SolverResult:
     """Driver for the 3D H(curl) curl-curl formulation.
 
     The reference C++ re-meshes the PLC with TetGen on every run and never caches the
     result, so unlike the 2D driver the mesh is generated here and reused for
     the whole frequency list.  The port bookkeeping (propagation constants and
     the shift) is printed only to stdout.
+
+    *log*, when supplied, receives the exhaustive stage-by-stage timing trace
+    (``% Loading files:``, ``--- Frequency = ... ---``, ``% Assembly
+    Symmetric:``, ``% Double precision Complex Solver``, ``% Saving data:``).
     """
     options = plan.options
     result = _new_result(plan)
 
+    t_mesh = time.perf_counter()
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+    _log_mesh(log, mesh, time.perf_counter() - t_mesh)
 
     if options.matlab:
         output_dir = Path(plan.options.matlab_dir or plan.output_dir)
@@ -450,6 +514,9 @@ def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
     else:
         output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
+        if log is not None:
+            log.frequency(freq)
+            t_freq = time.perf_counter()
         system = assemble_em_e_fd(
             mesh,
             freq,
@@ -460,13 +527,20 @@ def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
             solve=not options.matlab,
             solver=options.eig_solver,
             eig_tol=options.eig_tol,
+            log=log,
         )
         result.systems.append(system)
         if options.matlab:
             result.notes.extend(
                 f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
             )
+            if log is not None:
+                log.frequency_total(time.perf_counter() - t_freq)
             continue
+        t_save = time.perf_counter()
+        if log is not None:
+            log.saving_begin()
+        t_fields = time.perf_counter()
         if options.field:
             write_field_vtk(
                 mesh,
@@ -487,13 +561,21 @@ def run_em_e_fd(plan: api.RunPlan) -> SolverResult:
                 n_phi=options.n_phi,
                 e_inc=options.E if options.einc else None,
             )
+        t_fields = time.perf_counter() - t_fields
+        t_sparams = time.perf_counter()
         n_ports = int(system.wave_ports_num)
         _write_sparams(result, plan, output_dir, freq, system, n_ports)
+        t_sparams = time.perf_counter() - t_sparams
+        if log is not None:
+            log.save_sparams(t_sparams)
+            log.save_fields(t_fields)
+            log.saving_total(time.perf_counter() - t_save)
+            log.frequency_total(time.perf_counter() - t_freq)
 
     return result
 
 
-def run_em_e_fd_dd(plan: api.RunPlan) -> SolverResult:
+def run_em_e_fd_dd(plan: api.RunPlan, log=None) -> SolverResult:
     """Driver for the 3D H(curl) curl-curl formulation with domain decomposition.
 
     Like :func:`run_em_e_fd` but solves the reduced system via Schur-complement
@@ -506,7 +588,9 @@ def run_em_e_fd_dd(plan: api.RunPlan) -> SolverResult:
     if options.nl:
         result.notes.append("+nl harmonic balance is not ported yet (Phase 10)")
 
+    t_mesh = time.perf_counter()
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+    _log_mesh(log, mesh, time.perf_counter() - t_mesh)
 
     if options.matlab:
         output_dir = Path(plan.options.matlab_dir or plan.output_dir)
@@ -514,6 +598,10 @@ def run_em_e_fd_dd(plan: api.RunPlan) -> SolverResult:
     else:
         output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
+        if log is not None:
+            log.frequency(freq)
+            t_freq = time.perf_counter()
+        t_assemble = time.perf_counter()
         system = assemble_em_e_fd_dd(
             mesh,
             freq,
@@ -526,11 +614,19 @@ def run_em_e_fd_dd(plan: api.RunPlan) -> SolverResult:
             solve=not options.matlab,
         )
         result.systems.append(system)
+        if log is not None:
+            log.assembly_and_solve(time.perf_counter() - t_assemble)
         if options.matlab:
             result.notes.extend(
                 f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
             )
+            if log is not None:
+                log.frequency_total(time.perf_counter() - t_freq)
             continue
+        t_save = time.perf_counter()
+        if log is not None:
+            log.saving_begin()
+        t_fields = time.perf_counter()
         if options.field:
             write_field_vtk(
                 mesh,
@@ -551,13 +647,21 @@ def run_em_e_fd_dd(plan: api.RunPlan) -> SolverResult:
                 n_phi=options.n_phi,
                 e_inc=options.E if options.einc else None,
             )
+        t_fields = time.perf_counter() - t_fields
+        t_sparams = time.perf_counter()
         n_ports = int(system.wave_ports_num)
         _write_sparams(result, plan, output_dir, freq, system, n_ports)
+        t_sparams = time.perf_counter() - t_sparams
+        if log is not None:
+            log.save_sparams(t_sparams)
+            log.save_fields(t_fields)
+            log.saving_total(time.perf_counter() - t_save)
+            log.frequency_total(time.perf_counter() - t_freq)
 
     return result
 
 
-def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
+def run_em_e_fd_nl(plan: api.RunPlan, log=None) -> SolverResult:
     """Driver for the 3D H(curl) curl-curl formulation with Kerr nonlinearity.
 
     Like :func:`run_em_e_fd` but solves the nonlinear system via fixed-point
@@ -568,7 +672,9 @@ def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
     options = plan.options
     result = _new_result(plan)
 
+    t_mesh = time.perf_counter()
     mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+    _log_mesh(log, mesh, time.perf_counter() - t_mesh)
 
     if options.matlab:
         output_dir = Path(plan.options.matlab_dir or plan.output_dir)
@@ -576,6 +682,10 @@ def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
     else:
         output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
+        if log is not None:
+            log.frequency(freq)
+            t_freq = time.perf_counter()
+        t_assemble = time.perf_counter()
         system = assemble_em_e_fd_nl(
             mesh,
             freq,
@@ -590,11 +700,19 @@ def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
             solve=not options.matlab,
         )
         result.systems.append(system)
+        if log is not None:
+            log.assembly_and_solve(time.perf_counter() - t_assemble)
         if options.matlab:
             result.notes.extend(
                 f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
             )
+            if log is not None:
+                log.frequency_total(time.perf_counter() - t_freq)
             continue
+        t_save = time.perf_counter()
+        if log is not None:
+            log.saving_begin()
+        t_fields = time.perf_counter()
         if options.field:
             write_field_vtk(
                 mesh,
@@ -615,14 +733,22 @@ def run_em_e_fd_nl(plan: api.RunPlan) -> SolverResult:
                 n_phi=options.n_phi,
                 e_inc=options.E if options.einc else None,
             )
+        t_fields = time.perf_counter() - t_fields
+        t_sparams = time.perf_counter()
         n_ports = int(system.wave_ports_num)
         _write_sparams(result, plan, output_dir, freq, system, n_ports)
+        t_sparams = time.perf_counter() - t_sparams
+        if log is not None:
+            log.save_sparams(t_sparams)
+            log.save_fields(t_fields)
+            log.saving_total(time.perf_counter() - t_save)
+            log.frequency_total(time.perf_counter() - t_freq)
 
     return result
 
 
 def _run_em_e_fd_eigen(
-    plan: api.RunPlan, mesh, options, result: SolverResult
+    plan: api.RunPlan, mesh, options, result: SolverResult, log=None
 ) -> SolverResult:
     """Waveguide port eigenmode analysis for a 3D wave-port model.
 
@@ -633,6 +759,10 @@ def _run_em_e_fd_eigen(
     table is reported through the result's notes and summary.
     """
     for freq in result.frequencies:
+        if log is not None:
+            log.frequency(freq)
+            t_freq = time.perf_counter()
+        t_assemble = time.perf_counter()
         modes = compute_waveguide_modes(
             mesh,
             freq,
@@ -642,6 +772,8 @@ def _run_em_e_fd_eigen(
             eig_tol=options.eig_tol,
             solver=options.eig_solver,
         )
+        if log is not None:
+            log.assembly_and_solve(time.perf_counter() - t_assemble)
         for port in modes:
             tag = f"{port['name']} (label={port['label']})"
             for m in range(port["num_modes"]):
@@ -653,10 +785,12 @@ def _run_em_e_fd_eigen(
                     f"{tag}: m{m} beta={beta:.6g} alpha={abs(beta.imag):.6g} "
                     f"kc={kc:.6g} fc={cutoff / 1e9:.6g}GHz{flag}"
                 )
+        if log is not None:
+            log.frequency_total(time.perf_counter() - t_freq)
     return result
 
 
-def run_em_e_tl_eig(plan: api.RunPlan) -> SolverResult:
+def run_em_e_tl_eig(plan: api.RunPlan, log=None) -> SolverResult:
     """Driver for the 2D transmission-line cross-section eigenproblem.
 
     The reference C++ meshes once (the project constructor) and runs the cross-section
@@ -672,16 +806,24 @@ def run_em_e_tl_eig(plan: api.RunPlan) -> SolverResult:
     result = _new_result(plan)
 
     if plan.model.dimension == 3:
+        t_mesh = time.perf_counter()
         mesh = mesh3d_from_poly(plan.model.path, _mesh_switches(plan))
+        _log_mesh(log, mesh, time.perf_counter() - t_mesh)
         result.assembly = "em_e_fd"
-        return _run_em_e_fd_eigen(plan, mesh, options, result)
+        return _run_em_e_fd_eigen(plan, mesh, options, result, log=log)
 
+    t_mesh = time.perf_counter()
     mesh = mesh_from_poly(
         plan.model.path, _mesh_switches(plan), h_ord=options.h_ord
     )
+    _log_mesh(log, mesh, time.perf_counter() - t_mesh)
     _prepare_output(plan, mesh)
     prev_beta: Optional[np.ndarray] = None
     for freq in result.frequencies:
+        if log is not None:
+            log.frequency(freq)
+            t_freq = time.perf_counter()
+        t_assemble = time.perf_counter()
         system = assemble_em_e_tl_eig(
             mesh,
             freq,
@@ -695,10 +837,13 @@ def run_em_e_tl_eig(plan: api.RunPlan) -> SolverResult:
         )
         prev_beta = system.mode_beta
         result.systems.append(system)
+        if log is not None:
+            log.assembly_and_solve(time.perf_counter() - t_assemble)
+            log.frequency_total(time.perf_counter() - t_freq)
     return result
 
 
-def run_em_e_qs(plan: api.RunPlan) -> SolverResult:
+def run_em_e_qs(plan: api.RunPlan, log=None) -> SolverResult:
     """Driver for 2D electrostatics (nodal P1, ``+volt`` Dirichlet values).
 
     The reference C++ assembles once per frequency, solves the non-symmetric system,
@@ -710,15 +855,21 @@ def run_em_e_qs(plan: api.RunPlan) -> SolverResult:
     options = plan.options
     result = _new_result(plan)
 
+    t_mesh = time.perf_counter()
     mesh = mesh_from_poly(
         plan.model.path, _mesh_switches(plan), h_ord=options.h_ord
     )
+    _log_mesh(log, mesh, time.perf_counter() - t_mesh)
     if options.matlab:
         output_dir = Path(plan.options.matlab_dir or plan.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
     else:
         output_dir = _prepare_output(plan, mesh)
     for freq in result.frequencies:
+        if log is not None:
+            log.frequency(freq)
+            t_freq = time.perf_counter()
+        t_assemble = time.perf_counter()
         system = assemble_em_e_qs(
             mesh,
             options.p_ord,
@@ -727,11 +878,19 @@ def run_em_e_qs(plan: api.RunPlan) -> SolverResult:
             solve=not options.matlab,
         )
         result.systems.append(system)
+        if log is not None:
+            log.assembly_and_solve(time.perf_counter() - t_assemble)
         if options.matlab:
             result.notes.extend(
                 f"wrote {path}" for path in _dump_matrices(plan, system, output_dir)
             )
+            if log is not None:
+                log.frequency_total(time.perf_counter() - t_freq)
             continue
+        t_save = time.perf_counter()
+        if log is not None:
+            log.saving_begin()
+        t_fields = time.perf_counter()
         if options.field:
             write_field_vtk(
                 mesh,
@@ -741,6 +900,11 @@ def run_em_e_qs(plan: api.RunPlan) -> SolverResult:
                 assembly=plan.assembly,
                 order=options.p_ord,
             )
+        t_fields = time.perf_counter() - t_fields
+        if log is not None:
+            log.save_fields(t_fields)
+            log.saving_total(time.perf_counter() - t_save)
+            log.frequency_total(time.perf_counter() - t_freq)
     return result
 
 

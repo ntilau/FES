@@ -198,14 +198,14 @@ def load_drivers() -> None:
     drivers.install()
 
 
-def dispatch(plan: RunPlan) -> object:
+def dispatch(plan: RunPlan, log: object = None) -> object:
     """Execute *plan* with its registered driver, importing drivers lazily."""
     ensure_available(plan)
     load_drivers()
     driver = DRIVERS.get(plan.assembly)
     if driver is None:
         raise NotPortedError(plan)
-    return driver(plan)
+    return driver(plan, log=log)
 
 
 def run(

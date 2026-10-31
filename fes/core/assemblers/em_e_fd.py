@@ -53,6 +53,7 @@ expects for ``sym=1`` and what :func:`_full_symmetric` reconstructs.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence
 
@@ -266,6 +267,45 @@ def _dirichlet(mesh, order: int, doftoLeave: np.ndarray):
         dirdofs = np.zeros(0, dtype=np.int64)
         dirdofv = np.zeros(0, dtype=np.int64)
     return dirdofs, dirdofv
+
+
+def _radiation_boundary(mesh, bc, order: int, k0: float, dofnum: int):
+    """Matrix contribution of one ``Radiation`` boundary (or ``None``).
+
+    The per-boundary split exists so the event log can time each boundary
+    separately, mirroring the reference's ``On boundaries:`` table.
+    """
+    parts = []
+    for fid in mesh.faces_for_boundary(bc):
+        fid = int(fid)
+        adjacent = mesh.face_adj_tet[fid]
+        material = _material_for_tet(mesh, int(adjacent[0]))
+        epsr = complex(material.epsr, -material.tand * material.epsr)
+        mur = material.mur
+        lmat = element_matrices_face(order, mesh.fac_geo(fid), mesh.int_node(fid))
+        factor = complex(0.0, k0) * np.sqrt(epsr / mur)
+        cdof = face_dof_map(mesh, order, fid)
+        parts.append(_upper_triplets(cdof.v, lmat.Tt * factor))
+    if not parts:
+        return None
+    return _dense_to_sparse(parts, dofnum)
+
+
+def _dirichlet_boundary(mesh, bc, order: int, doftoLeave: np.ndarray):
+    """Collect one ``PerfectE`` boundary's scalar/vector DOFs and clear them."""
+    scalar_parts: List[np.ndarray] = []
+    vector_parts: List[np.ndarray] = []
+    for fid in mesh.faces_for_boundary(bc):
+        cdof = face_dof_map(mesh, order, int(fid))
+        scalar_parts.append(cdof.s)
+        vector_parts.append(cdof.v)
+        doftoLeave[cdof.v] = False
+    if scalar_parts:
+        return (
+            np.unique(np.concatenate(scalar_parts)),
+            np.unique(np.concatenate(vector_parts)),
+        )
+    return np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.int64)
 
 
 # ── port eigenproblem ───────────────────────────────────────────────────────
@@ -680,6 +720,7 @@ def assemble_em_e_fd(
     k_inc: Optional[Sequence[float]] = None,
     solver: str = "auto",
     eig_tol: float = 0.0,
+    log=None,
 ) -> FDSystem:
     """Assemble and (by default) solve the 3D H(curl) curl-curl system.
 
@@ -691,6 +732,9 @@ def assemble_em_e_fd(
     ``solver``/``eig_tol`` select how each wave-port eigenproblem is solved:
     ``"arpack"`` (shift-invert ARPACK, the default) or ``"dense"`` (matches the
     reference C++); ``"auto"`` is an alias for ``"arpack"``.
+
+    *log*, when given a :class:`fes.core.log.SolverLog`, receives the
+    per-stage assembly and solver timings that make up the reference trace.
     """
     order = int(order)
     freq = float(freq)
@@ -700,22 +744,74 @@ def assemble_em_e_fd(
     kk = k0 * k0
     dofnum = vector_dof_count(mesh, order)
 
+    # Abort on unknown boundary types up front, matching the reference.
+    known = ("PerfectE", "PerfectH", "Radiation", "WavePort", "LumpedPort")
+    for bc in mesh.boundaries:
+        if bc.type not in known:
+            raise ValueError(f"Wrong boundary type: {bc.type}")
+
+    t_assembly = time.perf_counter()
+
+    # Bulk assembly -> the "In solids" line.
+    t_stage = time.perf_counter()
     matrix = _assemble_bulk(mesh, order, k0, kk, dofnum)
-    matrix = _add_radiation(mesh, matrix, order, k0, freq, dofnum)
+    if log is not None:
+        log.assembly_solids(time.perf_counter() - t_stage)
 
+    boundary_times = []
+
+    # PerfectE first: the port eigenproblems below consume the Dirichlet DOFs.
     doftoLeave = np.ones(dofnum, dtype=bool)
-    dirdofs, dirdofv = _dirichlet(mesh, order, doftoLeave)
+    dirdofs_parts: List[np.ndarray] = []
+    dirdofv_parts: List[np.ndarray] = []
+    for bc in mesh.boundaries:
+        if bc.type != "PerfectE":
+            continue
+        t_stage = time.perf_counter()
+        dirdofs_b, dirdofv_b = _dirichlet_boundary(mesh, bc, order, doftoLeave)
+        dirdofs_parts.append(dirdofs_b)
+        dirdofv_parts.append(dirdofv_b)
+        boundary_times.append((bc.name, time.perf_counter() - t_stage))
+    dirdofs = (
+        np.unique(np.concatenate(dirdofs_parts))
+        if dirdofs_parts
+        else np.zeros(0, dtype=np.int64)
+    )
+    dirdofv = (
+        np.unique(np.concatenate(dirdofv_parts))
+        if dirdofv_parts
+        else np.zeros(0, dtype=np.int64)
+    )
 
+    # Radiation ABC boundaries.
+    for bc in mesh.boundaries:
+        if bc.type != "Radiation":
+            continue
+        t_stage = time.perf_counter()
+        part = _radiation_boundary(mesh, bc, order, k0, dofnum)
+        if part is not None:
+            matrix = (matrix + part).tocsr()
+        boundary_times.append((bc.name, time.perf_counter() - t_stage))
+
+    # WavePort / LumpedPort modal boundaries.
     ports: List[FDPort] = []
     for bc in mesh.boundaries:
         if bc.type not in ("WavePort", "LumpedPort"):
             continue
+        t_stage = time.perf_counter()
         port = _port_modes(
             mesh, bc, order, k0, kk, freq, dirdofs, dirdofv, dofnum,
             solver=solver, eig_tol=eig_tol,
         )
         doftoLeave[port.edges] = False
         ports.append(port)
+        boundary_times.append((bc.name, time.perf_counter() - t_stage))
+
+    if log is not None and boundary_times:
+        log.boundaries_begin()
+        for name, elapsed in boundary_times:
+            log.boundary(name, elapsed)
+        log.boundaries_end()
 
     wave_ports_num = sum(port.n_modes for port in ports)
     wave_ports_dofnum = sum(port.mode_vec.shape[0] for port in ports)
@@ -742,11 +838,15 @@ def assemble_em_e_fd(
     )
 
     if wave_ports_num > 0:
-        return _reduce_and_solve(result, matrix, wave_ports_num,
-                                 wave_ports_dofnum, dirdofv, nonwave_ids,
-                                 solve=solve)
+        return _reduce_and_solve(
+            result, matrix, wave_ports_num, wave_ports_dofnum, dirdofv,
+            nonwave_ids, solve=solve, log=log, t_assembly=t_assembly,
+        )
     if e_inc is not None and k_inc is not None:
-        return _incident_solve(result, matrix, dirdofv, e_inc, k_inc, solve=solve)
+        return _incident_solve(
+            result, matrix, dirdofv, e_inc, k_inc, solve=solve,
+            log=log, t_assembly=t_assembly,
+        )
     # With neither ports nor an incident wave ``B`` stays empty and the
     # reference throws before the solver runs.
     raise NullRightHandSideError("Null Right Hand Side")
@@ -760,6 +860,8 @@ def _incident_solve(
     k_inc: Sequence[float],
     *,
     solve: bool,
+    log=None,
+    t_assembly: float = 0.0,
 ) -> FDSystem:
     """``assemble_em_e_fd.cpp``'s ``else if(opt->einc)`` branch.
 
@@ -768,6 +870,7 @@ def _incident_solve(
     *and* columns are zeroed and their diagonal set to one, then the full
     ``(dofnum, 1)`` system is solved (MUMPS ``dofreal == dofnum`` here).
     """
+    t_finish = time.perf_counter()
     mesh = result.mesh
     order = result.order
     k0 = result.k0
@@ -798,6 +901,9 @@ def _incident_solve(
 
     if not np.any(rhs != 0):
         raise NullRightHandSideError("Null Right Hand Side")
+    if log is not None:
+        log.assembly_finish(result.dofreal, time.perf_counter() - t_finish)
+        log.assembly_total(time.perf_counter() - t_assembly)
     if not solve:
         return result
 
@@ -807,8 +913,15 @@ def _incident_solve(
     full[dirdofv, dirdofv] = 1.0
     full = full.tocsr()
 
+    t_solver = time.perf_counter()
+    if log is not None:
+        log.solver_begin(max(1.0, full.data.nbytes * 3.0 / (1024.0 * 1024.0)))
+        t_factor = time.perf_counter()
     lu = scipy.sparse.linalg.splu(full.tocsc())
     result.Sol = lu.solve(rhs)
+    if log is not None:
+        log.solver_factor_solve(time.perf_counter() - t_factor)
+        log.solver_total(time.perf_counter() - t_solver)
     return result
 
 
@@ -821,8 +934,11 @@ def _reduce_and_solve(
     nonwave_ids: np.ndarray,
     *,
     solve: bool,
+    log=None,
+    t_assembly: float = 0.0,
 ) -> FDSystem:
     """Build the TFE-reduced system, its right-hand side, and optionally solve."""
+    t_finish = time.perf_counter()
     k0, power = result.k0, result.power
     wpn, wpdofnum = wave_ports_num, wave_ports_dofnum
     nnum = int(nonwave_ids.size)
@@ -941,12 +1057,23 @@ def _reduce_and_solve(
     result.B = np.zeros((result.dofreal, wpn), dtype=complex)
     result.B[np.diag_indices(wpn)] = np.diag(b_exc)
 
+    if log is not None:
+        log.assembly_finish(result.dofreal, time.perf_counter() - t_finish)
+        log.assembly_total(time.perf_counter() - t_assembly)
+
     if not solve:
         return result
 
     full = _full_symmetric(reduced)
+    t_solver = time.perf_counter()
+    if log is not None:
+        log.solver_begin(max(1.0, full.data.nbytes * 3.0 / (1024.0 * 1024.0)))
+        t_factor = time.perf_counter()
     lu = scipy.sparse.linalg.splu(full.tocsc())
     solution = lu.solve(result.B)
+    if log is not None:
+        log.solver_factor_solve(time.perf_counter() - t_factor)
+        log.solver_total(time.perf_counter() - t_solver)
     result.reduced_solution = solution
     result.Sp = solution[:wpn, :]
     result.Sol = _extract_solution_full(result, solution)
