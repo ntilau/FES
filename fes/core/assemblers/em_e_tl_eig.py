@@ -309,6 +309,12 @@ def _finalize_modes(
 ) -> np.ndarray:
     """Apply ``zneupd``'s transform, sqrt and the oracle's two sorts.
 
+    The shift-inverted operator's Ritz values ``theta`` are largest in
+    magnitude for the modes closest to the shift, so the solver (ARPACK or the
+    dense replay) keeps the ``num_modes`` modes with the largest ``|\theta|``.
+    Each is converted to a propagation constant ``beta = sqrt(shift + 1/theta)``
+    and the kept modes are reported in stable ``|\beta|`` descending order.
+
     When ``prev_beta`` is given (modes from the previous frequency), modes are
     matched to the previous frequency by closest |beta| instead of re-sorting
     by |beta| descending.  This prevents mode indices from swapping between
@@ -316,6 +322,8 @@ def _finalize_modes(
     """
     theta = np.asarray(theta, dtype=complex)
     if theta.size > num_modes:
+        # Keep the num_modes Ritz values with largest |\theta|, i.e. the modes
+        # closest to the shift (matches ARPACK which="LM" and the oracle).
         order = np.argsort(-np.abs(theta), kind="stable")[:num_modes]
         theta = theta[order]
 

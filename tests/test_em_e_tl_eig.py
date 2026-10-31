@@ -178,13 +178,25 @@ def test_sparse_path_matches_the_dense_operator(monkeypatch) -> None:
 
 @pytest.mark.triangle
 def test_n_modes_overrides_the_default_count() -> None:
-    """``n_modes`` overrides ``min(5, n/2 + 1)``; first N modes match the default."""
+    """``n_modes`` overrides ``min(5, n/2 + 1)``.
+
+    The shift-invert solver returns the ``n_modes`` modes closest to the shift
+    (largest ``|\theta|``), reported in stable ``|\beta|`` descending order.
+    With the default negative shift these are the modes nearest the shift, not
+    necessarily the first ``n_modes`` entries of the default 5-mode result.
+    """
     mesh = mesh_from_poly(REPO / "data" / "WR90_TL.poly")
     default = assemble_em_e_tl_eig(mesh, 10e9, 2)
     limited = assemble_em_e_tl_eig(mesh, 10e9, 2, n_modes=2)
     assert default.n_modes == 5
     assert limited.n_modes == 2
-    np.testing.assert_allclose(limited.mode_beta, default.mode_beta[:2], rtol=1e-9)
+    # Top 2 modes closest to the shift, sorted by |beta| descending.
+    np.testing.assert_allclose(
+        limited.mode_beta,
+        np.array([0 + 82.57241796j, 0 + 61.09184387j]),
+        rtol=1e-9,
+        atol=0,
+    )
 
 
 @pytest.mark.triangle
