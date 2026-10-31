@@ -139,6 +139,15 @@ class SolverLog:
     def boundary(self, name: str, elapsed: float) -> None:
         self._emit(f"\t{name}: {elapsed:.7f} s")
 
+    def port_modes(self, name: str, gammas) -> None:
+        """Propagation constants of one wave/lumped port's modes.
+
+        ``gamma = alpha + 1j*beta`` uses the reference's sign convention:
+        positive real part is attenuation, positive imaginary part is phase.
+        """
+        for index, gamma in enumerate(gammas):
+            self._emit(f"\t{name} mode {index}: gamma = {gamma:.6g}")
+
     def boundaries_end(self) -> None:
         self._emit(f"+Memory: {_resident_mb():.4f} MB resident")
 

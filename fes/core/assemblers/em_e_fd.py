@@ -795,6 +795,7 @@ def assemble_em_e_fd(
 
     # WavePort / LumpedPort modal boundaries.
     ports: List[FDPort] = []
+    port_gammas: Dict[str, np.ndarray] = {}
     for bc in mesh.boundaries:
         if bc.type not in ("WavePort", "LumpedPort"):
             continue
@@ -805,12 +806,19 @@ def assemble_em_e_fd(
         )
         doftoLeave[port.edges] = False
         ports.append(port)
+        # gamma = alpha + 1j*beta: the port stores |beta| + 1j*|alpha|.
+        port_gammas[bc.name] = np.array(
+            [complex(beta.imag, beta.real) for beta in port.mode_beta]
+        )
         boundary_times.append((bc.name, time.perf_counter() - t_stage))
 
     if log is not None and boundary_times:
         log.boundaries_begin()
         for name, elapsed in boundary_times:
             log.boundary(name, elapsed)
+            gammas = port_gammas.get(name)
+            if gammas is not None:
+                log.port_modes(name, gammas)
         log.boundaries_end()
 
     wave_ports_num = sum(port.n_modes for port in ports)
