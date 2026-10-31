@@ -212,11 +212,11 @@ class SolverResult:
                     f"({system.free_edges.size} free), "
                     f"{system.n_node_dofs} node DOFs"
                 )
-                for index, (beta, alpha, kc) in enumerate(
-                    zip(system.beta, system.alpha, system.kc), start=1
+                for index, (beta, alpha, kc, prop) in enumerate(
+                    zip(system.beta, system.alpha, system.kc, system.propagating),
+                    start=1,
                 ):
-                    # ``assemble_em_e_tl_eig.cpp`` flags propagating modes.
-                    flag = " p" if beta > system.k0 * 1e-6 else ""
+                    flag = " p" if prop else ""
                     lines.append(
                         f"    {index}: beta={beta:.6g} alpha={alpha:.6g} "
                         f"kc={kc:.6g}{flag}"
@@ -839,6 +839,11 @@ def run_em_e_tl_eig(plan: api.RunPlan, log=None) -> SolverResult:
         result.systems.append(system)
         if log is not None:
             log.assembly_and_solve(time.perf_counter() - t_assemble)
+            if system.n_modes:
+                log.port_modes(
+                    "Cross-section",
+                    [complex(beta.imag, beta.real) for beta in system.mode_beta],
+                )
             log.frequency_total(time.perf_counter() - t_freq)
     return result
 

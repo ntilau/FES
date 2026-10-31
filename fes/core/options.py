@@ -175,11 +175,13 @@ class Options:
     dd_preconditioner: str = "gs"
     #: User-specified shift for the eigenmode solver (0.0 = use default).
     shift: float = 0.0
-    #: Orthogonalisation to suppress spurious modes (``+o``/``-o``).
+    #: Accepted for compatibility; the Schur-complement eigen solver needs no
+    #: orthogonalisation projection, so this has no effect.
     ortho: bool = True
     #: ARPACK tolerance for the sparse eigenmode solver path (0.0 = default).
     eig_tol: float = 0.0
-    #: Eigen solver path: ``"auto"``, ``"dense"``, ``"arpack"`` or ``"arnoldi"``.
+    #: Eigen solver path: ``"auto"``, ``"dense"`` or ``"arpack"``
+    #: (``"arnoldi"`` is a deprecated alias for ``"arpack"``).
     eig_solver: str = "auto"
     #: Dump the assembled system matrices (``A.mm``, ``B.mm``) in Matrix
     #: Market format instead of solving (``+matlab``; mirrors the C++

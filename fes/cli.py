@@ -136,10 +136,11 @@ Common flags:
   +dd N                domain decomposition into N subdomains
   +nl H MAT KERR RELAX Kerr nonlinear harmonic balance
   +n_modes N           number of eigenmodes to compute (eigen)
-  +ortho / -ortho      enable/disable orthogonalisation (eigen, default on)
+  +ortho / -ortho      accepted for compatibility; no effect (eigen)
   +shift F             user shift for eigenmode solver (eigen)
   +tol T               ARPACK tolerance for eigenmode solver (eigen)
-  +eigsolver NAME      eigen solver path: auto, dense, arpack, arnoldi (eigen)
+  +eigsolver NAME      eigen solver path: auto, dense, arpack
+                       (arnoldi is a deprecated alias for arpack)
   +einc Ex,Ey,Ez,kx,ky,kz  incident plane wave
   +field               write VTK field data
   +matlab [DIR]        dump the assembled system matrices (A.mm, B.mm) in

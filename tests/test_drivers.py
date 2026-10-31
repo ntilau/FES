@@ -176,8 +176,8 @@ def test_run_em_e_tl_eig_prints_the_oracle_mode_table(tmp_path: Path) -> None:
     lines = [line.strip() for line in str(result).splitlines()]
     # Six significant digits and the propagating flag, as ``std::cout`` prints
     # the oracle's table.
-    assert "1: beta=72.5371 alpha=0 kc=196.632 p" in lines
-    assert "5: beta=0 alpha=41.7617 kc=213.705" in lines
+    assert "1: beta=145.62 alpha=0 kc=150.734 p" in lines
+    assert "5: beta=15.135 alpha=416.138 kc=466.082" in lines
     # The cross-section problem skips solver and post-processing, so the only
     # file written is the mesh VTK from the project constructor.
     assert [path.name for path in tmp_path.iterdir()] == ["WR90_TL.vtk"]

@@ -1,108 +1,62 @@
 """2D transmission-line cross-section eigenmode analysis.
 
-Line-by-line port of ``cpp/src/assemble_em_e_tl_eig.cpp``: the scalar and
-H(curl) bases are combined into a mixed block pencil
+The formulation is the same as the ``em_e_fd`` wave-port mode computation
+(``assembler::compute_waveport_modes``): the scalar (H1) block is eliminated
+with the Zhu-Cangellaris Schur complement and the edge-only generalized
+pencil is solved
 
 .. math::
 
-    \\begin{bmatrix} S_t - k_0^2 T_t & 0 \\\\
-                    0 & S_z - k_0^2 T_z \\end{bmatrix} x
-    = \\lambda
-    \\begin{bmatrix} T_{t2} & G \\\\ G^T & 0 \\end{bmatrix} x
+    A_{tt} v = \\lambda B_{schur} v, \\qquad
+    A_{tt} = S_t - k_0^2 T_t, \\qquad
+    B_{schur} = T_{t2} - G (S_z - k_0^2 T_z)^{-1} G^H.
 
-and the first ``min(5, n/2 + 1)`` modes are reported as
-
-.. math::
-
-    \\beta = \\operatorname{Im}\\sqrt{\\lambda}, \\qquad
-    \\alpha = \\operatorname{Re}\\sqrt{\\lambda}, \\qquad
-    k_c = \\sqrt{|k_0^2 - \\beta^2 + \\alpha^2|}.
-
-Extended T-matrix structure
----------------------------
-
-The extended T-matrix assembles the T (mass) matrix with a non-zero
-longitudinal (EZ/EZ) block ``-k_0^2 \\cdot T_z``.  FES's original port set
-the EZ/EZ block of T to zero, which leaves the longitudinal field
-unrepresented in the mass matrix and causes higher-order modes to diverge as
-the polynomial order increases.
-
-The keyword-only control ``use_t_block`` (default ``True``) selects the
-behaviour:
-
-* ``True``: the EZ/EZ block of T is ``-k_0^2 \\cdot T_z``, giving the
-  longitudinal field a proper mass-matrix presence.
-* ``False``: the EZ/EZ block of T is zero, reproducing the original
-  v0.1 port exactly.
-
-Reproducing the reference's eigen pipeline
-------------------------------------------
-
-The reference C++ hands ARPACK a *hand-written* shift-inverted operator.  With
-``SS = A``, ``TT = B`` and ``kk = shift`` (the parameter is named ``kk`` in
-``eigen.cpp`` even though the caller passes the shift), it factorises
+The physical modes (``k_c^2 = k_0^2 + \\lambda > 0``) are ordered TE10-first by
+ascending cutoff wavenumber and reported as
 
 .. math::
 
-    A_s = SS/kk - TT
+    \\beta = \\operatorname{Re}\\sqrt{k_0^2 - k_c^2}, \\qquad
+    \\alpha = \\operatorname{Im}\\sqrt{k_0^2 - k_c^2}, \\qquad
+    k_c = \\sqrt{|k_0^2 - (\\beta + j\\alpha)^2|}.
 
-and defines ``op(x) = OO * (A_s^{-1} (TT x / kk))``, then calls ``zneupd`` with
-``sigma = kk`` and ``which = "LM"``.  ``zneupd`` converts each Ritz value
-``theta`` of ``op`` into ``d = sigma + 1/theta`` and the constructor takes
-``sqrt(d)`` (zeroing components below ``1e-9``).
+``TLEigSystem.mode_beta`` stores ``beta + 1j*alpha`` (the waveport
+convention: real part is propagation, imaginary part attenuation).  The mode
+vectors are B-orthonormalized exactly as in ``AssLin.cpp``
 
-``OO`` is the Cangellaris orthogonalisation matrix: the identity on the
-H(curl) block plus ``solve(-TT[zz,zz], TT[zv])`` on the lower-left block.  In
-this formulation ``TT[zz,zz]`` is *never assigned* (it is the zero matrix), so
-``arma::solve`` cannot factor it and falls back to
-``auxlib::solve_approx_svd`` -- the SVD least-squares solution, which is zero
-for a zero matrix.  ``OO`` is therefore ``diag(I_numt, 0)``, not the identity:
-it projects the operator onto the H(curl) block.  That projection is what makes
-the pencil produce the physical modes, and it is reproduced verbatim here.
+.. math::
 
-Selection
----------
+    \\text{ModeVec} = V \\, (V^T B_{schur} V)^{-1/2},
 
-Three solver paths are available:
+and the modal coefficients use ``sqrt(j k_0 Z_0 / beta)``.
 
-* ``"dense"`` — builds the full operator and calls ``scipy.linalg.eigvals``.
-  BLAS-independent, used for systems small enough to be dense.
-* ``"arpack"`` — calls ``scipy.sparse.linalg.eigs`` on a ``LinearOperator``
-  wrapping an LU factorised shift-inverted operator; ARPACK's own Arnoldi.
-* ``"arnoldi"`` — hand-written Arnoldi shift-invert, factorising the
-  shift-inverted matrix once with SuperLU and iterating the Krylov
-  subspace manually.
-
-The default is ``"auto"``: dense for ``numtot <= DENSE_LIMIT``, arpack above.
-Set ``solver`` explicitly to ``"dense"``, ``"arpack"`` or ``"arnoldi"`` to force a path.
-The dense path cannot represent the ``Coaxial`` cross-section (156k DOFs, and
-the reason the frozen binary is killed by the OOM killer); the sparse paths
-exist for those systems.
-
-User-facing controls
+Dirichlet boundaries
 --------------------
 
-``+n_modes N``
-    Number of eigenmodes to compute.  Defaults to the reference's
-    ``min(5, n/2 + 1)``; when set to a positive value it overrides that
-    (clamped to ``[1, n/2 + 1]``).
+``PerfectE`` mesh edges constrain both the H(curl) edge DOFs and the H1 trace
+DOFs on that edge (vertices and edge-interior levels at order >= 2).  As in
+the 3D waveport path, face-interior scalar DOFs are not removed.
 
-``+shift F``
-    User-specified shift (``gamma^2``) for the shift-inverted operator.
-    Defaults to ``-k0^2 * maxepsr * maxmur`` when not given.
+Solver
+------
 
-``+ortho`` / ``-ortho``
-    Enable or disable the Cangellaris orthogonalisation projection
-    (``OO = diag(I_numt, 0)``) that suppresses spurious modes
-    (``k=0`` and ``div D = 0``).  Defaults to on.
+``"auto"`` and ``"arpack"`` try shift-invert ARPACK on
+``A_tt/shift - B_schur`` with ``which="LM"`` and fall back to the dense
+generalized solve when ARPACK does not converge or returns too few physical
+modes.  ``"dense"`` forces the dense solve.  ``"arnoldi"`` is a deprecated
+alias for ARPACK.  The default shift is ``-k0^2 * maxepsr * maxmur``.
 
-``+tol T``
-    ARPACK tolerance for the sparse solver path.  Defaults to ``0.0``
-    (ARPACK's default).
+The Schur complement is dense (``numt x numt``), exactly as in the waveport
+formulation; very large cross-sections (e.g. ``Coaxial``) need correspondingly
+large memory.
 
-``+t_block`` / ``-t_block``
-    Enable or disable the extended T-matrix structure (non-zero
-    EZ/EZ block).  Defaults to on.
+Compatibility
+-------------
+
+``ortho``, ``use_t_block`` and ``t_block`` are accepted but have no effect:
+the Schur-complement formulation needs neither the Cangellaris ``OO``
+projection nor the extended T-matrix variant.  ``prev_beta`` still reorders
+the selected modes by nearest ``|mode_beta|`` across a frequency sweep.
 """
 
 from __future__ import annotations
@@ -111,24 +65,20 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional, Sequence
 
 import numpy as np
-import scipy.linalg
 import scipy.sparse as sp
-import scipy.sparse.linalg
 
 from ...constants import C0, PI
 from ..dof import face_dof_map, scalar_dof_count, vector_dof_count
 from ..element_matrix import element_matrices_2d_mixed
+from .port_pencil import (
+    _DBL_MIN,
+    _GAMMA_TOL,
+    _port_reduced_pencil,
+    postprocess_modes,
+    solve_reduced_pencil,
+)
 
-__all__ = ["TLEigSystem", "assemble_em_e_tl_eig", "DENSE_LIMIT"]
-
-#: Largest ``numtot`` for which the dense oracle replay is used.  Above this
-#: the matrices are kept sparse and ARPACK resolves the pencil; the dense
-#: operator at 156k DOFs (``Coaxial``) needs ~390 GB, which is exactly why the
-#: frozen oracle is killed.
-DENSE_LIMIT = 2000
-
-#: ``gamtol`` in ``eigen.cpp``: real/imaginary parts below this are zeroed.
-_GAMMA_TOL = 1e-9
+__all__ = ["TLEigSystem", "assemble_em_e_tl_eig"]
 
 
 @dataclass
@@ -146,11 +96,20 @@ class TLEigSystem:
     free_edges: np.ndarray
     dirichlet: np.ndarray
     shift: float
-    #: Complex ``sqrt(lambda)`` per mode, already ordered like the oracle.
+    #: ``beta + 1j*alpha`` per mode (waveport convention), TE10-first.
     mode_beta: np.ndarray = field(default_factory=lambda: np.zeros(0, complex))
-    #: ``"dense"`` (oracle replay), ``"arpack"`` (ARPACK shift-invert) or
-    #: ``"arnoldi"`` (hand-written Arnoldi shift-invert).
+    #: Actual solver path: ``"dense"`` or ``"arpack"``.
     solver: str = "dense"
+    #: Free scalar (H1) node DOFs after PerfectE elimination.
+    free_nodes: np.ndarray = field(default_factory=lambda: np.zeros(0, np.int64))
+    #: Scalar DOFs constrained by PerfectE boundaries.
+    dirichlet_nodes: np.ndarray = field(default_factory=lambda: np.zeros(0, np.int64))
+    #: B-orthonormalized mode vectors ``(numt, n_modes)``.
+    mode_vec: np.ndarray = field(default_factory=lambda: np.zeros((0, 0), complex))
+    #: Modal coefficient vectors ``(numt, n_modes)``.
+    mode_vecf: np.ndarray = field(default_factory=lambda: np.zeros((0, 0), complex))
+    #: Global edge DOF numbers matching ``mode_vec`` rows (``free_edges``).
+    mode_vecdof: np.ndarray = field(default_factory=lambda: np.zeros(0, np.int64))
     #: Sparse blocks, kept for inspection and for the parity fixtures.
     St: Optional[sp.csr_matrix] = None
     Tt: Optional[sp.csr_matrix] = None
@@ -165,22 +124,25 @@ class TLEigSystem:
 
     @property
     def beta(self) -> np.ndarray:
-        return np.imag(self.mode_beta)
-
-    @property
-    def alpha(self) -> np.ndarray:
         return np.real(self.mode_beta)
 
     @property
+    def alpha(self) -> np.ndarray:
+        return np.imag(self.mode_beta)
+
+    @property
     def kc(self) -> np.ndarray:
-        return np.sqrt(
-            np.abs(self.k0 * self.k0 - self.beta**2 + self.alpha**2)
-        )
+        return np.sqrt(np.abs(self.k0 * self.k0 - self.mode_beta**2))
+
+    @property
+    def propagating(self) -> np.ndarray:
+        return (np.abs(self.alpha) < _GAMMA_TOL) & (self.beta > 0.0)
 
     @property
     def S(self) -> None:
         """The cross-section problem produces no S-parameters."""
         return None
+
 
 
 def _bc_type_map(boundaries: Sequence) -> Dict[int, str]:
@@ -222,8 +184,8 @@ def _assemble_blocks(mesh, order: int):
     sz_parts = []
     tz_parts = []
     g_parts = []
-    maxepsr = 1.0
-    maxmur = 1.0
+    maxepsr = _DBL_MIN
+    maxmur = _DBL_MIN
 
     for face_id in range(mesh.n_faces):
         epsr, mur = mesh.material_properties(face_id)
@@ -281,224 +243,31 @@ def _dirichlet_dofs(mesh, order: int, bc_types: Dict[int, str]) -> np.ndarray:
     return np.array(sorted(dofs), dtype=np.int64)
 
 
-def _pencil(A_blocks, numt: int, numz: int):
-    """Return ``(A, B)`` as dense arrays or sparse matrices, matching storage."""
-    A_vv, A_zz, B_vv, B_vz, B_zv, B_zz = A_blocks
-    n = numt + numz
-    if isinstance(A_vv, sp.spmatrix):
-        A = sp.bmat(
-            [[A_vv, None], [None, A_zz]], format="csc", dtype=complex
-        )
-        B = sp.bmat(
-            [[B_vv, B_vz], [B_zv, B_zz]], format="csc", dtype=complex
-        )
-    else:
-        A = np.zeros((n, n), dtype=complex)
-        B = np.zeros((n, n), dtype=complex)
-        A[:numt, :numt] = A_vv
-        A[numt:, numt:] = A_zz
-        B[:numt, :numt] = B_vv
-        B[:numt, numt:] = B_vz
-        B[numt:, :numt] = B_zv
-        B[numt:, numt:] = B_zz
-    return A, B
+def _dirichlet_node_dofs(mesh, order: int, bc_types: Dict[int, str]) -> np.ndarray:
+    """Scalar (H1) DOFs on PEC edges, mirroring the 3D waveport elimination.
 
+    The scalar numbering (``fes/core/dof.py``) is
 
-def _finalize_modes(
-    theta: np.ndarray, shift: float, num_modes: int, prev_beta: Optional[np.ndarray] = None
-) -> np.ndarray:
-    """Apply ``zneupd``'s transform, sqrt and the oracle's two sorts.
+    * node vertex DOFs: ``0 .. n_nodes-1``
+    * edge-interior level ``L`` (0-based): ``n_nodes + L*n_edges + edge_id``
+    * face-interior DOFs: above the edge levels, never touched here.
 
-    The shift-inverted operator's Ritz values ``theta`` are largest in
-    magnitude for the modes closest to the shift, so the solver (ARPACK or the
-    dense replay) keeps the ``num_modes`` modes with the largest ``|\theta|``.
-    Each is converted to a propagation constant ``beta = sqrt(shift + 1/theta)``
-    and the kept modes are reported in stable ``|\beta|`` descending order.
-
-    When ``prev_beta`` is given (modes from the previous frequency), modes are
-    matched to the previous frequency by closest |beta| instead of re-sorting
-    by |beta| descending.  This prevents mode indices from swapping between
-    adjacent frequency points during a sweep.
+    As in the waveport path, face-interior scalar DOFs are *not* removed: the
+    Dirichlet condition only constrains the trace on the PEC edges.
     """
-    theta = np.asarray(theta, dtype=complex)
-    if theta.size > num_modes:
-        # Keep the num_modes Ritz values with largest |\theta|, i.e. the modes
-        # closest to the shift (matches ARPACK which="LM" and the oracle).
-        order = np.argsort(-np.abs(theta), kind="stable")[:num_modes]
-        theta = theta[order]
-
-    with np.errstate(divide="ignore", invalid="ignore"):
-        d = shift + 1.0 / theta
-    be = np.sqrt(d)
-
-    real = np.where(np.abs(be.real) < _GAMMA_TOL, 0.0, np.abs(be.real))
-    imag = np.where(np.abs(be.imag) < _GAMMA_TOL, 0.0, np.abs(be.imag))
-    be = real + 1j * imag
-
-    # ``zneupd``: ascending real part, then ascending imaginary part.
-    be = be[np.lexsort((be.real, be.imag))]
-    # ``eigen`` constructor: ``mode_beta(i) = Evals(nmodes - 1 - i)``.
-    be = be[::-1]
-
-    if prev_beta is not None and prev_beta.size == be.size:
-        # Track modes across frequency: match each previous mode to the
-        # current mode with the closest |beta|, preserving position order.
-        prev_abs = np.abs(np.asarray(prev_beta, dtype=complex))
-        curr_abs = np.abs(be)
-        used = np.zeros(be.size, dtype=bool)
-        ordered = np.zeros_like(be)
-        for i in range(be.size):
-            diffs = np.where(used, np.inf, np.abs(curr_abs - prev_abs[i]))
-            j = int(np.argmin(diffs))
-            ordered[i] = be[j]
-            used[j] = True
-        be = ordered
-    else:
-        # ``assemble_em_e_tl_eig``: stable |beta| descending.
-        be = be[np.argsort(-np.abs(be), kind="stable")]
-
-    return be
-
-
-def _solve_dense(
-    A, B, numt: int, numz: int, shift: float, num_modes: int,
-    ortho: bool = True, prev_beta: Optional[np.ndarray] = None,
-):
-    """Replay ``eigen.cpp`` on a dense pencil.
-
-    ``OO`` is ``diag(I_numt, 0)`` because the lower-left block
-    ``solve(-TT[zz,zz], TT[zv])`` is the SVD least-squares solution of a zero
-    system; see the module docstring.  When ``ortho`` is False, ``OO`` is the
-    identity (no spurious-mode suppression projection).
-    """
-    n = numt + numz
-    A_s = A / shift - B
-    if ortho:
-        OO = np.zeros((n, n), dtype=complex)
-        OO[:numt, :numt] = np.eye(numt)
-        operator = OO @ scipy.linalg.solve(A_s, B / shift)
-    else:
-        operator = scipy.linalg.solve(A_s, B / shift)
-    theta = scipy.linalg.eigvals(operator)
-    return _finalize_modes(theta, shift, num_modes, prev_beta=prev_beta)
-
-
-def _solve_sparse(
-    A, B, numt: int, numz: int, shift: float, num_modes: int,
-    ortho: bool = True, eig_tol: float = 0.0, prev_beta: Optional[np.ndarray] = None,
-):
-    """Resolve the same operator with ARPACK for systems too large to be dense."""
-    n = numt + numz
-    A_s = (A / shift - B).tocsc()
-    lu = scipy.sparse.linalg.splu(A_s)
-
-    def matvec(x: np.ndarray) -> np.ndarray:
-        x = np.asarray(x, dtype=complex).reshape(n)
-        y = np.asarray(B @ x, dtype=complex).reshape(n) / shift
-        y = lu.solve(y)
-        if ortho:
-            y[numt:] = 0.0  # OO = diag(I_numt, 0)
-        return y
-
-    operator = scipy.sparse.linalg.LinearOperator(
-        (n, n), matvec=matvec, dtype=complex
-    )
-    ncv = min(4 * num_modes, n - 1)
-    theta = scipy.sparse.linalg.eigs(
-        operator,
-        k=num_modes,
-        which="LM",
-        ncv=ncv,
-        tol=eig_tol,
-        return_eigenvectors=False,
-    )
-    return _finalize_modes(theta, shift, num_modes, prev_beta=prev_beta)
-
-
-def _arnoldi_shift_invert(
-    A, B, numt: int, numz: int, shift: float, num_modes: int,
-    ortho: bool = True, tol: float = 1e-10, max_iter: Optional[int] = None,
-    prev_beta: Optional[np.ndarray] = None,
-):
-    """Hand-written Arnoldi shift-invert solver.
-
-    Factorises ``A_s = A/kk - TT`` once with SuperLU, then iterates the Krylov
-    subspace
-
-    .. math::
-
-        \\mathcal{K}_m(op, v_1), \\qquad op(x) = OO \\, (A_s^{-1} (TT x / kk))
-
-    until the Ritz values of the Hessenberg matrix converge.  Each Ritz value
-    ``theta`` of ``op`` is converted by ``zneupd`` into ``d = sigma + 1/theta``,
-    matching the dense/ARPACK paths exactly.
-
-    Parameters
-    ----------
-    A, B : sparse or dense
-        The pencil matrices (already restricted to free DOFs).
-    numt, numz : int
-        Numbers of free edge (H(curl)) and node (H(grad)) DOFs.
-    shift : float
-        The shift ``sigma`` for the shift-inverted operator.
-    num_modes : int
-        Number of eigenmodes to compute.
-    ortho : bool
-        Whether to apply the ``OO = diag(I_numt, 0)`` projection.
-    tol : float
-        Convergence tolerance for the Arnoldi iteration (lucky breakdown).
-    max_iter : int | None
-        Maximum Arnoldi iterations; defaults to ``min(4 * num_modes, n - 1)``.
-    """
-    n = numt + numz
-    A_s = (A / shift - B).tocsc()
-    lu = scipy.sparse.linalg.splu(A_s)
-
-    def matvec(x: np.ndarray) -> np.ndarray:
-        x = np.asarray(x, dtype=complex).reshape(n)
-        y = np.asarray(B @ x, dtype=complex).reshape(n) / shift
-        y = lu.solve(y)
-        if ortho:
-            y[numt:] = 0.0  # OO = diag(I_numt, 0)
-        return y
-
-    # Random starting vector, deterministic seed for reproducibility.
-    rng = np.random.default_rng(0)
-    v = rng.standard_normal(n) + 1j * rng.standard_normal(n)
-    v = v / np.linalg.norm(v)
-
-    max_iter = max_iter or min(4 * num_modes, n - 1)
-    max_iter = min(max_iter, n - 1)
-    if max_iter < 1:
-        max_iter = 1
-
-    V = np.zeros((n, max_iter + 1), dtype=complex)
-    H = np.zeros((max_iter + 1, max_iter), dtype=complex)
-    V[:, 0] = v
-
-    j = 0
-    while j < max_iter:
-        w = matvec(V[:, j])
-        for i in range(j + 1):
-            H[i, j] = np.vdot(V[:, i], w)
-            w = w - H[i, j] * V[:, i]
-        H[j + 1, j] = np.linalg.norm(w)
-        if H[j + 1, j] < tol:
-            break  # lucky breakdown — Krylov subspace is invariant
-        V[:, j + 1] = w / H[j + 1, j]
-        j += 1
-
-    # Ritz values from the Hessenberg matrix H_m (upper m x m block).
-    Hm = H[:j, :j]
-    theta = np.linalg.eigvals(Hm)
-
-    # Select the num_modes Ritz values with largest |theta| (closest to shift),
-    # matching ARPACK's which="LM".
-    if theta.size > num_modes:
-        order = np.argsort(-np.abs(theta), kind="stable")[:num_modes]
-        theta = theta[order]
-
-    return _finalize_modes(theta, shift, num_modes, prev_beta=prev_beta)
+    n_nodes = mesh.n_nodes
+    n_edges = mesh.n_edges
+    dofs = set()
+    for edge_id in range(n_edges):
+        marker = int(mesh.edge_labels[edge_id])
+        if bc_types.get(marker) != "PerfectE":
+            continue
+        a, b = mesh.edges[edge_id]
+        dofs.add(int(a))
+        dofs.add(int(b))
+        for level in range(order - 1):
+            dofs.add(n_nodes + level * n_edges + edge_id)
+    return np.array(sorted(dofs), dtype=np.int64)
 
 
 def assemble_em_e_tl_eig(
@@ -530,28 +299,26 @@ def assemble_em_e_tl_eig(
     solve : bool
         Run the eigen-solve; when False the system is returned unsolved.
     n_modes : int | None
-        Number of eigenmodes to compute; overrides ``min(5, n/2 + 1)``.
+        Number of eigenmodes to compute (clamped to ``[1, numtot]``);
+        ``None`` or 0 uses the default of 5.
     shift : float | None
-        User-specified shift; defaults to ``-0.5 * k0^2 * maxepsr * maxmur``,
-        which targets propagation constants near ``k0 / sqrt(2)`` — a
-        reasonable centre for the fundamental waveguide mode.  Must be
-        non-zero for the shift-invert solver.
+        User-specified shift; defaults to ``-k0^2 * maxepsr * maxmur``, the
+        same default as the waveport mode computation.  Must be non-zero.
     ortho : bool
-        Apply the Cangellaris orthogonalisation projection (default on).
+        Accepted for compatibility; the Schur-complement formulation needs no
+        Cangellaris projection, so this has no effect.
     eig_tol : float
-        ARPACK tolerance for the sparse solver path.
+        ARPACK tolerance used when the ARPACK path is selected.
     solver : str
-        ``"auto"``, ``"dense"``, ``"arpack"`` or ``"arnoldi"``.
+        ``"auto"`` (ARPACK with dense fallback), ``"dense"``, ``"arpack"`` or
+        ``"arnoldi"`` (deprecated alias for ``"arpack"``).
     prev_beta : np.ndarray | None
-        Modal betas from the previous frequency.  When given, modes are
-        matched by closest |beta| across frequencies so mode indices do not
-        swap between adjacent sweep points.
-    use_t_block : bool | None
-        Use the extended T-matrix structure: non-zero EZ/EZ block
-        ``-k_0^2 \\cdot T_z``.  When None, falls back to ``t_block`` then
-        to True.
-    t_block : bool | None
-        Alias for ``use_t_block``.
+        Modal betas from the previous frequency.  When given, the selected
+        modes are reordered to the nearest ``|mode_beta|`` so mode indices do
+        not swap between adjacent sweep points.
+    use_t_block, t_block : bool | None
+        Accepted for compatibility; the Schur complement does not use the
+        extended T-matrix structure, so these have no effect.
 
     Raises
     ------
@@ -584,13 +351,26 @@ def assemble_em_e_tl_eig(
 
     bc_types = _bc_type_map(mesh.boundaries)
     dirichlet = _dirichlet_dofs(mesh, order, bc_types)
-    dirichlet_set = set(int(dof) for dof in dirichlet)
+    dirichlet_set = {int(dof) for dof in dirichlet}
     free_v = np.array(
         [i for i in range(n_edges) if i not in dirichlet_set], dtype=np.int64
     )
+
+    # Dirichlet parity with the waveport path: the scalar (H1) trace DOFs on
+    # PerfectE edges are eliminated alongside the H(curl) edge DOFs.
+    dirichlet_nodes = _dirichlet_node_dofs(mesh, order, bc_types)
+    dirichlet_node_set = {int(dof) for dof in dirichlet_nodes}
+    free_s = np.array(
+        [i for i in range(n_nodes) if i not in dirichlet_node_set],
+        dtype=np.int64,
+    )
+
     numt = int(free_v.size)
-    numz = n_nodes
+    numz = int(free_s.size)
     numtot = numt + numz
+
+    if shift is None:
+        shift = -kk * maxepsr * maxmur
 
     system = TLEigSystem(
         mesh=mesh,
@@ -603,7 +383,9 @@ def assemble_em_e_tl_eig(
         n_node_dofs=n_nodes,
         free_edges=free_v,
         dirichlet=dirichlet,
-        shift=shift if shift is not None else -0.5 * kk * maxepsr * maxmur,
+        shift=shift,
+        free_nodes=free_s,
+        dirichlet_nodes=dirichlet_nodes,
         St=St,
         Tt=Tt,
         Tt2=Tt2,
@@ -624,88 +406,56 @@ def assemble_em_e_tl_eig(
             f"got shift={system.shift}"
         )
 
+    if numtot < 5:
+        raise ValueError("Not enough dofs on the cross-section")
+
     if n_modes is not None and n_modes > 0:
-        num_modes = min(max(int(n_modes), 1), numtot // 2 + 1)
+        num_modes = min(max(int(n_modes), 1), numtot)
     else:
-        num_modes = min(5, numtot // 2 + 1)
-    if num_modes < 1:
-        num_modes = 1
-
-    # Resolve the t-block flag: explicit use_t_block wins, then
-    # t_block alias, then default True.
-    if use_t_block is None:
-        use_t_block = t_block if t_block is not None else True
-
-    Stf = St[free_v][:, free_v]
-    Ttf = Tt[free_v][:, free_v]
-    A_vv = Stf - kk * Ttf
-    Azz = Sz - kk * Tz  # (n_nodes, n_nodes); scalar DOFs are not Dirichlet
-
-    if use_t_block:
-        # ---- Extended T-matrix structure ----
-        # B[ET,ET] = Tt2 (edge mass / mur), B[ET,EZ] = G, B[EZ,ET] = G^T,
-        # B[EZ,EZ] = -k0^2 * Tz (longitudinal mass, non-zero).
-        B_vv = Tt2[free_v][:, free_v]
-        B_vz = G[free_v]
-        B_zv = G.T[:, free_v]
-        B_zz = -kk * Tz
-    else:
-        # ---- Legacy v0.1 port structure ----
-        # B[EZ,EZ] = 0 (the original port's choice).
-        B_vv = Tt2[free_v][:, free_v]
-        B_vz = G[free_v]
-        B_zv = G.T[:, free_v]
-        B_zz = sp.csc_matrix((numz, numz), dtype=complex) if sp.issparse(Tz) else np.zeros((numz, numz), dtype=complex)
-
-    if solver == "auto":
-        use_dense = numtot <= DENSE_LIMIT
-    elif solver == "dense":
-        use_dense = True
-    elif solver == "arpack":
-        use_dense = False
-    elif solver == "arnoldi":
-        use_dense = False
-    else:
-        raise ValueError(
-            f"unknown solver {solver!r}; use 'auto', 'dense', 'arpack' or 'arnoldi'"
-        )
-
-    # The dense path needs dense arrays; sparse paths keep CSC matrices.
-    if use_dense:
-        A_vv_d = A_vv.toarray() if sp.issparse(A_vv) else A_vv
-        Azz_d = Azz.toarray() if sp.issparse(Azz) else Azz
-        B_vv_d = B_vv.toarray() if sp.issparse(B_vv) else B_vv
-        B_vz_d = B_vz.toarray() if sp.issparse(B_vz) else B_vz
-        B_zv_d = B_zv.toarray() if sp.issparse(B_zv) else B_zv
-        B_zz_d = B_zz.toarray() if sp.issparse(B_zz) else B_zz
-        A_blocks = (A_vv_d, Azz_d, B_vv_d, B_vz_d, B_zv_d, B_zz_d)
-    else:
-        A_blocks = (
-            A_vv.tocsc() if sp.issparse(A_vv) else A_vv,
-            Azz.tocsc() if sp.issparse(Azz) else Azz,
-            B_vv.tocsc() if sp.issparse(B_vv) else B_vv,
-            B_vz.tocsc() if sp.issparse(B_vz) else B_vz,
-            B_zv.tocsc() if sp.issparse(B_zv) else B_zv,
-            B_zz.tocsc() if sp.issparse(B_zz) else B_zz,
-        )
-    A, B = _pencil(A_blocks, numt, numz)
+        num_modes = min(5, numtot)
 
     if solver == "arnoldi":
-        system.mode_beta = _arnoldi_shift_invert(
-            A, B, numt, numz, system.shift, num_modes,
-            ortho=ortho, tol=eig_tol, prev_beta=prev_beta,
+        solver = "arpack"  # deprecated alias
+    elif solver not in ("auto", "arpack", "dense"):
+        raise ValueError(
+            f"unknown solver {solver!r}; use 'auto', 'dense' or 'arpack'"
         )
-        system.solver = "arnoldi"
-    elif use_dense:
-        system.mode_beta = _solve_dense(
-            A, B, numt, numz, system.shift, num_modes,
-            ortho=ortho, prev_beta=prev_beta,
-        )
-        system.solver = "dense"
-    else:
-        system.mode_beta = _solve_sparse(
-            A, B, numt, numz, system.shift, num_modes,
-            ortho=ortho, eig_tol=eig_tol, prev_beta=prev_beta,
-        )
-        system.solver = "arpack"
+
+    # Same reduced pencil as the waveport: dense port-sized blocks and the
+    # Zhu-Cangellaris Schur complement of the scalar block.
+    tmpA = np.zeros((numtot, numtot), dtype=complex)
+    tmpB = np.zeros((numtot, numtot), dtype=complex)
+    tmpA[:numt, :numt] = (
+        St[free_v][:, free_v] - kk * Tt[free_v][:, free_v]
+    ).toarray()
+    tmpB[:numt, :numt] = Tt2[free_v][:, free_v].toarray()
+    if numz > 0:
+        Gf = G[free_v][:, free_s].toarray()
+        tmpB[:numt, numt:] = Gf
+        tmpB[numt:, :numt] = Gf.T
+        tmpB[numt:, numt:] = (
+            Sz[free_s][:, free_s] - kk * Tz[free_s][:, free_s]
+        ).toarray()
+
+    A_tt, B_schur = _port_reduced_pencil(tmpA, tmpB, numt, numz)
+
+    lam, vectors, label = solve_reduced_pencil(
+        A_tt, B_schur, kk, shift, num_modes, eig_tol, solver
+    )
+
+    beta, mode_vec, mode_vecf = postprocess_modes(
+        kk,
+        k0,
+        lam,
+        vectors,
+        lambda x: B_schur @ x,
+        num_modes,
+        prev_beta=prev_beta,
+    )
+
+    system.mode_beta = beta
+    system.mode_vec = mode_vec
+    system.mode_vecf = mode_vecf
+    system.mode_vecdof = free_v
+    system.solver = label
     return system
