@@ -58,8 +58,6 @@ local `<name>.npz` cache, which is gitignored.
 | **S-parameters** | `python -m fes sparam BilatFilter +f 150e9 +poly +p 1` |
 | **Eigenmodes** | `python -m fes eigen WR90_TL +f 1e10 +poly` |
 | **List / inspect models** | `python -m fes models` / `... info WR90 [--json]` |
-| **Python project example** | `python -c "from fes.projects import run_waveguide; run_waveguide()"` |
-| **DNN-GP surrogate** | `python -c "from fes.projects import bilateral_filter_dnngp; bilateral_filter_dnngp()"` |
 | **Modal-matching benchmark** | `python -m mm Riblet --no-plot` |
 | **Near-field → far-field** | `from n2f import sf_nf2ff_solver` (see `docs/bundled_modules.md`) |
 | **Vector near-field → far-field** | `from n2f import vf_nf_solver, vf_nf2ff_solver, vf_n2f_op_fields` (see `n2f/README.md`) |
@@ -86,18 +84,6 @@ python -m fes eigen WR90_TL +f 1e10 +poly
 # Electrostatics (requires voltage assignment)
 python -m fes run CapSense +f 0 +poly +volt Elec 1
 ```
-
-Programmatic use:
-
-```python
-from fes.projects import bilateral_filter, run_waveguide
-
-freqs, Sparams = bilateral_filter(n_freqs=41)
-sys, mesh = run_waveguide()
-```
-
-See [`docs/projects.md`](docs/projects.md) for the full project catalogue, the
-DNN-GP surrogate, adaptive LHS, and mesh-generation examples.
 
 ## Subcommands
 
@@ -186,22 +172,6 @@ mesh and breaks numerical agreement.
 import → mesh → assemble → solve → export
 ```
 
-### Two numerical paths
-
-This is the single most important structural fact in the repository:
-
-- **Reference path** — `fes/core/assemblers/` plus the reference kernels
-  (`shape`, `shape3d`, `quadrature`, `element_matrix`, `dof`,
-  `quadrature_tables3d`) and the mesh backends. It reproduces the v0.1 C++
-  solver down to loop order, DOF numbering and output formatting.
-- **Legacy Python path** — `core/assembly.py`, `shape_functions.py`,
-  `quadrature.py`, `jacobian.py`, `dof.py`, `boundary.py`,
-  `core/harmonic_balance.py`, used by `fes/projects/`. It does not feed the
-  four assembled formulations.
-
-Do not mix the two: a fix in `core/shape_functions.py` does not affect the
-reference path, and a change in `core/assemblers/` does not affect the legacy projects.
-
 ### Source layout
 
 ```
@@ -215,10 +185,8 @@ fes/
 │   ├── shape.py, shape3d.py, quadrature.py, element_matrix.py, dof.py
 │   │                 # reference kernels
 │   ├── options.py    # legacy and documented argv parsers
-│   └── assembly.py, shape_functions.py, ...  # legacy Python path
 ├── mesh/             # .poly I/O, Triangle/TetGen backends, topology, caches
 ├── post/             # mesh, field and radiation VTK writers
-└── projects/         # legacy Python projects and DNN-GP surrogates
 mm/                   # modal-matching solver (MIT)
 n2f/                  # near-field → far-field transforms (MIT)
 rfm/                  # rational function models, vector fitting (MIT)
@@ -316,7 +284,6 @@ Native library discovery can be overridden with `FES_TRIANGLE` (Triangle) and
 make test                                           # pytest tests/ -v
 source .venv/bin/activate                           # activate once, then:
 pytest -q                                           # CI equivalent
-pytest tests/test_core.py::TestShapeFunctions::test_2d_linear -v
 ```
 
 Markers:

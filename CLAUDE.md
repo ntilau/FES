@@ -31,12 +31,9 @@ CLI exit codes: `0` success, `1` usage error, `2` formulation not ported, `3` I/
 
 ## High-level architecture
 
-**Two independent numerical paths** (the single most important structural fact — read `README.md` "Architecture" before touching either):
+**Reference path** (the only numerical path — read `README.md` "Architecture" before touching it):
 
 - **Reference path** — `fes/core/assemblers/` plus the reference kernels (`shape`, `shape3d`, `quadrature`, `element_matrix`, `dof`, `quadrature_tables3d`) and the mesh backends. It reproduces the v0.1 C++ solver down to loop order, DOF numbering, and output formatting. This path owns the four assembled formulations: `em_e_fd` (curl-curl, default), `em_ez_fd` (2D TMz), `em_e_eig_tl` / `em_e_tl_eig` (eigenmodes), `em_e_qs` (electrostatic).
-- **Legacy Python path** — `fes/core/assembly.py`, `shape_functions.py`, `quadrature.py`, `jacobian.py`, `dof.py`, `boundary.py`, `core/harmonic_balance.py`, used by `fes/projects/`. It does **not** feed the four assembled formulations.
-
-Do not mix them: a fix in `core/shape_functions.py` does not affect the reference path, and a change in `core/assemblers/` does not affect the legacy projects.
 
 **Request flow:** `fes/cli.py` (`main()`) parses `+flags` / subcommands (`run`, `sweep`, `mesh`, `sparam`, `eigen`, `info`, `models`) via `fes/core/options.py` (`parse_argv`, `Options`, `ASSEMBLY_TYPES`), builds a `RunPlan` in `fes/api.py` (`plan_run`), resolves the formulation (`effective_assembly`: explicit CLI flag wins, else the `#Formula` tag in the `.poly`), then `dispatch()` looks the assembly up in `fes.api.DRIVERS` (populated lazily by `fes.drivers.install()`). A formulation with no driver raises `NotPortedError`; `em_h_qs` raises `FormulationUnavailableError`. Drivers live in `fes/drivers.py` and hand results to `fes/post/` writers (VTK, Touchstone `.sNp`).
 
