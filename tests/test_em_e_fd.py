@@ -12,6 +12,7 @@ from fes.core.assemblers.em_e_fd import (
     _port_eigenpairs,
     _upper_triplets,
 )
+from fes.core.assemblers.port_pencil import reference_mode_beta
 
 
 # ── building blocks ─────────────────────────────────────────────────────────
@@ -45,4 +46,30 @@ def test_port_eigenpairs_skip_the_scalar_static_mode() -> None:
 
     np.testing.assert_allclose(values, [5.0], atol=1e-12)
     assert abs(vectors[0, 0]) > 0.5
+
+
+# ── the reference's ModeBeta convention ─────────────────────────────────────
+
+
+def test_reference_mode_beta_matches_the_cpp_branch() -> None:
+    """``Eigen.cpp`` stores ``ModeBeta = sqrt(kc^2 - k0^2)``, not beta.
+
+    A propagating mode has a negative pencil eigenvalue, so the reference's
+    ``ModeBeta`` is ``+1j*beta``; an evanescent mode's eigenvalue is positive
+    and ``ModeBeta`` is the real attenuation constant.  The TFE reduction
+    divides ``i*k0*Z0`` by this quantity, so using the physical propagation
+    constant instead rotates every port-mode column and destroys the
+    S-parameters.
+    """
+    lam = np.array([
+        -24975.0 + 1e-24j,  # propagating: ModeBeta = +1j*158.03...
+        30799.0 - 1e-24j,   # evanescent: ModeBeta = 175.49...
+        -24975.0 - 1e-24j,  # propagating with noise on the other side
+    ])
+    expected = np.array([
+        1j * np.sqrt(24975.0),
+        np.sqrt(30799.0),
+        1j * np.sqrt(24975.0),
+    ])
+    np.testing.assert_allclose(reference_mode_beta(lam), expected, atol=1e-9)
 

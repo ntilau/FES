@@ -13,7 +13,7 @@ Layout of :class:`Mesh2D`:
 ``face_labels``  ``(nt,)`` regional attribute; selects the material
 ``edges``        ``(ne, 2)`` endpoints, ordered as the C++ map stores them
 ``edge_labels``  ``(ne,)`` boundary marker; ``MAX_LABEL`` for derived edges
-``face_edges``   ``(nt, 3)`` local edge ids for (0,1), (0,2), (1,2)
+``face_edges``   ``(nt, 3)`` local edge ids for (1,2), (0,2), (0,1)
 
 Materials are keyed by *line index* inside ``#Solids`` (the C++ ``mtrl.label``),
 not by the region attribute found in ``#Regions``.  Use
@@ -273,7 +273,9 @@ class Mesh2D:
         face_edges = np.zeros((self.n_faces, 3), dtype=np.int64)
         for face_id, face in enumerate(self.faces):
             n0, n1, n2 = (int(face[0]), int(face[1]), int(face[2]))
-            for column, key in enumerate(((n0, n1), (n0, n2), (n1, n2))):
+            # Same column order as Shape.cpp's 2D edge functions (and as the
+            # 3D ``face_edges`` rows): {1,2}, {0,2}, {0,1}.
+            for column, key in enumerate(((n1, n2), (n0, n2), (n0, n1))):
                 # operator[] inserts a zero-valued entry for a missing key.
                 face_edges[face_id, column] = emap.setdefault(key, 0)
 

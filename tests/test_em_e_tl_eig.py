@@ -177,10 +177,20 @@ def test_rejects_waveport_models_with_the_reference_message() -> None:
     )
 
 
-def test_order_4_is_beyond_the_quadrature_ceiling() -> None:
+def test_order_four_assembles_with_the_shared_port_basis() -> None:
+    # quad(5) reuses the 64-point Gauss rule, so p=4 is reachable; the port
+    # eigenproblem shares the H(curl) face basis with the volume element.
     mesh = _square_mesh()
-    with pytest.raises(ValueError, match="orders 1-3"):
-        assemble_em_e_tl_eig(mesh, 1e9, 4)
+    system = assemble_em_e_tl_eig(mesh, 1e9, 4, solve=False)
+    assert system.St.shape == (44, 44)
+    assert system.G.shape == (44, 25)
+    assert system.Sz.shape == (25, 25)
+
+
+def test_order_five_is_beyond_the_dof_ceiling() -> None:
+    mesh = _square_mesh()
+    with pytest.raises(ValueError, match="order 5 not yet implemented"):
+        assemble_em_e_tl_eig(mesh, 1e9, 5)
 
 
 def test_solve_false_returns_the_unsolved_system() -> None:

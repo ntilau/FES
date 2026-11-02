@@ -206,22 +206,15 @@ def face_dof_map(mesh: "Mesh2D | Mesh3D", order: int, face_id: int) -> FaceDOF:
         ]
     )
     v = np.empty(24, dtype=np.int64)
+    # DoF.cpp, dim=2, case 4: four edge types, then 4 + 8 face functions.
     v[0:3] = edges
     v[3:6] = n_edges + edges
-    v[6] = 2 * n_edges + face_id
-    v[7] = 2 * n_edges + n_faces + face_id
-    v[8:11] = 2 * n_edges + 2 * n_faces + edges
-    v[11] = 3 * n_edges + 2 * n_faces + face_id
-    v[12] = 3 * n_edges + 3 * n_faces + face_id
-    v[13] = 3 * n_edges + 4 * n_faces + face_id
-    v[14] = 3 * n_edges + 5 * n_faces + face_id
-    v[15:18] = 3 * n_edges + 6 * n_faces + edges
-    v[18] = 4 * n_edges + 6 * n_faces + face_id
-    v[19] = 4 * n_edges + 7 * n_faces + face_id
-    v[20] = 4 * n_edges + 8 * n_faces + face_id
-    v[21] = 4 * n_edges + 9 * n_faces + face_id
-    v[22] = 4 * n_edges + 10 * n_faces + face_id
-    v[23] = 4 * n_edges + 11 * n_faces + face_id
+    v[6:9] = 2 * n_edges + 4 * n_faces + edges
+    v[9:12] = 3 * n_edges + 4 * n_faces + edges
+    for k in range(4):
+        v[12 + k] = 2 * n_edges + k * n_faces + face_id
+    for k in range(8):
+        v[16 + k] = 4 * n_edges + (4 + k) * n_faces + face_id
     return FaceDOF(s=s, v=v)
 
 
@@ -324,12 +317,18 @@ def _vector_dof_map_tet(mesh: "Mesh3D", order: int, tet_id: int) -> np.ndarray:
     if order == 3:
         return v
 
-    base = 3 * n_edges + 6 * n_faces + 3 * n_tetras
-    v[45:51] = base + edges
+    # DoF.cpp, dim=3, case 4: edges type 0-1, faces type 0-3, edges type 2-3,
+    # faces type 4-11, then the 12 interior functions.
+    v[0:6] = edges
+    v[6:12] = n_edges + edges
     for i in range(4):
-        for k in range(6):
-            v[51 + 6 * i + k] = base + n_edges + k * n_faces + faces[i]
-    vol_base = base + n_edges + 6 * n_faces
-    for k in range(9):
-        v[75 + k] = vol_base + k * n_tetras + tet_id
+        for k in range(4):
+            v[12 + 4 * i + k] = 2 * n_edges + k * n_faces + faces[i]
+    v[28:34] = 2 * n_edges + 4 * n_faces + edges
+    v[34:40] = 3 * n_edges + 4 * n_faces + edges
+    for i in range(4):
+        for k in range(8):
+            v[40 + 8 * i + k] = 4 * n_edges + (4 + k) * n_faces + faces[i]
+    for k in range(12):
+        v[72 + k] = 4 * n_edges + 12 * n_faces + k * n_tetras + tet_id
     return v

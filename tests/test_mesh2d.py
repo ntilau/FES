@@ -57,9 +57,10 @@ def test_connectivity_matches_euler() -> None:
     assert sorted(np.unique(mesh.face_edges).tolist()) == list(range(5))
     diagonal = [i for i, edge in enumerate(mesh.edges) if edge.tolist() == [1, 2]]
     assert len(diagonal) == 1
+    # Columns are {1,2}, {0,2}, {0,1}, matching Shape.cpp's 2D edge order.
     assert mesh.face_edges[:, :].tolist() == [
-        [0, 3, diagonal[0]],
-        [diagonal[0], 1, 2],
+        [diagonal[0], 3, 0],
+        [2, 1, diagonal[0]],
     ]
 
 

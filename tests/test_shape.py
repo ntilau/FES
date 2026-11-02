@@ -99,28 +99,29 @@ def test_nonidentity_mapping_follows_the_reference_transform(order: int) -> None
 @pytest.mark.parametrize("order", [2, 3, 4])
 def test_scalar_edge_functions_vanish_on_opposite_edge(order: int) -> None:
     """Each edge bubble must vanish on the two edges it does not belong to."""
-    # Edge 0-1 (y=0): l2=0.  Edge 0-2 (x=0): l1=0.  Edge 1-2 (x+y=1): l0=0.
+    # The C++ edge order is {1,2}, {0,2}, {0,1}, so the sampled edge is
+    # identified by which barycentric coordinate vanishes there.
     samples = {
-        0: np.array([0.25, 0.0]),   # on edge 0-1
-        1: np.array([0.0, 0.25]),   # on edge 0-2
-        2: np.array([0.25, 0.75]),  # on edge 1-2
+        0: np.array([0.25, 0.75]),  # edge {1,2}: l0 = 0
+        1: np.array([0.0, 0.25]),   # edge {0,2}: l1 = 0
+        2: np.array([0.25, 0.0]),   # edge {0,1}: l2 = 0
     }
-    if order == 2:
-        edge_columns = {0: [3], 1: [4], 2: [5]}
-    elif order == 3:
-        edge_columns = {0: [3, 6], 1: [4, 7], 2: [5, 8]}
-    else:
-        edge_columns = {0: [3, 6, 9], 1: [4, 7, 10], 2: [5, 8, 11]}
+    # Columns 3+e (type 0), 6+e (type 1) and 9+e (type 2) belong to edge e.
+    type_blocks = {2: [3], 3: [3, 6], 4: [3, 6, 9]}[order]
 
     for own_edge, point in samples.items():
         shape = shape_2d(order, point[None, :])
-        for edge, cols in edge_columns.items():
-            if edge == own_edge:
-                continue
-            np.testing.assert_allclose(
-                shape.Ns[0, cols], 0.0, atol=1e-12,
-                err_msg=f"order={order} edge {edge} did not vanish on edge {own_edge}",
-            )
+        for base in type_blocks:
+            for edge in range(3):
+                if edge == own_edge:
+                    continue
+                np.testing.assert_allclose(
+                    shape.Ns[0, base + edge], 0.0, atol=1e-12,
+                    err_msg=(
+                        f"order={order} edge {edge} did not vanish on "
+                        f"edge {own_edge}"
+                    ),
+                )
 
 
 def test_order_four_vertex_functions_are_quartic() -> None:

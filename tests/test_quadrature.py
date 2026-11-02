@@ -13,12 +13,13 @@ import pytest
 from fes.core.quadrature import MAX_ORDER, quadrature_2d, quadrature_3d
 
 
-EXPECTED_POINTS = {1: 3, 2: 6, 3: 12, 4: 64}
-EXPECTED_TET_POINTS = {1: 4, 2: 11, 3: 24, 4: 64}
+EXPECTED_POINTS = {1: 3, 2: 6, 3: 12, 4: 64, 5: 64}
+EXPECTED_TET_POINTS = {1: 4, 2: 11, 3: 24, 4: 64, 5: 64}
 
 
-def test_max_order_is_four() -> None:
-    assert MAX_ORDER == 4
+def test_max_order_is_five() -> None:
+    # Quad.cpp: case 5 reuses the 64-point Gauss rule.
+    assert MAX_ORDER == 5
 
 
 @pytest.mark.parametrize("order", sorted(EXPECTED_POINTS))
@@ -27,7 +28,7 @@ def test_weights_integrate_the_unit_simplex(order: int) -> None:
     assert weights.sum() == pytest.approx(0.5, rel=0, abs=1e-14)
 
 
-@pytest.mark.parametrize("order", [0, -1, 5])
+@pytest.mark.parametrize("order", [0, -1, 6])
 def test_unsupported_orders_raise(order: int) -> None:
     with pytest.raises(ValueError):
         quadrature_2d(order)
@@ -49,7 +50,7 @@ def test_tet_weights_integrate_the_reference_tetrahedron(order: int) -> None:
     assert weights.sum() == pytest.approx(1.0 / 6.0, rel=0, abs=1e-14)
 
 
-@pytest.mark.parametrize("order", [0, -1, 5])
+@pytest.mark.parametrize("order", [0, -1, 6])
 def test_unsupported_tet_orders_raise(order: int) -> None:
     with pytest.raises(ValueError):
         quadrature_3d(order)

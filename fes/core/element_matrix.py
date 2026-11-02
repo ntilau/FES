@@ -11,9 +11,9 @@ Line-by-line port of the first two ``ele_mat`` constructors in
 * the incident-plane-wave face vector (``+einc``), which integrates the
   tangential incident field against the H(curl) basis.
 
-Both constructors run their quadrature through ``quad(p_ord + 1)``; v0.1 only
-implements orders 1-4, so orders 1-3 are reachable and order 4 throws before
-assembly starts.  That ceiling is reproduced rather than worked around.
+Both constructors run their quadrature through ``quad(p_ord + 1)``; v0.1
+implements quadrature orders 1-5, so ``p_ord`` 1-4 is reachable (order 5
+reuses the 64-point Gauss rule, as in ``Quad.cpp``).
 
 Conventions carried over verbatim from the reference C++:
 
@@ -29,7 +29,7 @@ Conventions carried over verbatim from the reference C++:
   ``Nv^T dNs`` (vector rows against scalar columns) and ``STt`` is the
   diagonal of the vector mass matrix.
 
-The committed fixture pins every matrix for orders 1-3 on a skewed tetrahedron and its first face.
+The committed fixture pins every matrix for orders 1-4 on a skewed tetrahedron and its first face.
 """
 
 from __future__ import annotations
@@ -61,8 +61,8 @@ __all__ = [
 ]
 
 #: Highest order the assembled system can reach: ``quad(p_ord + 1)`` needs a
-#: rule of order ``p_ord + 1``, and v0.1 has rules 1-4 only.
-MAX_ASSEMBLY_ORDER = 3
+#: rule of order ``p_ord + 1``, and v0.1 has rules 1-5.
+MAX_ASSEMBLY_ORDER = 4
 
 
 @dataclass(frozen=True)
@@ -323,7 +323,7 @@ def einc_face_vector(
       caller has already multiplied it by ``k0``.
     * ``rho = v0 + xi0*(v1-v0) + xi1*(v2-v0)`` uses the edge vectors, not the
       vertices.
-    * The rule is ``quad(order + 1)``, so orders 1-3 are reachable.
+    * The rule is ``quad(order + 1)``; orders 1-4 are reachable.
     """
     order = _checked_order(order)
     geo = np.asarray(geo, dtype=float)
@@ -382,9 +382,8 @@ def element_matrices_2d_mixed(order: int, geo: np.ndarray) -> MixedElement2D:
     material scaling stays at the call site, as in ``assemble_em_e_tl_eig``,
     because the same matrices are used with both ``epsr`` and ``1/mur``.
 
-    ``geo`` is ``(3, 2)``.  The rule is ``quad(order + 1)``, so orders 1-3 are
-    reachable; order 4 raises :class:`ValueError` exactly like the oracle's
-    ``quadrature order not yet implemented``.
+    ``geo`` is ``(3, 2)``.  The rule is ``quad(order + 1)``; orders 1-4 are
+    reachable.
     """
     order = _checked_order(order)
     geo = np.asarray(geo, dtype=float)

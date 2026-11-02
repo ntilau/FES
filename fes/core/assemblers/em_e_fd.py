@@ -78,6 +78,7 @@ from .port_pencil import (
     _port_eigenpairs_dense,
     _port_reduced_pencil,
     postprocess_modes,
+    reference_mode_beta,
     solve_reduced_pencil,
 )
 
@@ -104,6 +105,13 @@ class FDPort:
     free: np.ndarray
     shift: float
     impedance: float = 0.0
+    #: Selected reduced-pencil eigenvalues ``kc^2 - k0^2``, in the same order as
+    #: *mode_beta*.  The reference's TFE reduction uses ``sqrt(mode_lambda)``
+    #: (``Eigen.cpp``'s ``ModeBeta``), which is not the physical propagation
+    #: constant stored in *mode_beta*.
+    mode_lambda: np.ndarray = field(
+        default_factory=lambda: np.zeros(0, dtype=complex)
+    )
 
     @property
     def n_modes(self) -> int:
@@ -463,8 +471,8 @@ def _port_modes(
         A_tt, B_schur, kk, shift, nmodes, eig_tol, solver
     )
 
-    beta, mode_vec, mode_vecf = postprocess_modes(
-        kk, k0, lam, vectors, lambda x: B_schur @ x, nmodes
+    beta, mode_vec, mode_vecf, mode_lambda = postprocess_modes(
+        kk, k0, lam, vectors, lambda x: B_schur @ x, nmodes, return_lambda=True
     )
 
     mode_vecdof = tmp_edges[tmpDirdofv]
@@ -477,6 +485,7 @@ def _port_modes(
         label=int(bc.label),
         num_modes=nmodes,
         mode_beta=beta,
+        mode_lambda=mode_lambda,
         mode_vec=mode_vec,
         mode_vecf=mode_vecf,
         mode_vecdof=mode_vecdof,
@@ -813,8 +822,11 @@ def _reduce_and_solve(
         else:
             impedance = Z0
         for m in range(port.n_modes):
+            # AssLin.cpp uses ``ModeBeta = sqrt(lambda)`` here (Eigen.cpp),
+            # not the physical propagation constant stored in mode_beta.
             sqrt_beta = np.sqrt(
-                complex(0.0, k0 * impedance * power) / port.mode_beta[m]
+                complex(0.0, k0 * impedance * power)
+                / reference_mode_beta(port.mode_lambda[m])
             )
             macoeff[idx, idx] = complex(0.0, k0 * impedance * power)
             b_exc[idx, idx] = complex(0.0, 2.0 * k0 * impedance * power)
@@ -959,7 +971,7 @@ def _extract_solution_full(system: FDSystem, reduced: np.ndarray) -> np.ndarray:
         impedance = port.impedance if port.is_lumped else Z0
         jk0z = complex(0.0, 2.0 * PI * system.freq / C0 * impedance * system.power)
         for m in range(port.n_modes):
-            weight = np.sqrt(jk0z / port.mode_beta[m])
+            weight = np.sqrt(jk0z / reference_mode_beta(port.mode_lambda[m]))
             solution[port.mode_vecdof, :] += (
                 weight * np.outer(port.mode_vec[:, m], reduced[mode_offset + m, :])
             )

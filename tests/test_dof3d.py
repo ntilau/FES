@@ -229,15 +229,38 @@ EXPECTED_VECTOR = {
     ],
 }
 
-#: The order-4 tail (indices 45-83) of tetrahedron 0.  Indices 0-44 are the
-#: order-3 map, which ``test_order_four_extends_order_three`` pins separately.
-EXPECTED_VECTOR_4_TAIL = [
-    77, 80, 76, 75, 81, 83,
-    84, 91, 98, 105, 112, 119,
-    89, 96, 103, 110, 117, 124,
-    88, 95, 102, 109, 116, 123,
-    90, 97, 104, 111, 118, 125,
-    126, 128, 130, 132, 134, 136, 138, 140, 142,
+#: The order-4 vector map.  It is *not* an extension of order 3: only the
+#: first two edge blocks (``v[0:12]``) are shared, because ``DoF.cpp`` puts the
+#: order-4 face block between edge types 1 and 2.
+EXPECTED_VECTOR[(0, 4)] = [
+    2, 5, 1, 0, 6, 8,
+    11, 14, 10, 9, 15, 17,
+    18, 25, 32, 39,
+    23, 30, 37, 44,
+    22, 29, 36, 43,
+    24, 31, 38, 45,
+    48, 51, 47, 46, 52, 54,
+    57, 60, 56, 55, 61, 63,
+    64, 71, 78, 85, 92, 99, 106, 113,
+    69, 76, 83, 90, 97, 104, 111, 118,
+    68, 75, 82, 89, 96, 103, 110, 117,
+    70, 77, 84, 91, 98, 105, 112, 119,
+    120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142,
+]
+EXPECTED_VECTOR[(1, 4)] = [
+    2, 5, 7, 0, 4, 3,
+    11, 14, 16, 9, 13, 12,
+    21, 28, 35, 42,
+    20, 27, 34, 41,
+    19, 26, 33, 40,
+    24, 31, 38, 45,
+    48, 51, 53, 46, 50, 49,
+    57, 60, 62, 55, 59, 58,
+    67, 74, 81, 88, 95, 102, 109, 116,
+    66, 73, 80, 87, 94, 101, 108, 115,
+    65, 72, 79, 86, 93, 100, 107, 114,
+    70, 77, 84, 91, 98, 105, 112, 119,
+    121, 123, 125, 127, 129, 131, 133, 135, 137, 139, 141, 143,
 ]
 
 
@@ -259,20 +282,13 @@ def test_vector_map_matches_the_oracle(key) -> None:
     )
 
 
-def test_order_four_extends_order_three() -> None:
+def test_order_four_shares_only_the_first_two_edge_blocks_with_order_three() -> None:
     mesh = make_mesh()
     for tet_id in range(N_TETRAS):
+        order_three = vector_dof_map(mesh, 3, tet_id)
         order_four = vector_dof_map(mesh, 4, tet_id)
-        np.testing.assert_array_equal(
-            order_four[:45], vector_dof_map(mesh, 3, tet_id)
-        )
-
-
-def test_order_four_vector_tail_matches_the_oracle() -> None:
-    mesh = make_mesh()
-    np.testing.assert_array_equal(
-        vector_dof_map(mesh, 4, 0)[45:], EXPECTED_VECTOR_4_TAIL
-    )
+        np.testing.assert_array_equal(order_four[:12], order_three[:12])
+        assert not np.array_equal(order_four[12:28], order_three[12:28])
 
 
 @pytest.mark.parametrize("order", range(1, 5))
@@ -335,8 +351,8 @@ EXPECTED_FACE_VECTOR = {
     2: [0, 5, 2, 9, 14, 11, 24, 31],
     3: [0, 5, 2, 9, 14, 11, 24, 31, 32, 37, 34, 47, 54, 61, 68],
     4: [
-        0, 5, 2, 9, 14, 11, 24, 31, 32, 37, 34, 47, 54, 61, 68,
-        69, 74, 71, 84, 91, 98, 105, 112, 119,
+        0, 5, 2, 9, 14, 11, 46, 51, 48, 55, 60, 57,
+        24, 31, 38, 45, 70, 77, 84, 91, 98, 105, 112, 119,
     ],
 }
 
@@ -375,29 +391,29 @@ def test_boundary_face_vector_block_is_the_reversed_face_edges_row() -> None:
             np.testing.assert_array_equal(v[3:6], N_EDGES + np.array([0, 5, 2]))
 
 
-def test_order_four_face_block_aliases_the_tet_volume_block() -> None:
-    """v0.1 puts the order-4 face edge DOFs at ``3 nE + 6 nF + e``.
-
-    The tetrahedron path puts its own order-4 edge block at
-    ``3 nE + 6 nF + 3 nT + e``, three volume blocks higher, so the two
-    disagree and the face block overlaps the first volume block whenever
-    ``e < nT``.  Nothing reaches order 4 (``ele_mat`` stops at 3), but the map
-    itself is reproduced literally.
-    """
+def test_order_four_face_vector_blocks_follow_the_reference() -> None:
+    """``DoF.cpp`` dim=2 case 4: edge types 0-3, then 4 + 8 face functions."""
     mesh = make_boundary_mesh()
     v = face_dof_map(mesh, 4, SHARED_FACE).v
-    base = 3 * N_EDGES + 6 * N_FACES
-    np.testing.assert_array_equal(v[15:18], base + np.array([0, 5, 2]))
-    assert v[15] < base + N_TETRAS  # overlaps the tet volume block
+    edges = mesh.face_edges[SHARED_FACE]
+    np.testing.assert_array_equal(
+        v[6:9], 2 * N_EDGES + 4 * N_FACES + edges
+    )
+    np.testing.assert_array_equal(
+        v[9:12], 3 * N_EDGES + 4 * N_FACES + edges
+    )
+    np.testing.assert_array_equal(
+        v[12:16], 2 * N_EDGES + np.arange(4) * N_FACES + SHARED_FACE
+    )
+    np.testing.assert_array_equal(
+        v[16:24], 4 * N_EDGES + np.arange(4, 12) * N_FACES + SHARED_FACE
+    )
 
 
 def test_boundary_face_dofs_agree_with_the_shared_tet_dofs() -> None:
-    """The shared face's DOF numbers must already exist in both tetrahedra.
-
-    Only orders 1-3: see ``test_order_four_face_block_aliases_the_tet_volume_block``.
-    """
+    """The shared face's DOF numbers must already exist in both tetrahedra."""
     mesh = make_boundary_mesh()
-    for order in (1, 2, 3):
+    for order in (1, 2, 3, 4):
         face = face_dof_map(mesh, order, SHARED_FACE)
         for kind, dofs in (("s", face.s), ("v", face.v)):
             mapper = scalar_dof_map if kind == "s" else vector_dof_map

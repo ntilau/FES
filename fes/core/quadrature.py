@@ -3,7 +3,8 @@
 ``cpp/src/quadrature.cpp`` selects a rule from the constructor argument,
 and ``assembler_em_ez_fd`` builds ``quad(opt->p_ord + 1)``.  The rules are
 reproduced verbatim: the point sets are the classical Strang/Liu tables for
-orders 1-3 and a 64-point tensor-product Gauss rule for order 4.  Weights
+orders 1-3 and a 64-point tensor-product Gauss rule for orders 4 and 5
+(``Quad.cpp`` reuses the same 64-point table for case 5).  Weights
 integrate over the reference triangle ``(0,0), (1,0), (0,1)`` and sum to
 1/2, so ``sum(w * detJ)`` evaluates the physical-area integral with
 ``detJ = 2 * area``.
@@ -22,7 +23,7 @@ from .quadrature_tables3d import W3, X3
 __all__ = ["MAX_ORDER", "quadrature_2d", "quadrature_3d"]
 
 #: Highest rule the reference C++ implements (``quadrature.cpp`` throws above it).
-MAX_ORDER = 4
+MAX_ORDER = 5
 
 
 #: Strang 1 (3 points)
@@ -170,11 +171,13 @@ _RULES = {
     2: (_STRANG5_X2, _STRANG5_W2),
     3: (_STRANG9_X2, _STRANG9_W2),
     4: (_GAUSS64_X2, _GAUSS64_W2),
+    # Quad.cpp:500-510: case 5 reuses the 64-point Gauss rule.
+    5: (_GAUSS64_X2, _GAUSS64_W2),
 }
 
 
 def quadrature_2d(order: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Return ``(xq2, wq2)`` for quadrature *order* (1-4).
+    """Return ``(xq2, wq2)`` for quadrature *order* (1-5).
 
     ``order`` is the ``quad`` constructor argument: ``quadrature_2d(p + 1)``
     is the rule for polynomial order ``p``.
@@ -195,7 +198,7 @@ def quadrature_2d(order: int) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def quadrature_3d(order: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Return ``(xq3, wq3)`` for tetrahedral quadrature *order* (1-4).
+    """Return ``(xq3, wq3)`` for tetrahedral quadrature *order* (1-5).
 
     The reference tetrahedron is ``(0,0,0), (1,0,0), (0,1,0), (0,0,1)``.  The
     weights sum to ``1/6``, so ``sum(w * detJ)`` is the physical-volume

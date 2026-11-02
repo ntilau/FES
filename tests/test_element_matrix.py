@@ -25,7 +25,7 @@ from fes.core.element_matrix import (
 # ── bulk tetrahedron ────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("order", [1, 2, 3])
+@pytest.mark.parametrize("order", [1, 2, 3, 4])
 def test_bulk_matrices_have_their_expected_structure(order: int) -> None:
     geo = np.array(
         [
@@ -61,7 +61,7 @@ def test_vacuum_material_removes_the_conductivity_term() -> None:
     np.testing.assert_array_equal(result.Z, np.zeros((6, 6)))
 
 
-@pytest.mark.parametrize("order", [1, 2])
+@pytest.mark.parametrize("order", [1, 2, 3, 4])
 def test_material_scaling_follows_the_reference_formulas(order: int) -> None:
     geo = np.array(
         [
@@ -130,13 +130,14 @@ def test_face_frame_follows_the_int_node_side() -> None:
 
 
 def test_assembly_order_ceiling_matches_the_reference() -> None:
-    # The bulk constructor builds quad(p+1); v0.1 has rules only up to 4.
-    assert MAX_ASSEMBLY_ORDER == 3
+    # The bulk constructor builds quad(p+1); v0.1 has rules up to 5, so p=4
+    # (quad(5), the 64-point Gauss rule) is the last supported order.
+    assert MAX_ASSEMBLY_ORDER == 4
     geo = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
-    with pytest.raises(ValueError, match="orders 1-3"):
-        element_matrices_3d(4, geo)
-    with pytest.raises(ValueError, match="orders 1-3"):
-        element_matrices_face(4, geo[:3], geo[3])
+    with pytest.raises(ValueError, match="orders 1-4"):
+        element_matrices_3d(5, geo)
+    with pytest.raises(ValueError, match="orders 1-4"):
+        element_matrices_face(5, geo[:3], geo[3])
     with pytest.raises(ValueError):
         element_matrices_3d(0, geo)
 

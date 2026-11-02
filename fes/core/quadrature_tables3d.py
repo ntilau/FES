@@ -133,6 +133,9 @@ X3 = {
     ),
 }
 
+# Quad.cpp:500-510: order 5 reuses the 64-point Gauss rule.
+X3[5] = X3[4]
+
 W3 = {
     1: np.array(
         [
@@ -155,3 +158,6 @@ W3 = {
         ]
     ),
 }
+
+# Quad.cpp:500-510: order 5 reuses the 64-point Gauss rule.
+W3[5] = W3[4]

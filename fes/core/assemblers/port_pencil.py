@@ -36,6 +36,7 @@ __all__ = [
     "_port_eigenpairs_arpack",
     "solve_reduced_pencil",
     "postprocess_modes",
+    "reference_mode_beta",
 ]
 
 #: ``DBL_MIN``, the reference's starting value for ``maxepsr``/``maxmur``.
@@ -185,6 +186,31 @@ def solve_reduced_pencil(
     )
 
 
+def reference_mode_beta(lam) -> np.ndarray:
+    """The reference's ``ModeBeta``: ``sqrt(kc^2 - k0^2)`` with its branch.
+
+    ``Eigen.cpp`` stores ``modeBeta = sqrt(d)`` where ``d`` is the reduced
+    pencil eigenvalue ``lambda = kc^2 - k0^2``.  For a propagating mode
+    ``lambda < 0`` so the result is ``+1j*beta``; for an evanescent mode
+    ``lambda > 0`` it is the real attenuation constant.  The TFE reduction
+    (``AssLin.cpp``) feeds this quantity -- not the physical propagation
+    constant -- into ``sqrtBeta = sqrt(i*k0*Z0*power/ModeBeta)``, so callers
+    that reproduce the reference must use it.
+
+    The eigensolver leaves a rounding-level imaginary part on the otherwise
+    real eigenvalues; its sign would otherwise pick the ``+/-`` branch of the
+    complex square root at random.  The reference's eigenvalues were real
+    enough that ``std::sqrt`` always took the principal branch of the real
+    part, so near-real eigenvalues are rounded back onto the real axis here.
+    """
+    lam = np.asarray(lam, dtype=complex)
+    scale = np.abs(lam)
+    near_real = np.abs(lam.imag) <= 1e-12 * np.maximum(
+        scale, np.finfo(float).tiny
+    )
+    return np.sqrt(np.where(near_real, lam.real.astype(complex), lam))
+
+
 def _reorder_by_previous(beta: np.ndarray, prev_beta) -> np.ndarray:
     """Permutation matching each previous mode to the nearest current ``|beta|``."""
     prev_abs = np.abs(np.asarray(prev_beta, dtype=complex))
@@ -207,6 +233,8 @@ def postprocess_modes(
     apply_B,
     nmodes: int,
     prev_beta=None,
+    *,
+    return_lambda: bool = False,
 ) -> tuple:
     """Select, order, transform and B-orthonormalize the reduced-pencil modes.
 
@@ -218,6 +246,12 @@ def postprocess_modes(
     imaginary part the attenuation.  When *prev_beta* is given, the selected
     modes are reordered to track the previous frequency by nearest
     ``|mode_beta|`` instead of ascending cutoff.
+
+    With *return_lambda*, the selected (and reordered) pencil eigenvalues
+    ``kc^2 - k0^2`` are appended to the tuple.  ``em_e_fd`` needs them because
+    the reference's TFE reduction uses ``ModeBeta = sqrt(lambda)`` -- the
+    eigenvalue's principal square root -- rather than the physical propagation
+    constant.
     """
     lam = np.asarray(lam, dtype=complex)
     vectors = np.asarray(vectors, dtype=complex)
@@ -250,6 +284,7 @@ def postprocess_modes(
     if prev_beta is not None and np.size(prev_beta) == beta.size and beta.size:
         perm = _reorder_by_previous(beta, prev_beta)
         beta = beta[perm]
+        lam = lam[perm]
         vectors = vectors[:, perm]
 
     # B-orthonormalisation matching C++ (AssLin.cpp line 342-343):
@@ -272,4 +307,6 @@ def postprocess_modes(
             mode_vec[:, m] *= -1.0
             mode_vecf[:, m] *= -1.0
 
+    if return_lambda:
+        return beta, mode_vec, mode_vecf, lam
     return beta, mode_vec, mode_vecf

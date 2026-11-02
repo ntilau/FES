@@ -108,17 +108,19 @@ def test_scalar_basis_partitions_unity(order: int) -> None:
     np.testing.assert_allclose(shape.Ns.sum(axis=1), 1.0, atol=1e-12)
 
 
-def test_order_four_face_derivative_quirk() -> None:
-    """``dNs(0,26)`` reproduces the reference's extra ``l3`` factor verbatim."""
-    point = np.array([0.1, 0.2, 0.3])
-    l0 = 1.0 - point.sum()
-    # In the reference's c-ordering bases 26 is l1*l2*l3*(l2-l1) with
-    # (l1, l2, l3) = (y, z, 1-x-y-z); the derivative adds a spurious l3.
-    l1, l2, l3 = point[1], point[2], l0
-    shape = shape_3d(4, point[None, :])
-    assert shape.dNs[0, 26, 0] == pytest.approx(
-        -l1 * l2 * l3 * (l2 - l1), rel=1e-15, abs=1e-15,
-    )
+def test_order_four_curl_layout_follows_the_reference() -> None:
+    """Order 4 fills the same curl columns as ``Shape.cpp`` (and no others).
+
+    The reference leaves the type-2/type-3 edge curls and the ``grad(l_a b4)``
+    interior curls at zero, and three ``FaceP4`` cases have a zero curl.
+    """
+    points = np.array([[0.1, 0.2, 0.3], [0.25, 0.25, 0.25], [0.05, 0.1, 0.7]])
+    shape = shape_3d(4, points)
+    zero = np.where(np.all(shape.dNv == 0.0, axis=(0, 2)))[0].tolist()
+    expected = list(range(6, 12)) + [14, 18, 22, 26] + list(range(28, 40)) + [
+        42, 43, 50, 51, 58, 59, 66, 67, 78, 79, 80, 81,
+    ]
+    assert zero == expected
 
 
 def test_zero_curl_columns_follow_the_reference() -> None:
