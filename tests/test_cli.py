@@ -92,12 +92,12 @@ def test_run_without_driver_reports_not_ported(capsys):
 
 
 def test_em_av_fd_dry_run(capsys):
-    # em_av_fd (Phase 12) has a driver but WR90 carries WavePort boundaries;
-    # at order 1 the port mode computation fails ("not enough dofs on
-    # wave_ports") which the CLI reports as a usage error.
-    assert main(["run", "WR90", "+f", "1e10", "+formula", "em_av_fd", "+p", "1"]) == EXIT_USAGE
-    err = capsys.readouterr().err
-    assert "wave_ports" in err or "Null Right Hand Side" in err
+    # em_av_fd (Phase 12) has a driver and WR90's two WavePort boundaries
+    # carry five modes each, so order 1 solves to a 10 mode S-parameter
+    # table instead of failing with "not enough dofs on wave_ports".
+    assert main(["run", "WR90", "+f", "1e10", "+formula", "em_av_fd", "+p", "1"]) == EXIT_OK
+    text = capsys.readouterr().out
+    assert "10 mode(s)" in text
 
 
 def test_em_h_qs_rejected(capsys):

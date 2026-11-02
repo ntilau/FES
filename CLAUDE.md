@@ -33,13 +33,15 @@ CLI exit codes: `0` success, `1` usage error, `2` formulation not ported, `3` I/
 
 **Reference path** (the only numerical path — read `README.md` "Architecture" before touching it):
 
-- **Reference path** — `fes/core/assemblers/` plus the reference kernels (`shape`, `shape3d`, `quadrature`, `element_matrix`, `dof`, `quadrature_tables3d`) and the mesh backends. It reproduces the v0.1 C++ solver down to loop order, DOF numbering, and output formatting. This path owns the four assembled formulations: `em_e_fd` (curl-curl, default), `em_ez_fd` (2D TMz), `em_e_eig_tl` / `em_e_tl_eig` (eigenmodes), `em_e_qs` (electrostatic).
+- **Reference path** — `fes/core/assemblers/` plus the reference kernels (`shape`, `shape3d`, `quadrature`, `element_matrix`, `dof`, `quadrature_tables3d`) and the mesh backends. It reproduces the FES C++ solver down to loop order, DOF numbering, and output formatting. This path owns the four assembled formulations: `em_e_fd` (curl-curl, default), `em_ez_fd` (2D TMz), `em_e_eig_tl` / `em_e_tl_eig` (eigenmodes), `em_e_qs` (electrostatic).
 
 **Request flow:** `fes/cli.py` (`main()`) parses `+flags` / subcommands (`run`, `sweep`, `mesh`, `sparam`, `eigen`, `info`, `models`) via `fes/core/options.py` (`parse_argv`, `Options`, `ASSEMBLY_TYPES`), builds a `RunPlan` in `fes/api.py` (`plan_run`), resolves the formulation (`effective_assembly`: explicit CLI flag wins, else the `#Formula` tag in the `.poly`), then `dispatch()` looks the assembly up in `fes.api.DRIVERS` (populated lazily by `fes.drivers.install()`). A formulation with no driver raises `NotPortedError`; `em_h_qs` raises `FormulationUnavailableError`. Drivers live in `fes/drivers.py` and hand results to `fes/post/` writers (VTK, Touchstone `.sNp`).
 
 **Formulation phases** (`fes/api.py` FORMULATION_PHASE): `em_ez_fd`=2, `em_e_fd`=6, `em_e_eig_tl`=7, `em_e_tl_eig`=7, `em_e_fd_dd`=9 (not ported), `em_e_fd_nl`=10 (not ported), `em_e_qs`=11.
 
-**Mesh pipeline:** models live as `.poly` files in `data/`; `#Formula` selects the formulation. Triangle meshes 2D and writes an `.npz` cache next to the `.poly`; TetGen meshes 3D on every run and never caches (matching the v0.1 C++ binary). Native mesher sources are expected under `dep/` and are not vendored as binaries.
+`em_e_fd` (phase 6) is verified working: the Python assembler reproduces the C++ solver output (loop order, DOF numbering, formatting) and the full test suite passes (`pytest tests/ -q` → 0 failed). See the `em_e_fd_cpp_match` memory for the Matrix Market comparison details.
+
+**Mesh pipeline:** models live as `.poly` files in `data/`; `#Formula` selects the formulation. Triangle meshes 2D and writes an `.npz` cache next to the `.poly`; TetGen meshes 3D on every run and never caches (matching the FES C++ binary). Native mesher sources are expected under `dep/` and are not vendored as binaries.
 
 **Bundled modules** (independent of the FEM pipeline, MIT licensed, only core deps): `mm` (modal matching), `n2f` (near-field → far-field Huygens/Kottler transforms), `rfm` (Touchstone I/O, Vector Fitting, passivity). Each has its own README and suite under `tests/`.
 

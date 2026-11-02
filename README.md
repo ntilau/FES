@@ -161,7 +161,7 @@ every input tried, so there is no reference result to compare against.
 `+poly_cmd` supplies only the variable middle of the mesher switch string: the
 driver prefixes `p` and appends `AfeQ` (2D) or `AfeeQ` (3D), so `+poly_cmd q`
 yields TetGen's `pqAfeeQ` and `+poly_cmd q34` yields Triangle's `pq34AfeQ`.
-These defaults reproduce the v0.1 solver's meshes; changing them changes the
+These defaults reproduce the C++ solver's meshes; changing them changes the
 mesh and breaks numerical agreement.
 
 ## Architecture
@@ -273,7 +273,7 @@ file.
 A 2D model's mesh is loaded from `<name>.npz`; if absent it is meshed from the
 `.poly` and written back as `.npz`. `fes mesh --out DIR` writes the cache
 elsewhere. 3D models are meshed
-with TetGen on every run and are never cached, matching the v0.1 C++ version.
+with TetGen on every run and are never cached, matching the C++ version.
 
 Native library discovery can be overridden with `FES_TRIANGLE` (Triangle) and
 `FES_TETGEN_LIB` (TetGen shim).

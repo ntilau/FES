@@ -66,13 +66,17 @@ def test_assemble_bulk_wr90_order1():
     mesh.build_topology()
 
     from fes.constants import C0, PI
+    from fes.core.dof import scalar_dof_count, vector_dof_count
 
     order = 1
     freq = 1e10
     k0 = 2.0 * PI * freq / C0
     kk = k0 * k0
-    dofnum_s = 8  # WR90 has 8 nodes
-    dofnum_v = 33  # WR90 has 33 edges
+    # TetGen refines the PLC: WR90 meshes to 556 nodes and 3053 edges, so the
+    # DOF counts come from the mesh (3609 total at order 1), not the .poly
+    # header counts (8 nodes / 33 edges).
+    dofnum_s = scalar_dof_count(mesh, order)
+    dofnum_v = vector_dof_count(mesh, order)
     dofnum = dofnum_s + dofnum_v
 
     dirdofs_s, dirdofs_v, marked = _collect_pec(mesh, order)
@@ -91,13 +95,16 @@ def test_assemble_bulk_wr90_order1():
 def test_assemble_em_av_fd_raises_without_ports():
     """Without waveports or an incident wave, the assembler raises
     Null Right Hand Side, same as em_e_fd.  WR90 carries WavePort
-    boundaries, so at order 1 the port mode computation fails with
-    ValueError instead ("not enough dofs on wave_ports"); at order 2 it
-    proceeds to the TFE reduction."""
+    boundaries, so they are removed from the mesh to leave a PEC-only
+    waveguide."""
     from fes.core.assemblers.errors import NullRightHandSideError
     mesh = mesh3d_from_poly("data/WR90.poly")
     mesh.build_topology()
-    with pytest.raises((NullRightHandSideError, ValueError)):
+    mesh.boundaries = [
+        bc for bc in mesh.boundaries
+        if bc.type not in ("WavePort", "LumpedPort")
+    ]
+    with pytest.raises(NullRightHandSideError):
         assemble_em_av_fd(mesh, 1e10, 1)
 
 

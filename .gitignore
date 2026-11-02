@@ -18,7 +18,7 @@ data/*.h*.mat
 data/*.h*.mat.npz
 *.log
 *.o
-*.s?p
+*.s*p
 # Bundled RFM example data is source, not generated output.
 !rfm/data/*.s2p
 *.fes

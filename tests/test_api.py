@@ -136,13 +136,13 @@ def test_em_e_eig_tl_normalizes_to_em_e_tl_eig():
 
 
 def test_em_av_fd_is_ported():
-    """em_av_fd (Phase 12) now has a driver; without waveports it raises
-    ``Null Right Hand Side`` like em_e_fd.  WR90 carries WavePort boundaries,
-    so at order 1 the port mode computation fails with ValueError instead
-    ("not enough dofs on wave_ports")."""
-    from fes.core.assemblers.errors import NullRightHandSideError
-    with pytest.raises((NullRightHandSideError, ValueError)):
-        run("WR90", argv=["+f", "1e10", "+formula", "em_av_fd", "+p", "1"])
+    """em_av_fd (Phase 12) now has a driver and solves WR90 at order 1:
+    WR90's two WavePort boundaries carry five modes each, so the TFE
+    reduction yields a 10 x 10 S-parameter matrix instead of an error."""
+    result = run("WR90", argv=["+f", "1e10", "+formula", "em_av_fd", "+p", "1"])
+    system = result.systems[0]
+    assert system.S is not None
+    assert system.S.shape == (10, 10)
 
 
 def test_sweep_plan():

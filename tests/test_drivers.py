@@ -144,21 +144,23 @@ def test_matlab_mode_dumps_system_matrices(tmp_path: Path) -> None:
 
 
 @pytest.mark.tetgen
-def test_run_em_e_fd_writes_a_six_port_touchstone(tmp_path: Path) -> None:
+def test_run_em_e_fd_writes_a_ten_port_touchstone(tmp_path: Path) -> None:
+    """WR90's two WavePort boundaries carry five modes each (declared in the
+    .poly), so the driven solve writes a 10-port Touchstone file."""
     options = parse_argv([str(REPO / "data" / "WR90.poly"), "+f", "1e10", "+p", "2"])
     plan = api.plan_run(options=options, command="run")
     plan.output_dir = str(tmp_path)
     api.load_drivers()
     result = api.DRIVERS[plan.assembly](plan)
     assert plan.assembly == "em_e_fd"
-    path = tmp_path / "WR90.s6p"
+    path = tmp_path / "WR90.s10p"
     assert path.is_file()
     data = read_touchstone(path)
     assert list(data) == [10.0]
     # The Touchstone file keeps nine significant digits per value; the 3D
     # entries reach O(1), so the round trip needs a relative bound.
     np.testing.assert_allclose(
-        np.asarray(data[10.0]).reshape(6, 6), result.systems[0].S,
+        np.asarray(data[10.0]).reshape(10, 10), result.systems[0].S,
         rtol=1e-7, atol=5e-9,
     )
 
